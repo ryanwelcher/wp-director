@@ -1,0 +1,18 @@
+{
+  "name": "playwright-recorder",
+  "version": "1.0.0",
+  "description": "Record video walkthroughs of websites using Playwright",
+  "scripts": {
+    "record": "playwright test",
+    "record:wp": "playwright test recordings/wp-admin.spec.js recordings/wp-frontend.spec.js",
+    "record:external": "playwright test recordings/example.spec.js",
+    "record:steps": "playwright test recordings/steps-runner.spec.js",
+    "record:step": "playwright test recordings/steps-runner.spec.js --grep",
+    "show-report": "playwright show-report",
+    "show-trace": "playwright show-trace"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.0",
+    "@wp-playground/cli": "^3.1.20"
+  }
+}

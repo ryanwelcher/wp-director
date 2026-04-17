@@ -1,0 +1,5 @@
+node_modules/
+.wp-playground.pid
+output/
+test-results/
+playwright-report/

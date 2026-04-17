@@ -1,0 +1,40 @@
+{
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "landingPage": "/wp-admin/",
+  "login": true,
+  "steps": [
+    {
+      "step": "installPlugin",
+      "pluginData": {
+        "resource": "wordpress.org/plugins",
+        "slug": "hello-dolly"
+      }
+    },
+    {
+      "step": "activatePlugin",
+      "pluginPath": "hello-dolly/hello.php"
+    },
+    {
+      "step": "installTheme",
+      "themeData": {
+        "resource": "wordpress.org/themes",
+        "slug": "twentytwentyfour"
+      }
+    },
+    {
+      "step": "activateTheme",
+      "themeFolderName": "twentytwentyfour"
+    },
+    {
+      "step": "setSiteOptions",
+      "options": {
+        "blogname": "My Playground Site",
+        "blogdescription": "A disposable WordPress site for recording"
+      }
+    },
+    {
+      "step": "runPHP",
+      "code": "<?php require_once '/wordpress/wp-load.php'; wp_insert_post(['post_title' => 'About Us', 'post_status' => 'publish', 'post_type' => 'page', 'post_content' => '<!-- wp:paragraph --><p>Welcome to our about page.</p><!-- /wp:paragraph -->']);"
+    }
+  ]
+}

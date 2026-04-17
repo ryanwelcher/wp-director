@@ -15,13 +15,27 @@ npm run record:step -- "name"  # run a single step definition by name (grep matc
 
 ## Natural language UI (`server.js` + `public/`)
 
-A local Express server that lets you build step definitions by typing plain English commands. Each command is sent to the Claude API, which translates it into one or more JSON steps using the existing action vocabulary. Steps accumulate in a live editor — you can directly edit the JSON to adjust values before running.
+A local Express server that lets you build step definitions by typing plain English commands. Each command is sent to the Claude API, which translates it into one or more JSON steps using the existing action vocabulary. Steps accumulate in a live editor with inline-editable fields. You can toggle between the human-readable step list and the raw JSON view at any time.
 
-- `server.js` — Express server with three endpoints:
-  - `GET /` — serves the UI
-  - `POST /api/translate` — translates a natural language command to JSON steps via Claude (`claude-sonnet-4-6`)
-  - `POST /api/run` — writes the accumulated steps to `steps/<name>.json`, runs only that test via `--grep`, streams output as SSE
-- `public/index.html` / `public/app.js` / `public/style.css` — single-page UI
+### Server endpoints
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| `GET` | `/` | Serves the UI |
+| `POST` | `/api/translate` | Translates a natural language command to JSON steps via Claude (`claude-sonnet-4-6`) |
+| `POST` | `/api/run` | Writes steps to `steps/<name>.json`, runs that test via `--grep`, streams stdout/stderr as SSE |
+| `POST` | `/api/run/batch` | Runs multiple saved scripts (by name) via a combined `--grep` pattern, streams SSE; optionally restarts Playground with a custom blueprint first |
+| `GET` | `/api/scripts` | Lists all saved step files from `steps/` |
+| `POST` | `/api/scripts/save` | Saves current steps to `steps/<name>.json` |
+| `DELETE` | `/api/scripts/:filename` | Deletes a saved step file |
+| `POST` | `/api/blueprint` | Generates a WP Playground blueprint from a natural language description via Claude |
+| `GET` | `/api/default-blueprint` | Returns the contents of `blueprint.json` |
+| `POST` | `/api/preview-blueprint` | Starts a second Playground instance (port 9401) with the given blueprint; returns the preview URL |
+| `GET` | `/api/screencast` | SSE stream of live JPEG frames from Chrome via CDP `Page.screencastFrame` |
+
+### Live preview
+
+The Live Preview panel streams the running browser directly using the Chrome DevTools Protocol. The server connects to Chrome's remote debugging port (9222), calls `Page.startScreencast`, and forwards JPEG frames to the UI over SSE. Chrome is launched with `--remote-debugging-port=9222` via `launchOptions` in `playwright.config.js`.
 
 **API key:** set `ANTHROPIC_API_KEY` in `.env` (gitignored). The server loads it via `dotenv`.
 
@@ -32,6 +46,7 @@ A local Express server that lets you build step definitions by typing plain Engl
 - `global-setup.js` — spawns `@wp-playground/cli server`, waits for "Ready!" in stdout, writes PID to `.wp-playground.pid`
 - `global-teardown.js` — kills the PID from `.wp-playground.pid`
 - `blueprint.json` — pre-configures the WP instance (plugins, theme, sample content)
+- `blueprint.generated.json` / `blueprint.preview.json` — runtime-generated files, gitignored
 - `recordings/` — test specs; output lands in `output/`
 
 ## Critical gotchas

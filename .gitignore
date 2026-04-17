@@ -4,3 +4,5 @@ node_modules/
 output/
 test-results/
 playwright-report/
+blueprint.generated.json
+blueprint.preview.json

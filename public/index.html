@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Playwright Recorder</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Playwright Recorder</h1>
+    <p>Describe each action in plain English — steps will be added one at a time.</p>
+  </header>
+
+  <div class="command-bar">
+    <input id="command-input" type="text" placeholder="e.g. install the advanced query loop plugin and activate it" autocomplete="off">
+    <button id="add-btn">Add Step</button>
+  </div>
+
+  <div id="status" class="status hidden"></div>
+
+  <div class="workspace">
+    <div class="panel">
+      <h2>Steps <span id="step-count">(0)</span></h2>
+      <ul id="step-list"></ul>
+      <p id="empty-hint" class="hint">No steps yet. Type a command above to begin.</p>
+    </div>
+    <div class="panel">
+      <h2>JSON <span class="hint-inline">— edit directly to adjust steps</span></h2>
+      <textarea id="json-preview" spellcheck="false">[]</textarea>
+      <p id="json-error" class="json-error hidden"></p>
+    </div>
+  </div>
+
+  <footer>
+    <button id="clear-btn" class="secondary">Clear</button>
+    <label>
+      Name:
+      <input id="name-input" type="text" placeholder="my-recording" value="my-recording">
+    </label>
+    <button id="run-btn" class="primary" disabled>&#9654; Run</button>
+  </footer>
+
+  <div id="log-panel" class="log-panel hidden">
+    <div class="log-header">
+      <h2>Output</h2>
+      <button id="close-log">&#x2715;</button>
+    </div>
+    <pre id="log-output"></pre>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+{
+  "name": "my-recording",
+  "steps": [
+    {
+      "action": "wpInstallPlugin",
+      "slug": "advanced-query-loop",
+      "activate": true
+    },
+    {
+      "action": "wait",
+      "ms": 600
+    },
+    {
+      "action": "wpNavigate",
+      "screen": "new-post"
+    },
+    {
+      "action": "wait",
+      "ms": 800
+    },
+    {
+      "action": "waitForSelector",
+      "selector": "iframe[name=\"editor-canvas\"]",
+      "timeout": 10000
+    },
+    {
+      "action": "frameLocator",
+      "selector": "iframe[name=\"editor-canvas\"]"
+    },
+    {
+      "action": "wpInsertBlock",
+      "blockType": "advanced query loop"
+    },
+    {
+      "action": "exitFrame"
+    },
+    {
+      "action": "wait",
+      "ms": 500
+    },
+    {
+      "action": "screenshot"
+    }
+  ]
+}

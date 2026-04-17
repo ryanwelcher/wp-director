@@ -1,16 +1,31 @@
 # playwright-recorder
 
-Records video walkthroughs of WordPress sites using Playwright + WordPress Playground CLI.
+Records video walkthroughs of WordPress sites using Playwright + WordPress Playground CLI. Includes a natural language UI for generating step definitions without writing JSON by hand.
 
 ## Running
 
 ```bash
+npm start                # start the natural language UI at http://localhost:3000
 npm run record:wp        # WP admin + frontend recordings
 npm run record:external  # external site example (playwright.dev)
 npm run record           # all recordings
 npm run record:steps     # run all JSON step definition files from steps/
 npm run record:step -- "name"  # run a single step definition by name (grep match)
 ```
+
+## Natural language UI (`server.js` + `public/`)
+
+A local Express server that lets you build step definitions by typing plain English commands. Each command is sent to the Claude API, which translates it into one or more JSON steps using the existing action vocabulary. Steps accumulate in a live editor — you can directly edit the JSON to adjust values before running.
+
+- `server.js` — Express server with three endpoints:
+  - `GET /` — serves the UI
+  - `POST /api/translate` — translates a natural language command to JSON steps via Claude (`claude-sonnet-4-6`)
+  - `POST /api/run` — writes the accumulated steps to `steps/<name>.json`, runs only that test via `--grep`, streams output as SSE
+- `public/index.html` / `public/app.js` / `public/style.css` — single-page UI
+
+**API key:** set `ANTHROPIC_API_KEY` in `.env` (gitignored). The server loads it via `dotenv`.
+
+**Run isolation:** the UI's Run button uses `--grep <name>` so only the generated recording runs, not other files in `steps/`.
 
 ## Architecture
 
@@ -71,4 +86,4 @@ Step definitions live in `steps/*.json`. Each file is one recording:
 
 ## Long-term goal
 
-Turn this into a standalone CLI application — config-driven, easy to distribute.
+Turn this into a standalone distributable application. The natural language UI (`npm start`) is the first step toward that — the eventual goal is a self-contained tool that doesn't require manual Playwright/Node setup.

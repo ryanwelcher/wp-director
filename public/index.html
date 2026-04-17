@@ -12,25 +12,41 @@
     <p>Describe each action in plain English — steps will be added one at a time.</p>
   </header>
 
-  <!-- Blueprint config (collapsible) -->
-  <details id="blueprint-section">
-    <summary>
-      <span>Environment / Blueprint</span>
-      <span id="blueprint-badge" class="badge hidden">custom</span>
-    </summary>
-    <div class="blueprint-body">
-      <div class="blueprint-command-bar">
-        <input id="blueprint-input" type="text" placeholder="e.g. WordPress 6.5, install Query Monitor and Advanced Query Loop" autocomplete="off">
-        <button id="blueprint-btn">Generate</button>
-        <button id="blueprint-reset-btn" class="secondary">Reset</button>
-      </div>
-      <div id="blueprint-status" class="status hidden"></div>
-      <div class="blueprint-editor">
-        <textarea id="blueprint-preview" spellcheck="false"></textarea>
-        <p id="blueprint-error" class="json-error hidden"></p>
+  <div class="command-bar">
+    <input id="command-input" type="text" placeholder="e.g. install the advanced query loop plugin and activate it" autocomplete="off">
+    <button id="add-btn">Add Step</button>
+  </div>
+
+  <div id="status" class="status hidden"></div>
+
+  <div class="action-bar">
+    <button id="clear-btn" class="secondary">Clear</button>
+    <label>
+      Name:
+      <input id="name-input" type="text" placeholder="my-recording" value="my-recording">
+    </label>
+    <button id="save-btn" class="secondary" disabled>Save Script</button>
+    <button id="run-btn" class="primary" disabled>&#9654; Run</button>
+  </div>
+
+  <div class="workspace">
+    <div class="panel" id="steps-panel">
+      <h2>Steps <span id="step-count">(0)</span></h2>
+      <ul id="step-list"></ul>
+      <p id="empty-hint" class="hint">No steps yet. Type a command above to begin.</p>
+    </div>
+    <div class="panel" id="preview-panel">
+      <h2>Live Preview</h2>
+      <div id="preview-container">
+        <div id="preview-placeholder">No preview yet — start a run to see the browser live.</div>
+        <img id="preview-img" src="" alt="Browser preview" hidden>
       </div>
     </div>
-  </details>
+  </div>
+
+  <!-- Hidden JSON — kept functional, not shown -->
+  <textarea id="json-preview" spellcheck="false" aria-hidden="true" style="display:none">[]</textarea>
+  <p id="json-error" class="json-error hidden" aria-hidden="true"></p>
 
   <!-- Saved Scripts (collapsible) -->
   <details id="saved-scripts-section">
@@ -52,43 +68,33 @@
     </div>
   </details>
 
-  <div class="command-bar">
-    <input id="command-input" type="text" placeholder="e.g. install the advanced query loop plugin and activate it" autocomplete="off">
-    <button id="add-btn">Add Step</button>
-  </div>
-
-  <div id="status" class="status hidden"></div>
-
-  <div class="workspace">
-    <div class="panel">
-      <h2>Steps <span id="step-count">(0)</span></h2>
-      <ul id="step-list"></ul>
-      <p id="empty-hint" class="hint">No steps yet. Type a command above to begin.</p>
+  <!-- Blueprint config (collapsible) -->
+  <details id="blueprint-section">
+    <summary>
+      <span>Environment / Blueprint</span>
+      <span id="blueprint-badge" class="badge hidden">custom</span>
+    </summary>
+    <div class="blueprint-body">
+      <div class="blueprint-command-bar">
+        <input id="blueprint-input" type="text" placeholder="e.g. WordPress 6.5, install Query Monitor and Advanced Query Loop" autocomplete="off">
+        <button id="blueprint-btn">Generate</button>
+        <button id="blueprint-reset-btn" class="secondary">Reset</button>
+      </div>
+      <div id="blueprint-status" class="status hidden"></div>
+      <div class="blueprint-editor">
+        <textarea id="blueprint-preview" spellcheck="false"></textarea>
+        <p id="blueprint-error" class="json-error hidden"></p>
+      </div>
     </div>
-    <div class="panel">
-      <h2>JSON <span class="hint-inline">— edit directly to adjust steps</span></h2>
-      <textarea id="json-preview" spellcheck="false">[]</textarea>
-      <p id="json-error" class="json-error hidden"></p>
-    </div>
-  </div>
+  </details>
 
-  <footer>
-    <button id="clear-btn" class="secondary">Clear</button>
-    <label>
-      Name:
-      <input id="name-input" type="text" placeholder="my-recording" value="my-recording">
-    </label>
-    <button id="save-btn" class="secondary" disabled>Save Script</button>
-    <button id="run-btn" class="primary" disabled>&#9654; Run</button>
-  </footer>
-
-  <div id="log-panel" class="log-panel hidden">
-    <div class="log-header">
-      <h2>Output</h2>
-      <button id="close-log">&#x2715;</button>
-    </div>
+  <details id="log-panel">
+    <summary id="log-summary">
+      <span>Output</span>
+      <span id="log-badge" class="badge hidden">running</span>
+    </summary>
     <pre id="log-output"></pre>
-  </div>
+  </details>
 
   <script src="app.js"></script>
 </body>

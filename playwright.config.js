@@ -12,7 +12,7 @@ module.exports = defineConfig({
 
   use: {
     baseURL: 'http://127.0.0.1:9400',
-    headless: false, // show the browser window as it runs
+    headless: true,
     viewport: { width: 1920, height: 1080 },
     video: {
       mode: 'on',
@@ -22,6 +22,7 @@ module.exports = defineConfig({
     screenshot: 'on', // capture screenshots on each step
     launchOptions: {
       slowMo: 500,  // slow down actions so the recording is easier to follow
+      args: ['--remote-debugging-port=9222'],
     },
   },
   projects: [

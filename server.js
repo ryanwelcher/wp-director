@@ -4,6 +4,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
+const WebSocket = require('ws');
 const Anthropic = require('@anthropic-ai/sdk');
 
 const app = express();
@@ -335,6 +336,58 @@ app.post('/api/run/batch', async (req, res) => {
     send({ type: 'done', code });
     res.end();
   });
+});
+
+app.get('/api/screencast', async (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  const send = (data) => res.write(`data: ${JSON.stringify(data)}\n\n`);
+
+  // Poll until Chrome's remote debugging port is ready (up to 30s)
+  let wsUrl = null;
+  for (let i = 0; i < 60; i++) {
+    try {
+      const r = await fetch('http://localhost:9222/json');
+      const targets = await r.json();
+      const target = targets.find((t) => t.type === 'page');
+      if (target?.webSocketDebuggerUrl) { wsUrl = target.webSocketDebuggerUrl; break; }
+    } catch {}
+    await new Promise((r) => setTimeout(r, 500));
+  }
+
+  if (!wsUrl) {
+    send({ type: 'error', message: 'Chrome remote debugging not available' });
+    return res.end();
+  }
+
+  const ws = new WebSocket(wsUrl);
+  let msgId = 0;
+
+  ws.on('open', () => {
+    ws.send(JSON.stringify({
+      id: ++msgId,
+      method: 'Page.startScreencast',
+      params: { format: 'jpeg', quality: 80, maxWidth: 1280, maxHeight: 800 },
+    }));
+  });
+
+  ws.on('message', (raw) => {
+    const msg = JSON.parse(raw.toString());
+    if (msg.method === 'Page.screencastFrame') {
+      send({ type: 'frame', data: msg.params.data });
+      ws.send(JSON.stringify({
+        id: ++msgId,
+        method: 'Page.screencastFrameAck',
+        params: { sessionId: msg.params.sessionId },
+      }));
+    }
+  });
+
+  ws.on('error', () => {});
+
+  req.on('close', () => ws.close());
 });
 
 app.post('/api/run', async (req, res) => {

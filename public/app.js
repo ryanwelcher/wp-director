@@ -25,9 +25,16 @@ const blueprintError = document.getElementById('blueprint-error');
 const blueprintBadge = document.getElementById('blueprint-badge');
 
 // ── Log elements ──────────────────────────────────────────────────────────────
-const logPanel = document.getElementById('log-panel');
+/** @type {HTMLDetailsElement} */
+const logPanel = /** @type {any} */ (document.getElementById('log-panel'));
 const logOutput = document.getElementById('log-output');
-const closeLog = document.getElementById('close-log');
+const logBadge = document.getElementById('log-badge');
+
+// ── Preview elements ──────────────────────────────────────────────────────────
+const previewPanel       = document.getElementById('preview-panel');
+const previewImg         = document.getElementById('preview-img');
+const previewPlaceholder = document.getElementById('preview-placeholder');
+previewImg.addEventListener('error', () => { previewImg.src = ''; });
 
 // ── Saved Scripts elements ────────────────────────────────────────────────────
 const saveBtn = document.getElementById('save-btn');
@@ -36,6 +43,36 @@ const savedCountBadge = document.getElementById('saved-count-badge');
 const selectAllCheckbox = /** @type {HTMLInputElement} */ (document.getElementById('select-all-scripts'));
 const selectedCountEl = document.getElementById('selected-count');
 const runBatchBtn = document.getElementById('run-batch-btn');
+
+// ── Preview screencast ────────────────────────────────────────────────────────
+/** @type {EventSource|null} */
+let screencastSource = null;
+
+function startScreencast() {
+  if (screencastSource) return;
+  previewPlaceholder.textContent = 'Connecting to browser…';
+  previewPanel.classList.add('polling');
+
+  screencastSource = new EventSource('/api/screencast');
+  screencastSource.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'frame') {
+      previewImg.src = `data:image/jpeg;base64,${msg.data}`;
+      previewPlaceholder.hidden = true;
+      previewImg.hidden = false;
+    }
+  };
+  screencastSource.onerror = () => {};
+}
+
+function stopScreencast() {
+  if (screencastSource) { screencastSource.close(); screencastSource = null; }
+  previewPanel.classList.remove('polling');
+  previewPlaceholder.textContent = 'No preview yet.';
+  previewPlaceholder.hidden = false;
+  previewImg.hidden = true;
+  previewImg.src = '';
+}
 
 // ── State ─────────────────────────────────────────────────────────────────────
 /** @type {Array<object>} */
@@ -292,8 +329,11 @@ function resetBlueprint() {
 async function runSteps() {
   const name = nameInput.value.trim() || `recording-${Date.now()}`;
   logOutput.textContent = '';
-  logPanel.classList.remove('hidden');
+  logPanel.open = true;
+  logBadge.textContent = 'running';
+  logBadge.classList.remove('hidden');
   runBtn.disabled = true;
+  startScreencast();
 
   const res = await fetch('/api/run', {
     method: 'POST',
@@ -321,7 +361,10 @@ async function runSteps() {
           logOutput.textContent += msg.text;
           logOutput.scrollTop = logOutput.scrollHeight;
         } else if (msg.type === 'done') {
+          stopScreencast();
           logOutput.textContent += `\n--- Done (exit ${msg.code}) ---\n`;
+          logBadge.textContent = msg.code === 0 ? 'passed' : 'failed';
+          logBadge.className = 'badge' + (msg.code === 0 ? ' badge-pass' : ' badge-fail');
           runBtn.disabled = steps.length === 0;
         }
       } catch {}
@@ -436,8 +479,11 @@ async function saveScript() {
 
 async function runBatch() {
   logOutput.textContent = '';
-  logPanel.classList.remove('hidden');
+  logPanel.open = true;
+  logBadge.textContent = 'running';
+  logBadge.classList.remove('hidden');
   runBatchBtn.disabled = true;
+  startScreencast();
 
   const res = await fetch('/api/run/batch', {
     method: 'POST',
@@ -465,7 +511,11 @@ async function runBatch() {
           logOutput.textContent += msg.text;
           logOutput.scrollTop = logOutput.scrollHeight;
         } else if (msg.type === 'done') {
+          stopScreencast();
           logOutput.textContent += `\n--- Done (exit ${msg.code}) ---\n`;
+          logBadge.textContent = msg.code === 0 ? 'passed' : 'failed';
+          logBadge.className = 'badge' + (msg.code === 0 ? ' badge-pass' : ' badge-fail');
+          logBadge.classList.remove('hidden');
           runBatchBtn.disabled = selectedScripts.length === 0;
         }
       } catch {}
@@ -478,7 +528,7 @@ addBtn.addEventListener('click', addCommand);
 commandInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addCommand(); });
 clearBtn.addEventListener('click', () => { steps = []; renderSteps(); });
 runBtn.addEventListener('click', runSteps);
-closeLog.addEventListener('click', () => logPanel.classList.add('hidden'));
+
 jsonPreview.addEventListener('input', onStepsEdit);
 
 blueprintBtn.addEventListener('click', generateBlueprint);

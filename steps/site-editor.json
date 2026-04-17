@@ -1,0 +1,18 @@
+{
+  "name": "Site editor",
+  "steps": [
+    {
+      "action": "wpNavigate",
+      "screen": "site-editor"
+    },
+    {
+      "action": "click",
+      "selector": ".wp-block-navigation-item a[href*='templates'], a[href*='templates']"
+    },
+    {
+      "action": "waitForSelector",
+      "selector": ".wp-block-template-part, .edit-site-templates__grid, [aria-label='Templates']",
+      "timeout": 5000
+    }
+  ]
+}

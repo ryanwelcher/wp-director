@@ -74,47 +74,25 @@ header p {
   padding: 0 1.5rem 1rem;
 }
 
-.blueprint-command-bar {
+.blueprint-toolbar {
   display: flex;
-  gap: 0.6rem;
+  justify-content: flex-end;
   margin-bottom: 0.6rem;
 }
 
-.blueprint-command-bar input {
-  flex: 1;
-  background: #1a2035;
-  border: 1px solid #2d3748;
+.blueprint-toolbar button.secondary {
+  background: transparent;
+  border: 1px solid #374151;
   border-radius: 6px;
-  color: #f1f5f9;
-  font-size: 0.88rem;
-  padding: 0.5rem 0.8rem;
-  outline: none;
-  transition: border-color 0.15s;
-}
-
-.blueprint-command-bar input:focus { border-color: #6366f1; }
-
-.blueprint-command-bar button {
-  background: #6366f1;
-  border: none;
-  border-radius: 6px;
-  color: #fff;
+  color: #94a3b8;
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 500;
-  padding: 0.5rem 1rem;
-  transition: background 0.15s;
+  padding: 0.4rem 0.8rem;
+  transition: border-color 0.15s, color 0.15s;
   white-space: nowrap;
 }
-
-.blueprint-command-bar button:hover { background: #4f46e5; }
-.blueprint-command-bar button:disabled { background: #374151; cursor: not-allowed; }
-.blueprint-command-bar button.secondary {
-  background: transparent;
-  border: 1px solid #374151;
-  color: #94a3b8;
-}
-.blueprint-command-bar button.secondary:hover { border-color: #6b7280; color: #e2e8f0; background: transparent; }
+.blueprint-toolbar button.secondary:hover { border-color: #6b7280; color: #e2e8f0; }
 
 .blueprint-editor { position: relative; }
 

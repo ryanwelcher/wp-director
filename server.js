@@ -11,7 +11,10 @@ const app = express();
 const client = new Anthropic.default();
 
 const PID_FILE = path.join(__dirname, '.wp-playground.pid');
+const PREVIEW_PID_FILE = path.join(__dirname, '.wp-playground-preview.pid');
 const GENERATED_BLUEPRINT = path.join(__dirname, 'blueprint.generated.json');
+const PREVIEW_BLUEPRINT = path.join(__dirname, 'blueprint.preview.json');
+const PREVIEW_PORT = 9401;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -182,6 +185,40 @@ function startPlayground(blueprintPath, onData) {
   });
 }
 
+function killPreviewPlayground() {
+  if (!fs.existsSync(PREVIEW_PID_FILE)) return;
+  const pid = parseInt(fs.readFileSync(PREVIEW_PID_FILE, 'utf8'));
+  try { process.kill(pid, 'SIGTERM'); } catch {}
+  fs.unlinkSync(PREVIEW_PID_FILE);
+}
+
+function startPreviewPlayground(blueprintPath) {
+  return new Promise((resolve, reject) => {
+    const server = spawn(
+      'npx',
+      ['@wp-playground/cli', 'server', `--port=${PREVIEW_PORT}`, '--login', `--blueprint=${blueprintPath}`],
+      { stdio: ['ignore', 'pipe', 'pipe'], detached: true, cwd: __dirname }
+    );
+
+    const timeout = setTimeout(
+      () => reject(new Error('Preview Playground did not start within 120s')),
+      120_000
+    );
+
+    server.stdout.on('data', (data) => {
+      if (data.toString().includes('Ready!')) {
+        clearTimeout(timeout);
+        fs.writeFileSync(PREVIEW_PID_FILE, server.pid.toString());
+        server.unref();
+        resolve();
+      }
+    });
+
+    server.stderr.on('data', () => {});
+    server.on('error', (err) => { clearTimeout(timeout); reject(err); });
+  });
+}
+
 // ─── API endpoints ────────────────────────────────────────────────────────────
 
 app.post('/api/translate', async (req, res) => {
@@ -261,6 +298,31 @@ app.post('/api/blueprint', async (req, res) => {
     const toolUse = message.content.find((b) => b.type === 'tool_use');
     const blueprint = normalizeBlueprintShorthands(toolUse?.input ?? {});
     res.json({ blueprint });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/default-blueprint', (req, res) => {
+  try {
+    const bp = JSON.parse(fs.readFileSync(path.join(__dirname, 'blueprint.json'), 'utf8'));
+    res.json({ blueprint: bp });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/preview-blueprint', async (req, res) => {
+  const { blueprint } = req.body;
+  if (!blueprint) return res.status(400).json({ error: 'blueprint required' });
+
+  try {
+    killPreviewPlayground();
+    fs.writeFileSync(PREVIEW_BLUEPRINT, JSON.stringify(blueprint, null, 2));
+    await startPreviewPlayground(PREVIEW_BLUEPRINT);
+    const landingPage = blueprint.landingPage || '/';
+    res.json({ url: `http://localhost:${PREVIEW_PORT}${landingPage}` });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });

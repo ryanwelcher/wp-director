@@ -15,10 +15,8 @@ const runBtn = document.getElementById('run-btn');
 const statusEl = document.getElementById('status');
 
 // ── Blueprint elements ────────────────────────────────────────────────────────
-const blueprintInput = document.getElementById('blueprint-input');
-const blueprintBtn = document.getElementById('blueprint-btn');
+const blueprintTestBtn = document.getElementById('blueprint-test-btn');
 const blueprintResetBtn = document.getElementById('blueprint-reset-btn');
-const blueprintStatusEl = document.getElementById('blueprint-status');
 /** @type {HTMLTextAreaElement} */
 const blueprintPreview = /** @type {any} */ (document.getElementById('blueprint-preview'));
 const blueprintError = document.getElementById('blueprint-error');
@@ -79,6 +77,8 @@ function stopScreencast() {
 let steps = [];
 /** @type {object|null} */
 let blueprint = null;
+/** @type {object|null} */
+let defaultBlueprint = null;
 let updatingStepsFromCode = false;
 let updatingBlueprintFromCode = false;
 /** @type {string[]} */
@@ -213,7 +213,8 @@ function renderBlueprint() {
   updatingBlueprintFromCode = false;
   blueprintPreview.classList.remove('invalid');
   blueprintError.classList.add('hidden');
-  blueprintBadge.classList.toggle('hidden', !blueprint);
+  const isModified = defaultBlueprint && JSON.stringify(blueprint) !== JSON.stringify(defaultBlueprint);
+  blueprintBadge.classList.toggle('hidden', !isModified);
 }
 
 // ── Status helpers ────────────────────────────────────────────────────────────
@@ -245,7 +246,7 @@ function onBlueprintEdit() {
   if (updatingBlueprintFromCode) return;
   const val = blueprintPreview.value.trim();
   if (!val) {
-    blueprint = null;
+    blueprint = defaultBlueprint;
     blueprintPreview.classList.remove('invalid');
     blueprintError.classList.add('hidden');
     blueprintBadge.classList.add('hidden');
@@ -255,7 +256,8 @@ function onBlueprintEdit() {
     blueprint = JSON.parse(val);
     blueprintPreview.classList.remove('invalid');
     blueprintError.classList.add('hidden');
-    blueprintBadge.classList.remove('hidden');
+    const isModified = defaultBlueprint && JSON.stringify(blueprint) !== JSON.stringify(defaultBlueprint);
+    blueprintBadge.classList.toggle('hidden', !isModified);
   } catch (err) {
     blueprintPreview.classList.add('invalid');
     blueprintError.textContent = err.message;
@@ -293,37 +295,33 @@ async function addCommand() {
   }
 }
 
-async function generateBlueprint() {
-  const command = blueprintInput.value.trim();
-  if (!command) return;
-
-  blueprintBtn.disabled = true;
-  blueprintInput.disabled = true;
-  setStatus(blueprintStatusEl, 'Generating blueprint…');
-
-  try {
-    const res = await fetch('/api/blueprint', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ command }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Blueprint generation failed');
-    blueprint = data.blueprint;
-    renderBlueprint();
-    blueprintInput.value = '';
-    setStatus(blueprintStatusEl, 'Blueprint generated');
-  } catch (err) {
-    setStatus(blueprintStatusEl, err.message, true);
-  } finally {
-    blueprintBtn.disabled = false;
-    blueprintInput.disabled = false;
-  }
+function resetBlueprint() {
+  blueprint = defaultBlueprint;
+  renderBlueprint();
 }
 
-function resetBlueprint() {
-  blueprint = null;
-  renderBlueprint();
+async function testBlueprint() {
+  if (!blueprint) return;
+  blueprintTestBtn.disabled = true;
+  blueprintTestBtn.textContent = 'Starting…';
+
+  try {
+    const res = await fetch('/api/preview-blueprint', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ blueprint }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to start preview');
+    window.open(data.url, '_blank');
+  } catch (err) {
+    blueprintError.textContent = err.message;
+    blueprintError.classList.remove('hidden');
+    setTimeout(() => blueprintError.classList.add('hidden'), 5000);
+  } finally {
+    blueprintTestBtn.disabled = false;
+    blueprintTestBtn.innerHTML = '&#9654; Test in Playground';
+  }
 }
 
 async function runSteps() {
@@ -531,8 +529,7 @@ runBtn.addEventListener('click', runSteps);
 
 jsonPreview.addEventListener('input', onStepsEdit);
 
-blueprintBtn.addEventListener('click', generateBlueprint);
-blueprintInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') generateBlueprint(); });
+blueprintTestBtn.addEventListener('click', testBlueprint);
 blueprintResetBtn.addEventListener('click', resetBlueprint);
 blueprintPreview.addEventListener('input', onBlueprintEdit);
 
@@ -546,5 +543,11 @@ selectAllCheckbox.addEventListener('change', () => {
 });
 
 renderSteps();
-renderBlueprint();
+fetch('/api/default-blueprint')
+  .then((r) => r.json())
+  .then(({ blueprint: bp }) => {
+    defaultBlueprint = bp;
+    blueprint = bp;
+    renderBlueprint();
+  });
 loadSavedScripts();

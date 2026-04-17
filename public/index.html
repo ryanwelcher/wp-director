@@ -31,8 +31,12 @@
 
   <div class="workspace">
     <div class="panel" id="steps-panel">
-      <h2>Steps <span id="step-count">(0)</span></h2>
+      <div class="panel-header">
+        <h2>Steps <span id="step-count">(0)</span></h2>
+        <button class="view-toggle-btn" id="steps-view-toggle" hidden>Show JSON</button>
+      </div>
       <ul id="step-list"></ul>
+      <pre id="steps-json-view" style="display:none"></pre>
       <p id="empty-hint" class="hint">No steps yet. Type a command above to begin.</p>
     </div>
     <div class="panel" id="preview-panel">

@@ -1,0 +1,17 @@
+{
+  "name": "Clicking on templates",
+  "steps": [
+    {
+      "action": "wpNavigate",
+      "screen": "site-editor"
+    },
+    {
+      "action": "waitForSelector",
+      "selector": "button[aria-label='Templates']"
+    },
+    {
+      "action": "click",
+      "selector": "button[aria-label='Templates']"
+    }
+  ]
+}

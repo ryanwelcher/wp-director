@@ -34,6 +34,10 @@ const previewImg         = document.getElementById('preview-img');
 const previewPlaceholder = document.getElementById('preview-placeholder');
 previewImg.addEventListener('error', () => { previewImg.src = ''; });
 
+// ── Steps view toggle elements ────────────────────────────────────────────────
+const stepsViewToggle = document.getElementById('steps-view-toggle');
+const stepsJsonView = document.getElementById('steps-json-view');
+
 // ── Saved Scripts elements ────────────────────────────────────────────────────
 const saveBtn = document.getElementById('save-btn');
 const savedScriptsList = document.getElementById('saved-scripts-list');
@@ -205,7 +209,23 @@ function renderJSON() {
 function renderSteps() {
   renderStepList();
   renderJSON();
+  stepsJsonView.textContent = JSON.stringify(steps, null, 2);
+  const hasSteps = steps.length > 0;
+  stepsViewToggle.hidden = !hasSteps;
+  if (!hasSteps) {
+    stepList.style.display = '';
+    stepsJsonView.style.display = 'none';
+    stepsViewToggle.textContent = 'Show JSON';
+  }
 }
+
+// ── Steps view toggle ─────────────────────────────────────────────────────────
+stepsViewToggle.addEventListener('click', () => {
+  const listVisible = stepList.style.display !== 'none';
+  stepList.style.display = listVisible ? 'none' : '';
+  stepsJsonView.style.display = listVisible ? 'block' : 'none';
+  stepsViewToggle.textContent = listVisible ? 'Show Steps' : 'Show JSON';
+});
 
 function renderBlueprint() {
   updatingBlueprintFromCode = true;

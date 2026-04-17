@@ -6,13 +6,16 @@
       "screen": "site-editor"
     },
     {
-      "action": "click",
-      "selector": ".wp-block-navigation-item a[href*='templates'], a[href*='templates']"
+      "action": "wait",
+      "ms": 600
     },
     {
       "action": "waitForSelector",
-      "selector": ".wp-block-template-part, .edit-site-templates__grid, [aria-label='Templates']",
-      "timeout": 5000
+      "selector": ".edit-site-sidebar-navigation-screen__primary-list a[href*='template']"
+    },
+    {
+      "action": "click",
+      "selector": ".edit-site-sidebar-navigation-screen__primary-list a[href*='template']"
     }
   ]
 }

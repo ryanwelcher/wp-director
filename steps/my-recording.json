@@ -3,15 +3,15 @@
   "steps": [
     {
       "action": "wpNavigate",
-      "screen": "site-editor"
+      "screen": "new-post"
     },
     {
-      "action": "waitForSelector",
-      "selector": "button[aria-label='Templates']"
+      "action": "wait",
+      "ms": 600
     },
     {
-      "action": "click",
-      "selector": "button[aria-label='Template']"
+      "action": "wpSetPostTitle",
+      "title": "new post"
     }
   ]
 }

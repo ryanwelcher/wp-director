@@ -1,7 +1,7 @@
 {
-  "name": "playwright-recorder",
+  "name": "wp-reel",
   "version": "1.0.0",
-  "description": "Record video walkthroughs of websites using Playwright",
+  "description": "Quickly record demo and support videos for WordPress sites",
   "scripts": {
     "start": "node server.js",
     "record": "playwright test",

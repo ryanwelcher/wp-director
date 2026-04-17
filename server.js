@@ -496,5 +496,35 @@ app.post('/api/run', async (req, res) => {
   });
 });
 
+const OUTPUT_DIR = path.join(__dirname, 'output');
+
+app.get('/api/recordings', (req, res) => {
+  if (!fs.existsSync(OUTPUT_DIR)) return res.json({ recordings: [] });
+  const dirs = fs.readdirSync(OUTPUT_DIR).filter((d) => {
+    const videoPath = path.join(OUTPUT_DIR, d, 'video.webm');
+    return fs.existsSync(videoPath);
+  });
+  const recordings = dirs.map((dirname) => {
+    const videoPath = path.join(OUTPUT_DIR, dirname, 'video.webm');
+    const stat = fs.statSync(videoPath);
+    const name = dirname
+      .replace(/^steps-runner-/, '')
+      .replace(/-chromium$/, '')
+      .replace(/-/g, ' ');
+    return { name, dirname, size: stat.size, mtime: stat.mtimeMs };
+  }).sort((a, b) => b.mtime - a.mtime);
+  res.json({ recordings });
+});
+
+app.get('/api/recordings/:dirname/video', (req, res) => {
+  const dirname = req.params.dirname;
+  if (!/^[a-z0-9-]+$/i.test(dirname)) return res.status(400).end();
+  const videoPath = path.join(OUTPUT_DIR, dirname, 'video.webm');
+  if (!fs.existsSync(videoPath)) return res.status(404).end();
+  res.setHeader('Content-Type', 'video/webm');
+  res.setHeader('Content-Disposition', `attachment; filename="${dirname}.webm"`);
+  fs.createReadStream(videoPath).pipe(res);
+});
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Playwright recorder UI at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`WP Reel at http://localhost:${PORT}`));

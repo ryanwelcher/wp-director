@@ -1,6 +1,6 @@
-# playwright-recorder
+# WP Reel
 
-Records video walkthroughs of WordPress sites using Playwright + WordPress Playground CLI. Includes a natural language UI for generating step definitions without writing JSON by hand.
+Quickly records demo and support videos for WordPress sites using Playwright + WordPress Playground CLI. Includes a natural language UI for generating step definitions without writing JSON by hand.
 
 ## Running
 

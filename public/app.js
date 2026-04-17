@@ -11,7 +11,7 @@ const jsonError = document.getElementById('json-error');
 const emptyHint = document.getElementById('empty-hint');
 const clearBtn = document.getElementById('clear-btn');
 const nameInput = document.getElementById('name-input');
-const runBtn = document.getElementById('run-btn');
+const recordBtn = document.getElementById('record-btn');
 const statusEl = document.getElementById('status');
 
 // ── Blueprint elements ────────────────────────────────────────────────────────
@@ -34,6 +34,7 @@ const previewImg         = document.getElementById('preview-img');
 const previewPlaceholder = document.getElementById('preview-placeholder');
 previewImg.addEventListener('error', () => { previewImg.src = ''; });
 
+
 // ── Steps view toggle elements ────────────────────────────────────────────────
 const stepsViewToggle = document.getElementById('steps-view-toggle');
 const stepsJsonView = document.getElementById('steps-json-view');
@@ -44,7 +45,11 @@ const savedScriptsList = document.getElementById('saved-scripts-list');
 const savedCountBadge = document.getElementById('saved-count-badge');
 const selectAllCheckbox = /** @type {HTMLInputElement} */ (document.getElementById('select-all-scripts'));
 const selectedCountEl = document.getElementById('selected-count');
-const runBatchBtn = document.getElementById('run-batch-btn');
+const recordAllBtn = document.getElementById('record-all-btn');
+
+// ── Recordings elements ───────────────────────────────────────────────────────
+const recordingsList = document.getElementById('recordings-list');
+const recordingsCountBadge = document.getElementById('recordings-count-badge');
 
 // ── Preview screencast ────────────────────────────────────────────────────────
 /** @type {EventSource|null} */
@@ -141,7 +146,7 @@ let draggingIndex = null;
 function renderStepList() {
   stepList.innerHTML = '';
   emptyHint.style.display = steps.length ? 'none' : '';
-  runBtn.disabled = steps.length === 0;
+  recordBtn.disabled = steps.length === 0;
   saveBtn.disabled = steps.length === 0;
   stepCount.textContent = `(${steps.length})`;
 
@@ -348,9 +353,9 @@ async function runSteps() {
   const name = nameInput.value.trim() || `recording-${Date.now()}`;
   logOutput.textContent = '';
   logPanel.open = true;
-  logBadge.textContent = 'running';
+  logBadge.textContent = 'recording';
   logBadge.classList.remove('hidden');
-  runBtn.disabled = true;
+  recordBtn.disabled = true;
   startScreencast();
 
   const res = await fetch('/api/run', {
@@ -381,9 +386,10 @@ async function runSteps() {
         } else if (msg.type === 'done') {
           stopScreencast();
           logOutput.textContent += `\n--- Done (exit ${msg.code}) ---\n`;
-          logBadge.textContent = msg.code === 0 ? 'passed' : 'failed';
+          logBadge.textContent = msg.code === 0 ? 'complete' : 'failed';
           logBadge.className = 'badge' + (msg.code === 0 ? ' badge-pass' : ' badge-fail');
-          runBtn.disabled = steps.length === 0;
+          recordBtn.disabled = steps.length === 0;
+          loadRecordings();
         }
       } catch {}
     }
@@ -393,35 +399,35 @@ async function runSteps() {
 // ── Saved Scripts ─────────────────────────────────────────────────────────────
 function renderBatchControls() {
   selectedCountEl.textContent = `${selectedScripts.length} selected`;
-  runBatchBtn.disabled = selectedScripts.length === 0;
+  recordAllBtn.disabled = selectedScripts.length === 0;
   const total = savedScripts.length;
   selectAllCheckbox.checked = total > 0 && selectedScripts.length === total;
   selectAllCheckbox.indeterminate = selectedScripts.length > 0 && selectedScripts.length < total;
 }
 
-function renderSavedScripts(scripts) {
-  savedScripts = scripts;
-  selectedScripts = selectedScripts.filter(n => scripts.some(s => s.name === n));
+function renderSavedScripts(recordings) {
+  savedScripts = recordings;
+  selectedScripts = selectedScripts.filter(n => recordings.some(s => s.name === n));
 
-  savedCountBadge.textContent = scripts.length.toString();
-  savedCountBadge.classList.toggle('hidden', scripts.length === 0);
+  savedCountBadge.textContent = recordings.length.toString();
+  savedCountBadge.classList.toggle('hidden', recordings.length === 0);
 
-  if (!scripts.length) {
+  if (!recordings.length) {
     savedScriptsList.innerHTML = '<p class="hint">No scripts saved yet.</p>';
     renderBatchControls();
     return;
   }
 
   savedScriptsList.innerHTML = '';
-  for (const script of scripts) {
+  for (const recording of recordings) {
     const div = document.createElement('div');
     div.className = 'saved-script-item';
     div.innerHTML = `
-      <input type="checkbox" class="script-checkbox" data-name="${script.name}"${selectedScripts.includes(script.name) ? ' checked' : ''}>
-      <span class="script-name">${script.name}</span>
-      <span class="script-meta">${script.stepCount} step${script.stepCount !== 1 ? 's' : ''}</span>
-      <button class="script-load-btn secondary" data-name="${script.name}">Load</button>
-      <button class="script-delete-btn danger" data-name="${script.name}" data-filename="${script.filename}">Delete</button>
+      <input type="checkbox" class="script-checkbox" data-name="${recording.name}"${selectedScripts.includes(recording.name) ? ' checked' : ''}>
+      <span class="script-name">${recording.name}</span>
+      <span class="script-meta">${recording.stepCount} step${recording.stepCount !== 1 ? 's' : ''}</span>
+      <button class="script-load-btn secondary" data-name="${recording.name}">Load</button>
+      <button class="script-delete-btn danger" data-name="${recording.name}" data-filename="${recording.filename}">Delete</button>
     `;
     savedScriptsList.appendChild(div);
   }
@@ -441,10 +447,10 @@ function renderSavedScripts(scripts) {
   savedScriptsList.querySelectorAll('.script-load-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       const name = /** @type {HTMLElement} */ (btn).dataset.name;
-      const script = savedScripts.find(s => s.name === name);
-      if (!script) return;
-      steps = script.steps ?? [];
-      nameInput.value = script.name;
+      const recording = savedScripts.find(s => s.name === name);
+      if (!recording) return;
+      steps = recording.steps ?? [];
+      nameInput.value = recording.name;
       renderSteps();
       setStatus(statusEl, `Loaded "${name}"`);
     });
@@ -476,6 +482,49 @@ async function loadSavedScripts() {
   } catch {}
 }
 
+// ── Recordings ────────────────────────────────────────────────────────────────
+function renderRecordings(recordings) {
+  recordingsCountBadge.textContent = recordings.length.toString();
+  recordingsCountBadge.classList.toggle('hidden', recordings.length === 0);
+
+  if (!recordings.length) {
+    recordingsList.innerHTML = '<p class="hint">No recordings yet — run a script to generate a video.</p>';
+    return;
+  }
+
+  recordingsList.innerHTML = '';
+  for (const rec of recordings) {
+    const div = document.createElement('div');
+    div.className = 'recording-item';
+    const mb = (rec.size / (1024 * 1024)).toFixed(1);
+    div.innerHTML = `
+      <span class="recording-item-name">${rec.name}</span>
+      <span class="recording-item-meta">${mb} MB</span>
+      <button class="recording-preview-btn secondary" data-dirname="${rec.dirname}">Preview</button>
+      <a class="recording-download-btn secondary" href="/api/recordings/${rec.dirname}/video" download="${rec.dirname}.webm">Download</a>
+    `;
+    const previewBtn = div.querySelector('.recording-preview-btn');
+    previewBtn.addEventListener('click', () => {
+      const existing = div.querySelector('.recording-video-wrapper');
+      if (existing) { existing.remove(); previewBtn.textContent = 'Preview'; return; }
+      const wrapper = document.createElement('div');
+      wrapper.className = 'recording-video-wrapper';
+      wrapper.innerHTML = `<video controls src="/api/recordings/${rec.dirname}/video" preload="metadata"></video>`;
+      div.appendChild(wrapper);
+      previewBtn.textContent = 'Hide';
+    });
+    recordingsList.appendChild(div);
+  }
+}
+
+async function loadRecordings() {
+  try {
+    const res = await fetch('/api/recordings');
+    const data = await res.json();
+    renderRecordings(data.recordings ?? []);
+  } catch {}
+}
+
 async function saveScript() {
   const name = nameInput.value.trim() || `recording-${Date.now()}`;
   saveBtn.disabled = true;
@@ -495,12 +544,12 @@ async function saveScript() {
   }
 }
 
-async function runBatch() {
+async function recordAll() {
   logOutput.textContent = '';
   logPanel.open = true;
-  logBadge.textContent = 'running';
+  logBadge.textContent = 'recording';
   logBadge.classList.remove('hidden');
-  runBatchBtn.disabled = true;
+  recordAllBtn.disabled = true;
   startScreencast();
 
   const res = await fetch('/api/run/batch', {
@@ -531,10 +580,11 @@ async function runBatch() {
         } else if (msg.type === 'done') {
           stopScreencast();
           logOutput.textContent += `\n--- Done (exit ${msg.code}) ---\n`;
-          logBadge.textContent = msg.code === 0 ? 'passed' : 'failed';
+          logBadge.textContent = msg.code === 0 ? 'complete' : 'failed';
           logBadge.className = 'badge' + (msg.code === 0 ? ' badge-pass' : ' badge-fail');
           logBadge.classList.remove('hidden');
-          runBatchBtn.disabled = selectedScripts.length === 0;
+          recordAllBtn.disabled = selectedScripts.length === 0;
+          loadRecordings();
         }
       } catch {}
     }
@@ -545,7 +595,7 @@ async function runBatch() {
 addBtn.addEventListener('click', addCommand);
 commandInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addCommand(); });
 clearBtn.addEventListener('click', () => { steps = []; renderSteps(); });
-runBtn.addEventListener('click', runSteps);
+recordBtn.addEventListener('click', runSteps);
 
 jsonPreview.addEventListener('input', onStepsEdit);
 
@@ -554,7 +604,7 @@ blueprintResetBtn.addEventListener('click', resetBlueprint);
 blueprintPreview.addEventListener('input', onBlueprintEdit);
 
 saveBtn.addEventListener('click', saveScript);
-runBatchBtn.addEventListener('click', runBatch);
+recordAllBtn.addEventListener('click', recordAll);
 selectAllCheckbox.addEventListener('change', () => {
   const checkboxes = /** @type {NodeListOf<HTMLInputElement>} */ (savedScriptsList.querySelectorAll('.script-checkbox'));
   selectedScripts = selectAllCheckbox.checked ? savedScripts.map(s => s.name) : [];
@@ -571,3 +621,4 @@ fetch('/api/default-blueprint')
     renderBlueprint();
   });
 loadSavedScripts();
+loadRecordings();

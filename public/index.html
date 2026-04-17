@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Playwright Recorder</title>
+  <title>WP Reel</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
-    <h1>Playwright Recorder</h1>
+    <h1>WP Reel</h1>
     <p>Describe each action in plain English — steps will be added one at a time.</p>
   </header>
 
@@ -26,7 +26,7 @@
       <input id="name-input" type="text" placeholder="my-recording" value="my-recording">
     </label>
     <button id="save-btn" class="secondary" disabled>Save Script</button>
-    <button id="run-btn" class="primary" disabled>&#9654; Run</button>
+    <button id="record-btn" class="primary" disabled>&#9654; Record</button>
   </div>
 
   <div class="workspace">
@@ -42,7 +42,7 @@
     <div class="panel" id="preview-panel">
       <h2>Live Preview</h2>
       <div id="preview-container">
-        <div id="preview-placeholder">No preview yet — start a run to see the browser live.</div>
+        <div id="preview-placeholder">No preview yet — start a recording to see the browser live.</div>
         <img id="preview-img" src="" alt="Browser preview" hidden>
       </div>
     </div>
@@ -67,7 +67,20 @@
           <input type="checkbox" id="select-all-scripts"> Select all
         </label>
         <span id="selected-count" class="hint-inline">0 selected</span>
-        <button id="run-batch-btn" class="primary" disabled>&#9654; Run Batch</button>
+        <button id="record-all-btn" class="primary" disabled>&#9654; Record All</button>
+      </div>
+    </div>
+  </details>
+
+  <!-- Saved Recordings (collapsible) -->
+  <details id="recordings-section">
+    <summary>
+      <span>Recordings</span>
+      <span id="recordings-count-badge" class="badge hidden">0</span>
+    </summary>
+    <div class="recordings-body">
+      <div id="recordings-list">
+        <p class="hint">No recordings yet — run a script to generate a video.</p>
       </div>
     </div>
   </details>
@@ -93,7 +106,7 @@
   <details id="log-panel">
     <summary id="log-summary">
       <span>Output</span>
-      <span id="log-badge" class="badge hidden">running</span>
+      <span id="log-badge" class="badge hidden">recording</span>
     </summary>
     <pre id="log-output"></pre>
   </details>

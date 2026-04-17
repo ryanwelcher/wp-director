@@ -1,0 +1,31 @@
+{
+  "name": "Insert a block test",
+  "steps": [
+    {
+      "action": "wpNavigate",
+      "screen": "new-post"
+    },
+    {
+      "action": "wait",
+      "ms": 600
+    },
+    {
+      "action": "wpSetPostTitle",
+      "title": "My New Post"
+    },
+    {
+      "action": "wpInsertBlock",
+      "blockType": "heading"
+    },
+    {
+      "action": "wait",
+      "ms": 400
+    },
+    {
+      "action": "wpSetPostContent",
+      "content": "Hello, heading block.",
+      "blockType": "heading",
+      "index": 0
+    }
+  ]
+}

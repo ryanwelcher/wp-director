@@ -186,11 +186,31 @@ for (const file of stepFiles) {
               ? step.blockType.split('/')[1]
               : step.blockType;
             const editorFrame = page.frameLocator('iframe[name="editor-canvas"]');
-            const lastBlock = editorFrame.locator('[data-block]').last();
-            await lastBlock.click();
-            await page.keyboard.press('End');
-            await page.keyboard.press('Enter');
-            await page.waitForTimeout(400);
+            const contentBlocks = editorFrame.locator('[data-block]:not([data-type="core/post-title"])');
+            const blockCount = await contentBlocks.count();
+            if (blockCount === 0) {
+              // No content blocks — press Enter from the title to land in the content area
+              await editorFrame.locator('[data-type="core/post-title"]').click();
+              await page.keyboard.press('End');
+              await page.keyboard.press('Enter');
+              await page.waitForTimeout(400);
+            } else {
+              const lastBlock = contentBlocks.last();
+              const lastText = (await lastBlock.textContent().catch(() => 'x')).trim();
+              if (lastText !== '') {
+                // Block has content — append a new empty block after it
+                await lastBlock.click();
+                await page.waitForTimeout(200);
+                await page.keyboard.press('End');
+                await page.keyboard.press('Enter');
+                await page.waitForTimeout(400);
+              } else {
+                // Empty block — focus its contenteditable directly so page.keyboard works
+                const editable = lastBlock.locator('[contenteditable="true"]');
+                await editable.evaluate(el => el.focus());
+                await page.waitForTimeout(200);
+              }
+            }
             await page.keyboard.type(`/${shortName}`, { delay: 50 });
             await page.waitForTimeout(1000);
             await page.keyboard.press('Enter');

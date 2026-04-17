@@ -32,6 +32,26 @@
     </div>
   </details>
 
+  <!-- Saved Scripts (collapsible) -->
+  <details id="saved-scripts-section">
+    <summary>
+      <span>Saved Scripts</span>
+      <span id="saved-count-badge" class="badge hidden">0</span>
+    </summary>
+    <div class="saved-scripts-body">
+      <div id="saved-scripts-list">
+        <p class="hint">No scripts saved yet.</p>
+      </div>
+      <div class="saved-scripts-footer">
+        <label class="select-all-label">
+          <input type="checkbox" id="select-all-scripts"> Select all
+        </label>
+        <span id="selected-count" class="hint-inline">0 selected</span>
+        <button id="run-batch-btn" class="primary" disabled>&#9654; Run Batch</button>
+      </div>
+    </div>
+  </details>
+
   <div class="command-bar">
     <input id="command-input" type="text" placeholder="e.g. install the advanced query loop plugin and activate it" autocomplete="off">
     <button id="add-btn">Add Step</button>
@@ -58,6 +78,7 @@
       Name:
       <input id="name-input" type="text" placeholder="my-recording" value="my-recording">
     </label>
+    <button id="save-btn" class="secondary" disabled>Save Script</button>
     <button id="run-btn" class="primary" disabled>&#9654; Run</button>
   </footer>
 

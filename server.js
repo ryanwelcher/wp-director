@@ -266,6 +266,77 @@ app.post('/api/blueprint', async (req, res) => {
   }
 });
 
+app.get('/api/scripts', (req, res) => {
+  const stepsDir = path.join(__dirname, 'steps');
+  if (!fs.existsSync(stepsDir)) return res.json({ scripts: [] });
+  const files = fs.readdirSync(stepsDir).filter(f => f.endsWith('.json'));
+  const scripts = files.map(f => {
+    try {
+      const def = JSON.parse(fs.readFileSync(path.join(stepsDir, f), 'utf8'));
+      return { name: def.name, filename: f, stepCount: (def.steps ?? []).length, steps: def.steps ?? [] };
+    } catch { return null; }
+  }).filter(Boolean);
+  res.json({ scripts });
+});
+
+app.post('/api/scripts/save', (req, res) => {
+  const { name = `recording-${Date.now()}`, steps = [] } = req.body;
+  const stepsDir = path.join(__dirname, 'steps');
+  if (!fs.existsSync(stepsDir)) fs.mkdirSync(stepsDir);
+  const filename = `${name.replace(/[^a-z0-9-]/gi, '-').toLowerCase()}.json`;
+  fs.writeFileSync(path.join(stepsDir, filename), JSON.stringify({ name, steps }, null, 2));
+  res.json({ filename });
+});
+
+app.delete('/api/scripts/:filename', (req, res) => {
+  const filename = req.params.filename;
+  if (!/^[a-z0-9-]+\.json$/i.test(filename)) return res.status(400).json({ error: 'invalid filename' });
+  const filePath = path.join(__dirname, 'steps', filename);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'not found' });
+  fs.unlinkSync(filePath);
+  res.json({ ok: true });
+});
+
+app.post('/api/run/batch', async (req, res) => {
+  const { names = [], blueprint = null } = req.body;
+  if (!names.length) return res.status(400).json({ error: 'no scripts selected' });
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  const send = (data) => res.write(`data: ${JSON.stringify(data)}\n\n`);
+
+  if (blueprint) {
+    try {
+      send({ type: 'stdout', text: '[Blueprint] Restarting WP Playground with custom blueprint…\n' });
+      fs.writeFileSync(GENERATED_BLUEPRINT, JSON.stringify(blueprint, null, 2));
+      killPlayground();
+      await startPlayground(GENERATED_BLUEPRINT, send);
+      send({ type: 'stdout', text: '[Blueprint] WP Playground ready.\n' });
+    } catch (err) {
+      send({ type: 'stderr', text: `[Blueprint] Failed to start WP Playground: ${err.message}\n` });
+      send({ type: 'done', code: 1 });
+      return res.end();
+    }
+  }
+
+  const escaped = names.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const grepPattern = `(${escaped.join('|')})`;
+
+  const proc = spawn(
+    'npx', ['playwright', 'test', 'recordings/steps-runner.spec.js', '--grep', grepPattern],
+    { cwd: __dirname, env: { ...process.env } }
+  );
+
+  proc.stdout.on('data', (d) => send({ type: 'stdout', text: d.toString() }));
+  proc.stderr.on('data', (d) => send({ type: 'stderr', text: d.toString() }));
+  proc.on('close', (code) => {
+    send({ type: 'done', code });
+    res.end();
+  });
+});
+
 app.post('/api/run', async (req, res) => {
   const { name = `recording-${Date.now()}`, steps = [], blueprint = null } = req.body;
   if (!steps.length) return res.status(400).json({ error: 'no steps provided' });

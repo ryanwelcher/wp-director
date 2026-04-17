@@ -20,9 +20,13 @@ module.exports = async function globalSetup() {
 
   console.log('\n[WP Playground] Starting server...\n');
 
+  const blueprintPath = fs.existsSync(path.join(__dirname, 'blueprint.generated.json'))
+    ? './blueprint.generated.json'
+    : './blueprint.json';
+
   const server = spawn(
     'npx',
-    ['@wp-playground/cli', 'server', '--port=9400', '--login', '--blueprint=./blueprint.json'],
+    ['@wp-playground/cli', 'server', '--port=9400', '--login', `--blueprint=${blueprintPath}`],
     { stdio: ['ignore', 'pipe', 'pipe'], detached: true }
   );
 

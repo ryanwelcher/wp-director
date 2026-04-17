@@ -76,9 +76,11 @@ Step definitions live in `steps/*.json`. Each file is one recording:
 | `wpNavigate` | `screen`, `waitUntil?` | Friendly names: `dashboard`, `posts`, `new-post`, `pages`, `plugins`, `themes`, `site-editor`, `settings`, etc. Falls back to `/wp-admin/{screen}` |
 | `wpInstallPlugin` | `slug`, `activate?` | Navigates the plugin installer UI, searches by slug, installs, optionally activates |
 | `wpSelectBlock` | `blockType`, `index?` | Clicks block by `data-type` inside the editor iframe. Short names (`paragraph`) auto-prefixed with `core/` |
-| `wpInsertBlock` | `blockType`, `afterIndex?` | Clicks last block (or block at `afterIndex`), presses Enter to create new block, uses slash command to insert |
+| `wpInsertBlock` | `blockType` | Always appends at the end — clicks the last block, presses Enter to create new block, uses slash command to insert |
 | `wpDeleteBlock` | `blockType`, `index?` | Selects block, presses Escape to enter block-selection mode, then Backspace to remove |
 | `wpCommandPalette` | `command?` | Opens with `Meta+K`; if `command` is given, types it and presses Enter |
+| `wpSetPostTitle` | `title` | Waits for and fills the post/page title inside the editor iframe — handles frame context internally |
+| `wpSetPostContent` | `content`, `blockType?`, `index?`, `delay?` | Sets content in a block using `fill()`. When `blockType`/`index` are given, targets that block directly (0-based index); otherwise targets the last non-title block. Always replaces existing content. |
 
 **`wpInsertBlock` gotcha.** Do NOT click `.block-list-appender button` to insert — that opens the block inserter panel and keyboard focus stays there. Instead, click the last `[data-block]` element, press End + Enter to create a new empty block, then type `/{blockName}` for the slash inserter. Wait ~1000ms before pressing Enter to give the slash inserter popover time to appear.
 

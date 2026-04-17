@@ -1,5 +1,6 @@
 // @ts-check
 
+// ── Steps elements ────────────────────────────────────────────────────────────
 const commandInput = document.getElementById('command-input');
 const addBtn = document.getElementById('add-btn');
 const stepList = document.getElementById('step-list');
@@ -12,14 +13,31 @@ const clearBtn = document.getElementById('clear-btn');
 const nameInput = document.getElementById('name-input');
 const runBtn = document.getElementById('run-btn');
 const statusEl = document.getElementById('status');
+
+// ── Blueprint elements ────────────────────────────────────────────────────────
+const blueprintInput = document.getElementById('blueprint-input');
+const blueprintBtn = document.getElementById('blueprint-btn');
+const blueprintResetBtn = document.getElementById('blueprint-reset-btn');
+const blueprintStatusEl = document.getElementById('blueprint-status');
+/** @type {HTMLTextAreaElement} */
+const blueprintPreview = /** @type {any} */ (document.getElementById('blueprint-preview'));
+const blueprintError = document.getElementById('blueprint-error');
+const blueprintBadge = document.getElementById('blueprint-badge');
+
+// ── Log elements ──────────────────────────────────────────────────────────────
 const logPanel = document.getElementById('log-panel');
 const logOutput = document.getElementById('log-output');
 const closeLog = document.getElementById('close-log');
 
+// ── State ─────────────────────────────────────────────────────────────────────
 /** @type {Array<object>} */
 let steps = [];
-let updatingFromCode = false;
+/** @type {object|null} */
+let blueprint = null;
+let updatingStepsFromCode = false;
+let updatingBlueprintFromCode = false;
 
+// ── Step descriptions ─────────────────────────────────────────────────────────
 function describe(step) {
   switch (step.action) {
     case 'navigate':        return `Go to: ${step.url}`;
@@ -44,6 +62,7 @@ function describe(step) {
   }
 }
 
+// ── Render ────────────────────────────────────────────────────────────────────
 function renderStepList() {
   stepList.innerHTML = '';
   emptyHint.style.display = steps.length ? 'none' : '';
@@ -62,9 +81,9 @@ function renderStepList() {
 }
 
 function renderJSON() {
-  updatingFromCode = true;
+  updatingStepsFromCode = true;
   jsonPreview.value = JSON.stringify(steps, null, 2);
-  updatingFromCode = false;
+  updatingStepsFromCode = false;
   jsonPreview.classList.remove('invalid');
   jsonError.classList.add('hidden');
 }
@@ -74,18 +93,29 @@ function renderSteps() {
   renderJSON();
 }
 
-function setStatus(msg, isError = false) {
-  statusEl.textContent = msg;
-  statusEl.className = 'status' + (isError ? ' error' : '');
-  statusEl.classList.remove('hidden');
-  if (!isError) setTimeout(() => statusEl.classList.add('hidden'), 3000);
+function renderBlueprint() {
+  updatingBlueprintFromCode = true;
+  blueprintPreview.value = blueprint ? JSON.stringify(blueprint, null, 2) : '';
+  updatingBlueprintFromCode = false;
+  blueprintPreview.classList.remove('invalid');
+  blueprintError.classList.add('hidden');
+  blueprintBadge.classList.toggle('hidden', !blueprint);
 }
 
-function onJSONEdit() {
-  if (updatingFromCode) return;
+// ── Status helpers ────────────────────────────────────────────────────────────
+function setStatus(el, msg, isError = false) {
+  el.textContent = msg;
+  el.className = 'status' + (isError ? ' error' : '');
+  el.classList.remove('hidden');
+  if (!isError) setTimeout(() => el.classList.add('hidden'), 3000);
+}
+
+// ── JSON edit handlers ────────────────────────────────────────────────────────
+function onStepsEdit() {
+  if (updatingStepsFromCode) return;
   try {
     const parsed = JSON.parse(jsonPreview.value);
-    if (!Array.isArray(parsed)) throw new Error('JSON must be an array');
+    if (!Array.isArray(parsed)) throw new Error('Must be a JSON array');
     steps = parsed;
     renderStepList();
     jsonPreview.classList.remove('invalid');
@@ -97,13 +127,36 @@ function onJSONEdit() {
   }
 }
 
+function onBlueprintEdit() {
+  if (updatingBlueprintFromCode) return;
+  const val = blueprintPreview.value.trim();
+  if (!val) {
+    blueprint = null;
+    blueprintPreview.classList.remove('invalid');
+    blueprintError.classList.add('hidden');
+    blueprintBadge.classList.add('hidden');
+    return;
+  }
+  try {
+    blueprint = JSON.parse(val);
+    blueprintPreview.classList.remove('invalid');
+    blueprintError.classList.add('hidden');
+    blueprintBadge.classList.remove('hidden');
+  } catch (err) {
+    blueprintPreview.classList.add('invalid');
+    blueprintError.textContent = err.message;
+    blueprintError.classList.remove('hidden');
+  }
+}
+
+// ── Commands ──────────────────────────────────────────────────────────────────
 async function addCommand() {
   const command = commandInput.value.trim();
   if (!command) return;
 
   addBtn.disabled = true;
   commandInput.disabled = true;
-  setStatus('Translating…');
+  setStatus(statusEl, 'Translating…');
 
   try {
     const res = await fetch('/api/translate', {
@@ -111,21 +164,52 @@ async function addCommand() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ command, history: steps }),
     });
-
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Translation failed');
-
     steps.push(...data.steps);
     renderSteps();
     commandInput.value = '';
-    setStatus(`Added ${data.steps.length} step${data.steps.length !== 1 ? 's' : ''}`);
+    setStatus(statusEl, `Added ${data.steps.length} step${data.steps.length !== 1 ? 's' : ''}`);
   } catch (err) {
-    setStatus(err.message, true);
+    setStatus(statusEl, err.message, true);
   } finally {
     addBtn.disabled = false;
     commandInput.disabled = false;
     commandInput.focus();
   }
+}
+
+async function generateBlueprint() {
+  const command = blueprintInput.value.trim();
+  if (!command) return;
+
+  blueprintBtn.disabled = true;
+  blueprintInput.disabled = true;
+  setStatus(blueprintStatusEl, 'Generating blueprint…');
+
+  try {
+    const res = await fetch('/api/blueprint', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Blueprint generation failed');
+    blueprint = data.blueprint;
+    renderBlueprint();
+    blueprintInput.value = '';
+    setStatus(blueprintStatusEl, 'Blueprint generated');
+  } catch (err) {
+    setStatus(blueprintStatusEl, err.message, true);
+  } finally {
+    blueprintBtn.disabled = false;
+    blueprintInput.disabled = false;
+  }
+}
+
+function resetBlueprint() {
+  blueprint = null;
+  renderBlueprint();
 }
 
 async function runSteps() {
@@ -137,7 +221,7 @@ async function runSteps() {
   const res = await fetch('/api/run', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, steps }),
+    body: JSON.stringify({ name, steps, blueprint }),
   });
 
   const reader = res.body.getReader();
@@ -168,11 +252,18 @@ async function runSteps() {
   }
 }
 
+// ── Event listeners ───────────────────────────────────────────────────────────
 addBtn.addEventListener('click', addCommand);
 commandInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addCommand(); });
 clearBtn.addEventListener('click', () => { steps = []; renderSteps(); });
 runBtn.addEventListener('click', runSteps);
 closeLog.addEventListener('click', () => logPanel.classList.add('hidden'));
-jsonPreview.addEventListener('input', onJSONEdit);
+jsonPreview.addEventListener('input', onStepsEdit);
+
+blueprintBtn.addEventListener('click', generateBlueprint);
+blueprintInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') generateBlueprint(); });
+blueprintResetBtn.addEventListener('click', resetBlueprint);
+blueprintPreview.addEventListener('input', onBlueprintEdit);
 
 renderSteps();
+renderBlueprint();

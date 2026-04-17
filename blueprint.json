@@ -2,18 +2,12 @@
   "$schema": "https://playground.wordpress.net/blueprint-schema.json",
   "landingPage": "/wp-admin/",
   "login": true,
+  "plugins": ["hello-dolly"],
+  "siteOptions": {
+    "blogname": "My Playground Site",
+    "blogdescription": "A disposable WordPress site for recording"
+  },
   "steps": [
-    {
-      "step": "installPlugin",
-      "pluginData": {
-        "resource": "wordpress.org/plugins",
-        "slug": "hello-dolly"
-      }
-    },
-    {
-      "step": "activatePlugin",
-      "pluginPath": "hello-dolly/hello.php"
-    },
     {
       "step": "installTheme",
       "themeData": {
@@ -24,13 +18,6 @@
     {
       "step": "activateTheme",
       "themeFolderName": "twentytwentyfour"
-    },
-    {
-      "step": "setSiteOptions",
-      "options": {
-        "blogname": "My Playground Site",
-        "blogdescription": "A disposable WordPress site for recording"
-      }
     },
     {
       "step": "runPHP",

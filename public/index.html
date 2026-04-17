@@ -12,6 +12,26 @@
     <p>Describe each action in plain English — steps will be added one at a time.</p>
   </header>
 
+  <!-- Blueprint config (collapsible) -->
+  <details id="blueprint-section">
+    <summary>
+      <span>Environment / Blueprint</span>
+      <span id="blueprint-badge" class="badge hidden">custom</span>
+    </summary>
+    <div class="blueprint-body">
+      <div class="blueprint-command-bar">
+        <input id="blueprint-input" type="text" placeholder="e.g. WordPress 6.5, install Query Monitor and Advanced Query Loop" autocomplete="off">
+        <button id="blueprint-btn">Generate</button>
+        <button id="blueprint-reset-btn" class="secondary">Reset</button>
+      </div>
+      <div id="blueprint-status" class="status hidden"></div>
+      <div class="blueprint-editor">
+        <textarea id="blueprint-preview" spellcheck="false"></textarea>
+        <p id="blueprint-error" class="json-error hidden"></p>
+      </div>
+    </div>
+  </details>
+
   <div class="command-bar">
     <input id="command-input" type="text" placeholder="e.g. install the advanced query loop plugin and activate it" autocomplete="off">
     <button id="add-btn">Add Step</button>

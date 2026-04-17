@@ -95,6 +95,16 @@ for (const file of stepFiles) {
             const url = screens[step.screen] ?? `/wp-admin/${step.screen}`;
             await page.goto(url, { waitUntil: step.waitUntil ?? 'domcontentloaded' });
             await page.waitForTimeout(500);
+            if (step.screen === 'new-post' || step.screen === 'new-page') {
+              const dialog = page.locator('.components-modal__screen-overlay');
+              try {
+                await dialog.waitFor({ state: 'visible', timeout: 5_000 });
+                await page.locator('.components-modal__header button[aria-label="Close"]').click();
+                await dialog.waitFor({ state: 'hidden', timeout: 3_000 });
+              } catch {
+                // no dialog appeared, continue
+              }
+            }
             break;
           }
 
@@ -118,12 +128,44 @@ for (const file of stepFiles) {
             break;
           }
 
+          case 'wpSetPostTitle': {
+            const editorFrame = page.frameLocator('iframe[name="editor-canvas"]');
+            await editorFrame.locator('.wp-block-post-title').waitFor({ state: 'visible', timeout: 30_000 });
+            await editorFrame.locator('.wp-block-post-title').click();
+            await editorFrame.locator('.wp-block-post-title').fill(step.title);
+            await page.waitForTimeout(300);
+            break;
+          }
+
+          case 'wpSetPostContent': {
+            const editorFrame = page.frameLocator('iframe[name="editor-canvas"]');
+            await editorFrame.locator('.wp-block-post-title').waitFor({ state: 'visible', timeout: 30_000 });
+            let targetLocator;
+            if (step.blockType) {
+              const shortName = step.blockType.includes('/')
+                ? step.blockType.split('/')[1]
+                : step.blockType;
+              targetLocator = editorFrame.locator(`.wp-block-${shortName}[contenteditable="true"]`).nth(step.index ?? 0);
+            } else {
+              targetLocator = editorFrame.locator('[contenteditable="true"]:not(.wp-block-post-title)').last();
+            }
+            await targetLocator.waitFor({ state: 'visible', timeout: 10_000 });
+            await targetLocator.fill(step.content);
+            await page.waitForTimeout(300);
+            break;
+          }
+
           case 'wpSelectBlock': {
             const blockType = step.blockType.includes('/') ? step.blockType : `core/${step.blockType}`;
             const index = step.index ?? 0;
             const editorFrame = page.frameLocator('iframe[name="editor-canvas"]');
-            await editorFrame.locator(`[data-type="${blockType}"]`).nth(index).click();
-            await page.waitForTimeout(300);
+            const block = editorFrame.locator(`[data-type="${blockType}"]`).nth(index);
+            await block.waitFor({ state: 'visible', timeout: 10_000 });
+            // Click the contenteditable directly to enter text editing mode (not just block selection mode)
+            const editable = block.locator('[contenteditable="true"]');
+            await editable.click();
+            await editorFrame.locator('.is-selected [contenteditable="true"]').waitFor({ state: 'visible', timeout: 5_000 });
+            await page.waitForTimeout(100);
             break;
           }
 
@@ -144,10 +186,8 @@ for (const file of stepFiles) {
               ? step.blockType.split('/')[1]
               : step.blockType;
             const editorFrame = page.frameLocator('iframe[name="editor-canvas"]');
-            const targetIndex = step.afterIndex !== undefined
-              ? step.afterIndex
-              : await editorFrame.locator('[data-block]').count() - 1;
-            await editorFrame.locator('[data-block]').nth(targetIndex).click();
+            const lastBlock = editorFrame.locator('[data-block]').last();
+            await lastBlock.click();
             await page.keyboard.press('End');
             await page.keyboard.press('Enter');
             await page.waitForTimeout(400);

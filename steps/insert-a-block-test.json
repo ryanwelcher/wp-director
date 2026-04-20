@@ -3,29 +3,15 @@
   "steps": [
     {
       "action": "wpNavigate",
-      "screen": "new-post"
+      "screen": "plugins"
     },
     {
-      "action": "wait",
-      "ms": 600
+      "action": "waitForSelector",
+      "selector": "tr[data-slug='hello-dolly']"
     },
     {
-      "action": "wpSetPostTitle",
-      "title": "My New Post"
-    },
-    {
-      "action": "wpInsertBlock",
-      "blockType": "heading"
-    },
-    {
-      "action": "wait",
-      "ms": 400
-    },
-    {
-      "action": "wpSetPostContent",
-      "content": "Hello, heading block.",
-      "blockType": "heading",
-      "index": 0
+      "action": "click",
+      "selector": "tr[data-slug='hello-dolly'] .deactivate a"
     }
   ]
 }

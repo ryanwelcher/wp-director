@@ -25,6 +25,11 @@
       Name:
       <input id="name-input" type="text" placeholder="my-recording" value="my-recording">
     </label>
+    <div class="size-toggle" role="radiogroup" aria-label="Video size">
+      <button type="button" class="size-opt" data-size="1280x720" role="radio" aria-checked="false" title="720p (1280×720)">720p</button>
+      <button type="button" class="size-opt active" data-size="1920x1080" role="radio" aria-checked="true" title="1080p (1920×1080)">1080p</button>
+      <button type="button" class="size-opt" data-size="3840x2160" role="radio" aria-checked="false" title="4K (3840×2160)">4K</button>
+    </div>
     <button id="save-btn" class="secondary" disabled>Save Script</button>
     <button id="record-btn" class="primary" disabled>&#9654; Record</button>
   </div>

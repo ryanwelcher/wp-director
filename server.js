@@ -6,6 +6,7 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 const WebSocket = require('ws');
 const Anthropic = require('@anthropic-ai/sdk');
+const ffmpegPath = require('ffmpeg-static');
 
 const app = express();
 const client = new Anthropic.default();
@@ -313,6 +314,17 @@ app.get('/api/default-blueprint', (req, res) => {
   }
 });
 
+app.get('/api/current-blueprint', (req, res) => {
+  try {
+    const generatedPath = path.join(__dirname, 'blueprint.generated.json');
+    const src = fs.existsSync(generatedPath) ? generatedPath : path.join(__dirname, 'blueprint.json');
+    const bp = JSON.parse(fs.readFileSync(src, 'utf8'));
+    res.json({ blueprint: bp });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/preview-blueprint', async (req, res) => {
   const { blueprint } = req.body;
   if (!blueprint) return res.status(400).json({ error: 'blueprint required' });
@@ -361,7 +373,7 @@ app.delete('/api/scripts/:filename', (req, res) => {
 });
 
 app.post('/api/run/batch', async (req, res) => {
-  const { names = [], blueprint = null } = req.body;
+  const { names = [], blueprint = null, videoSize = null } = req.body;
   if (!names.length) return res.status(400).json({ error: 'no scripts selected' });
 
   res.setHeader('Content-Type', 'text/event-stream');
@@ -394,7 +406,8 @@ app.post('/api/run/batch', async (req, res) => {
 
   proc.stdout.on('data', (d) => send({ type: 'stdout', text: d.toString() }));
   proc.stderr.on('data', (d) => send({ type: 'stderr', text: d.toString() }));
-  proc.on('close', (code) => {
+  proc.on('close', async (code) => {
+    if (code === 0) await processVideo(videoSize, send);
     send({ type: 'done', code });
     res.end();
   });
@@ -453,7 +466,7 @@ app.get('/api/screencast', async (req, res) => {
 });
 
 app.post('/api/run', async (req, res) => {
-  const { name = `recording-${Date.now()}`, steps = [], blueprint = null } = req.body;
+  const { name = `recording-${Date.now()}`, steps = [], blueprint = null, videoSize = null } = req.body;
   if (!steps.length) return res.status(400).json({ error: 'no steps provided' });
 
   const stepsDir = path.join(__dirname, 'steps');
@@ -490,28 +503,80 @@ app.post('/api/run', async (req, res) => {
 
   proc.stdout.on('data', (d) => send({ type: 'stdout', text: d.toString() }));
   proc.stderr.on('data', (d) => send({ type: 'stderr', text: d.toString() }));
-  proc.on('close', (code) => {
+  proc.on('close', async (code) => {
+    if (code === 0) await processVideo(videoSize, send);
     send({ type: 'done', code, file: path.join(stepsDir, filename) });
     res.end();
   });
 });
 
+// ─── Video post-processing ────────────────────────────────────────────────────
+
 const OUTPUT_DIR = path.join(__dirname, 'output');
+
+function findNewestVideoDir() {
+  if (!fs.existsSync(OUTPUT_DIR)) return null;
+  const dirs = fs.readdirSync(OUTPUT_DIR)
+    .filter(d => fs.existsSync(path.join(OUTPUT_DIR, d, 'video.webm')))
+    .map(d => ({ d, mtime: fs.statSync(path.join(OUTPUT_DIR, d)).mtimeMs }))
+    .sort((a, b) => b.mtime - a.mtime);
+  return dirs[0]?.d ?? null;
+}
+
+function processVideo(videoSize, send) {
+  return new Promise((resolve) => {
+    const dirname = findNewestVideoDir();
+    if (!dirname) return resolve();
+
+    const inputPath  = path.join(OUTPUT_DIR, dirname, 'video.webm');
+    const outputPath = path.join(OUTPUT_DIR, dirname, 'video.mp4');
+
+    const needsScale = videoSize && !(videoSize.width === 1920 && videoSize.height === 1080);
+    const label = needsScale ? `Converting to MP4 and scaling to ${videoSize.width}×${videoSize.height}` : 'Converting to MP4';
+    send({ type: 'stdout', text: `[ffmpeg] ${label}…\n` });
+
+    const scaleFilter = needsScale ? [`-vf`, `scale=${videoSize.width}:${videoSize.height}:flags=lanczos`] : [];
+
+    const ff = spawn(ffmpegPath, [
+      '-i', inputPath,
+      ...scaleFilter,
+      '-c:v', 'libx264', '-preset', 'slow', '-crf', '18',
+      '-c:a', 'aac', '-b:a', '192k',
+      '-y', outputPath,
+    ]);
+
+    ff.stderr.on('data', (d) => send({ type: 'stdout', text: `[ffmpeg] ${d}` }));
+    ff.on('close', (code) => {
+      if (code === 0) {
+        send({ type: 'stdout', text: '[ffmpeg] Done.\n' });
+      } else {
+        send({ type: 'stderr', text: `[ffmpeg] Conversion failed (exit ${code})\n` });
+        try { fs.unlinkSync(outputPath); } catch {}
+      }
+      resolve();
+    });
+  });
+}
+
+function findVideoFile(dirname) {
+  const mp4 = path.join(OUTPUT_DIR, dirname, 'video.mp4');
+  if (fs.existsSync(mp4)) return { file: mp4, ext: 'mp4', mime: 'video/mp4' };
+  const webm = path.join(OUTPUT_DIR, dirname, 'video.webm');
+  if (fs.existsSync(webm)) return { file: webm, ext: 'webm', mime: 'video/webm' };
+  return null;
+}
 
 app.get('/api/recordings', (req, res) => {
   if (!fs.existsSync(OUTPUT_DIR)) return res.json({ recordings: [] });
-  const dirs = fs.readdirSync(OUTPUT_DIR).filter((d) => {
-    const videoPath = path.join(OUTPUT_DIR, d, 'video.webm');
-    return fs.existsSync(videoPath);
-  });
+  const dirs = fs.readdirSync(OUTPUT_DIR).filter(d => findVideoFile(d) !== null);
   const recordings = dirs.map((dirname) => {
-    const videoPath = path.join(OUTPUT_DIR, dirname, 'video.webm');
-    const stat = fs.statSync(videoPath);
-    const name = dirname
+    const { file, ext } = findVideoFile(dirname);
+    const stat = fs.statSync(file);
+    const slug = dirname
       .replace(/^steps-runner-/, '')
-      .replace(/-chromium$/, '')
-      .replace(/-/g, ' ');
-    return { name, dirname, size: stat.size, mtime: stat.mtimeMs };
+      .replace(/-chromium$/, '');
+    const name = slug.replace(/-/g, ' ');
+    return { name, slug, dirname, ext, size: stat.size, mtime: stat.mtimeMs };
   }).sort((a, b) => b.mtime - a.mtime);
   res.json({ recordings });
 });
@@ -519,11 +584,12 @@ app.get('/api/recordings', (req, res) => {
 app.get('/api/recordings/:dirname/video', (req, res) => {
   const dirname = req.params.dirname;
   if (!/^[a-z0-9-]+$/i.test(dirname)) return res.status(400).end();
-  const videoPath = path.join(OUTPUT_DIR, dirname, 'video.webm');
-  if (!fs.existsSync(videoPath)) return res.status(404).end();
-  res.setHeader('Content-Type', 'video/webm');
-  res.setHeader('Content-Disposition', `attachment; filename="${dirname}.webm"`);
-  fs.createReadStream(videoPath).pipe(res);
+  const found = findVideoFile(dirname);
+  if (!found) return res.status(404).end();
+  const slug = dirname.replace(/^steps-runner-/, '').replace(/-chromium$/, '');
+  res.setHeader('Content-Type', found.mime);
+  res.setHeader('Content-Disposition', `attachment; filename="${slug}.${found.ext}"`);
+  fs.createReadStream(found.file).pipe(res);
 });
 
 const PORT = process.env.PORT || 3000;

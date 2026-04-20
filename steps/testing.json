@@ -1,0 +1,17 @@
+{
+  "name": "testing",
+  "steps": [
+    {
+      "action": "wpNavigate",
+      "screen": "new-post"
+    },
+    {
+      "action": "wait",
+      "ms": 600
+    },
+    {
+      "action": "wpSetPostTitle",
+      "title": "test"
+    }
+  ]
+}

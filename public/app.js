@@ -47,6 +47,24 @@ const selectAllCheckbox = /** @type {HTMLInputElement} */ (document.getElementBy
 const selectedCountEl = document.getElementById('selected-count');
 const recordAllBtn = document.getElementById('record-all-btn');
 
+// ── Video size ────────────────────────────────────────────────────────────────
+const sizeOpts = /** @type {NodeListOf<HTMLButtonElement>} */ (document.querySelectorAll('.size-opt'));
+
+sizeOpts.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    sizeOpts.forEach((b) => {
+      b.classList.toggle('active', b === btn);
+      b.setAttribute('aria-checked', b === btn ? 'true' : 'false');
+    });
+  });
+});
+
+function getVideoSize() {
+  const active = /** @type {HTMLButtonElement} */ (document.querySelector('.size-opt.active'));
+  const [w, h] = (active?.dataset.size ?? '1920x1080').split('x').map(Number);
+  return { width: w, height: h };
+}
+
 // ── Recordings elements ───────────────────────────────────────────────────────
 const recordingsList = document.getElementById('recordings-list');
 const recordingsCountBadge = document.getElementById('recordings-count-badge');
@@ -361,7 +379,7 @@ async function runSteps() {
   const res = await fetch('/api/run', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, steps, blueprint }),
+    body: JSON.stringify({ name, steps, blueprint, videoSize: getVideoSize() }),
   });
 
   const reader = res.body.getReader();
@@ -501,7 +519,7 @@ function renderRecordings(recordings) {
       <span class="recording-item-name">${rec.name}</span>
       <span class="recording-item-meta">${mb} MB</span>
       <button class="recording-preview-btn secondary" data-dirname="${rec.dirname}">Preview</button>
-      <a class="recording-download-btn secondary" href="/api/recordings/${rec.dirname}/video" download="${rec.dirname}.webm">Download</a>
+      <a class="recording-download-btn secondary" href="/api/recordings/${rec.dirname}/video" download="${rec.slug ?? rec.dirname}.${rec.ext ?? 'mp4'}">Download</a>
     `;
     const previewBtn = div.querySelector('.recording-preview-btn');
     previewBtn.addEventListener('click', () => {
@@ -555,7 +573,7 @@ async function recordAll() {
   const res = await fetch('/api/run/batch', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ names: selectedScripts, blueprint }),
+    body: JSON.stringify({ names: selectedScripts, blueprint, videoSize: getVideoSize() }),
   });
 
   const reader = res.body.getReader();
@@ -613,12 +631,13 @@ selectAllCheckbox.addEventListener('change', () => {
 });
 
 renderSteps();
-fetch('/api/default-blueprint')
-  .then((r) => r.json())
-  .then(({ blueprint: bp }) => {
-    defaultBlueprint = bp;
-    blueprint = bp;
-    renderBlueprint();
-  });
+Promise.all([
+  fetch('/api/default-blueprint').then((r) => r.json()),
+  fetch('/api/current-blueprint').then((r) => r.ok ? r.json() : null).catch(() => null),
+]).then(([{ blueprint: def }, currentRes]) => {
+  defaultBlueprint = def;
+  blueprint = currentRes?.blueprint ?? def;
+  renderBlueprint();
+});
 loadSavedScripts();
 loadRecordings();

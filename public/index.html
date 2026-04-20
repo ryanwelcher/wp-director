@@ -3,15 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WP Reel</title>
+  <title>WP Director</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
-    <h1>WP Reel</h1>
+    <h1>WP Director</h1>
     <p>Describe each action in plain English — steps will be added one at a time.</p>
   </header>
 
+  <button id="sidebar-toggle" class="sidebar-toggle" aria-expanded="false" aria-label="Toggle sidebar">
+    &#9776;
+  </button>
+
+  <div class="main-content">
   <div class="command-bar">
     <input id="command-input" type="text" placeholder="e.g. install the advanced query loop plugin and activate it" autocomplete="off">
     <button id="add-btn">Add Step</button>
@@ -20,18 +25,18 @@
   <div id="status" class="status hidden"></div>
 
   <div class="action-bar">
-    <button id="clear-btn" class="secondary">Clear</button>
     <label>
       Name:
       <input id="name-input" type="text" placeholder="my-recording" value="my-recording">
     </label>
+    <button id="save-btn" class="secondary" disabled>Save Script</button>
+    <button id="clear-btn" class="secondary">Clear</button>
+    <button id="record-btn" class="primary" disabled>&#9654; Record</button>
     <div class="size-toggle" role="radiogroup" aria-label="Video size">
       <button type="button" class="size-opt" data-size="1280x720" role="radio" aria-checked="false" title="720p (1280×720)">720p</button>
       <button type="button" class="size-opt active" data-size="1920x1080" role="radio" aria-checked="true" title="1080p (1920×1080)">1080p</button>
       <button type="button" class="size-opt" data-size="3840x2160" role="radio" aria-checked="false" title="4K (3840×2160)">4K</button>
     </div>
-    <button id="save-btn" class="secondary" disabled>Save Script</button>
-    <button id="record-btn" class="primary" disabled>&#9654; Record</button>
   </div>
 
   <div class="workspace">
@@ -57,64 +62,71 @@
   <textarea id="json-preview" spellcheck="false" aria-hidden="true" style="display:none">[]</textarea>
   <p id="json-error" class="json-error hidden" aria-hidden="true"></p>
 
-  <!-- Saved Scripts (collapsible) -->
-  <details id="saved-scripts-section">
-    <summary>
-      <span>Saved Scripts</span>
-      <span id="saved-count-badge" class="badge hidden">0</span>
-    </summary>
-    <div class="saved-scripts-body">
-      <div id="saved-scripts-list">
-        <p class="hint">No scripts saved yet.</p>
-      </div>
-      <div class="saved-scripts-footer">
-        <label class="select-all-label">
-          <input type="checkbox" id="select-all-scripts"> Select all
-        </label>
-        <span id="selected-count" class="hint-inline">0 selected</span>
-        <button id="record-all-btn" class="primary" disabled>&#9654; Record All</button>
-      </div>
-    </div>
-  </details>
+  </div><!-- /.main-content -->
 
-  <!-- Saved Recordings (collapsible) -->
-  <details id="recordings-section">
-    <summary>
-      <span>Recordings</span>
-      <span id="recordings-count-badge" class="badge hidden">0</span>
-    </summary>
-    <div class="recordings-body">
-      <div id="recordings-list">
-        <p class="hint">No recordings yet — run a script to generate a video.</p>
-      </div>
-    </div>
-  </details>
+  <!-- Right sidebar -->
+  <div id="right-sidebar" class="right-sidebar" aria-label="Tools sidebar">
+    <div class="sidebar-content">
+      <!-- Saved Scripts (collapsible) -->
+      <details id="saved-scripts-section">
+        <summary>
+          <span>Saved Scripts</span>
+          <span id="saved-count-badge" class="badge hidden">0</span>
+        </summary>
+        <div class="saved-scripts-body">
+          <div id="saved-scripts-list">
+            <p class="hint">No scripts saved yet.</p>
+          </div>
+          <div class="saved-scripts-footer">
+            <label class="select-all-label">
+              <input type="checkbox" id="select-all-scripts"> Select all
+            </label>
+            <span id="selected-count" class="hint-inline">0 selected</span>
+            <button id="record-all-btn" class="primary" disabled>&#9654; Record All</button>
+          </div>
+        </div>
+      </details>
 
-  <!-- Blueprint config (collapsible) -->
-  <details id="blueprint-section">
-    <summary>
-      <span>Environment / Blueprint</span>
-      <span id="blueprint-badge" class="badge hidden">custom</span>
-    </summary>
-    <div class="blueprint-body">
-      <div class="blueprint-toolbar">
-        <button id="blueprint-test-btn" class="secondary">&#9654; Test in Playground</button>
-        <button id="blueprint-reset-btn" class="secondary">Reset to default</button>
-      </div>
-      <div class="blueprint-editor">
-        <textarea id="blueprint-preview" spellcheck="false"></textarea>
-        <p id="blueprint-error" class="json-error hidden"></p>
-      </div>
-    </div>
-  </details>
+      <!-- Saved Recordings (collapsible) -->
+      <details id="recordings-section">
+        <summary>
+          <span>Recordings</span>
+          <span id="recordings-count-badge" class="badge hidden">0</span>
+        </summary>
+        <div class="recordings-body">
+          <div id="recordings-list">
+            <p class="hint">No recordings yet — run a script to generate a video.</p>
+          </div>
+        </div>
+      </details>
 
-  <details id="log-panel">
-    <summary id="log-summary">
-      <span>Output</span>
-      <span id="log-badge" class="badge hidden">recording</span>
-    </summary>
-    <pre id="log-output"></pre>
-  </details>
+      <!-- Blueprint config (collapsible) -->
+      <details id="blueprint-section">
+        <summary>
+          <span>Environment / Blueprint</span>
+          <span id="blueprint-badge" class="badge hidden">custom</span>
+        </summary>
+        <div class="blueprint-body">
+          <div class="blueprint-toolbar">
+            <button id="blueprint-test-btn" class="secondary">&#9654; Test in Playground</button>
+            <button id="blueprint-reset-btn" class="secondary">Reset to default</button>
+          </div>
+          <div class="blueprint-editor">
+            <textarea id="blueprint-preview" spellcheck="false"></textarea>
+            <p id="blueprint-error" class="json-error hidden"></p>
+          </div>
+        </div>
+      </details>
+
+      <details id="log-panel">
+        <summary id="log-summary">
+          <span>Output</span>
+          <span id="log-badge" class="badge hidden">recording</span>
+        </summary>
+        <pre id="log-output"></pre>
+      </details>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

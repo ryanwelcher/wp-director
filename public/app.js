@@ -69,6 +69,25 @@ function getVideoSize() {
 const recordingsList = document.getElementById('recordings-list');
 const recordingsCountBadge = document.getElementById('recordings-count-badge');
 
+// ── Right sidebar ─────────────────────────────────────────────────────────────
+const rightSidebar = document.getElementById('right-sidebar');
+const sidebarToggle = document.getElementById('sidebar-toggle');
+const mainContent = document.querySelector('.main-content');
+
+function positionSidebar() {
+  const headerHeight = document.querySelector('header').offsetHeight;
+  rightSidebar.style.top = headerHeight + 'px';
+  rightSidebar.style.height = `calc(100vh - ${headerHeight}px)`;
+}
+
+positionSidebar();
+
+sidebarToggle.addEventListener('click', () => {
+  const isOpen = rightSidebar.classList.toggle('open');
+  mainContent.classList.toggle('sidebar-open', isOpen);
+  sidebarToggle.setAttribute('aria-expanded', String(isOpen));
+});
+
 // ── Preview screencast ────────────────────────────────────────────────────────
 /** @type {EventSource|null} */
 let screencastSource = null;

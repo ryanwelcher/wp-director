@@ -8,6 +8,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0;
+  overflow-x: hidden;
 }
 
 header {
@@ -30,6 +31,11 @@ header p {
 /* ── Blueprint section ───────────────────────────────────── */
 
 #blueprint-section {
+  border-bottom: 1px solid #1e2433;
+}
+
+/* Sidebar sections share a common summary style */
+.sidebar-content details {
   border-bottom: 1px solid #1e2433;
 }
 
@@ -440,6 +446,76 @@ header p {
 .action-bar button.primary:hover { background: #15803d; }
 .action-bar button.primary:disabled { background: #374151; cursor: not-allowed; }
 
+/* ── Main content (shifts when sidebar opens) ────────────── */
+
+.main-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  margin-right: 0;
+  transition: margin-right 0.25s ease;
+  min-width: 0;
+}
+
+.main-content.sidebar-open {
+  margin-right: 360px;
+}
+
+/* ── Right sidebar ───────────────────────────────────────── */
+
+.right-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: 360px;
+  z-index: 100;
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+}
+
+.right-sidebar.open {
+  transform: translateX(0);
+}
+
+.sidebar-toggle {
+  position: fixed;
+  top: 0.85rem;
+  right: 1rem;
+  z-index: 300;
+  background: #1a2035;
+  border: 1px solid #2d3748;
+  border-radius: 6px;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.4rem 0.7rem;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.sidebar-toggle:hover {
+  background: #252f48;
+  border-color: #6b7280;
+  color: #e2e8f0;
+}
+
+.sidebar-toggle[aria-expanded="true"] {
+  background: #252f48;
+  border-color: #6366f1;
+  color: #a5b4fc;
+}
+
+.sidebar-content {
+  background: #0d1120;
+  border-left: 1px solid #1e2433;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow-y: auto;
+  height: 100%;
+}
+
 #log-panel {
   border-top: 1px solid #1e2433;
 }
@@ -474,7 +550,6 @@ header p {
 /* ── Recordings section ─────────────────────────────────── */
 
 #recordings-section {
-  border-bottom: 1px solid #1e2433;
 }
 
 #recordings-section summary {
@@ -557,7 +632,6 @@ header p {
 /* ── Saved Scripts section ──────────────────────────────── */
 
 #saved-scripts-section {
-  border-bottom: 1px solid #1e2433;
 }
 
 #saved-scripts-section summary {
@@ -720,9 +794,9 @@ header p {
   font-family: 'Menlo', 'Monaco', monospace;
   font-size: 0.78rem;
   line-height: 1.5;
-  max-height: 300px;
+  max-height: 400px;
   overflow-y: auto;
-  padding: 0.75rem 1.5rem;
+  padding: 0.75rem 1rem;
   white-space: pre-wrap;
   word-break: break-all;
   border-top: 1px solid #1e2433;

@@ -1,7 +1,7 @@
 // @ts-check
 
 /**
- * WP Reel — Express bootstrap.
+ * WP Director — Express bootstrap.
  *
  * Thin entry point. The real work lives in `src/`:
  *
@@ -34,4 +34,4 @@ require('./src/routes/recordings').register(app);
 require('./src/routes/screencast').register(app);
 
 const PORT = process.env.PORT || DEFAULT_SERVER_PORT;
-app.listen(PORT, () => console.log(`WP Reel at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`WP Director at http://localhost:${PORT}`));

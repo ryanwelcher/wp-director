@@ -6,9 +6,7 @@ Quickly records demo and support videos for WordPress sites using Playwright + W
 
 ```bash
 npm start                # start the natural language UI at http://localhost:3000
-npm run record:wp        # WP admin + frontend recordings
-npm run record:external  # external site example (playwright.dev)
-npm run record           # all recordings
+npm run record           # run all recordings
 npm run record:steps     # run all JSON step definition files from steps/
 npm run record:step -- "name"  # run a single step definition by name (grep match)
 ```
@@ -28,8 +26,8 @@ A local Express server that lets you build step definitions by typing plain Engl
 | `GET` | `/api/scripts` | Lists all saved step files from `steps/` |
 | `POST` | `/api/scripts/save` | Saves current steps to `steps/<name>.json` |
 | `DELETE` | `/api/scripts/:filename` | Deletes a saved step file |
-| `POST` | `/api/blueprint` | Generates a WP Playground blueprint from a natural language description via Claude |
 | `GET` | `/api/default-blueprint` | Returns the contents of `blueprint.json` |
+| `GET` | `/api/current-blueprint` | Returns `blueprint.generated.json` if it exists, else `blueprint.json` (last-used blueprint for UI startup) |
 | `POST` | `/api/preview-blueprint` | Starts a second Playground instance (port 9401) with the given blueprint; returns the preview URL |
 | `GET` | `/api/screencast` | SSE stream of live JPEG frames from Chrome via CDP `Page.screencastFrame` |
 

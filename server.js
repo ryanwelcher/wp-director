@@ -86,65 +86,6 @@ const STEPS_TOOL = {
   },
 };
 
-const BLUEPRINT_PROMPT = `You are a WordPress Playground blueprint generator. Convert natural language environment descriptions into a valid WP Playground blueprint by calling the generate_blueprint tool.
-
-## Blueprint shorthands (prefer these over explicit steps)
-
-Use top-level shorthands instead of equivalent steps wherever possible:
-
-- "login": true  →  logs in as admin (shorthand for the login step)
-- "plugins": ["slug", "slug2"]  →  installs AND activates plugins from wordpress.org by slug
-- "siteOptions": { "blogname": "...", "blogdescription": "..." }  →  sets site options
-
-NOTE: Shorthands run before any explicit "steps". Use explicit steps only for things that require ordering (themes, runPHP, wp-cli, etc.).
-
-## Rules
-- Always include "$schema", "landingPage": "/wp-admin/", and "login": true
-- Use the "plugins" shorthand array for all wordpress.org plugins — never use installPlugin steps or activatePlugin steps
-- Use the "siteOptions" shorthand instead of a setSiteOptions step
-- Always pair installTheme with activateTheme in the steps array (no shorthand for themes)
-- Use "latest" for wp version unless a specific version is requested
-- Default php to "8.2" unless specified
-- Derive plugin slugs from names: lowercase, hyphens (e.g. "Query Monitor" → "query-monitor")
-- Omit "steps" entirely if there are no themes or runPHP needed`;
-
-const BLUEPRINT_TOOL = {
-  name: 'generate_blueprint',
-  description: 'Generate a WP Playground blueprint configuration object.',
-  input_schema: {
-    type: 'object',
-    properties: {
-      $schema: { type: 'string', description: 'Must be "https://playground.wordpress.net/blueprint-schema.json"' },
-      landingPage: { type: 'string', description: 'Must be "/wp-admin/"' },
-      login: { type: 'boolean', description: 'Must be true' },
-      preferredVersions: {
-        type: 'object',
-        properties: {
-          wp: { type: 'string', description: 'WordPress version, e.g. "latest", "6.5"' },
-          php: { type: 'string', description: 'PHP version, e.g. "8.2"' },
-        },
-        required: ['wp', 'php'],
-      },
-      plugins: {
-        type: 'array',
-        items: { type: 'string' },
-        description: 'wordpress.org plugin slugs to install and activate',
-      },
-      siteOptions: {
-        type: 'object',
-        additionalProperties: { type: 'string' },
-        description: 'Site options like blogname, blogdescription',
-      },
-      steps: {
-        type: 'array',
-        items: { type: 'object', additionalProperties: true },
-        description: 'Explicit blueprint steps (only for themes, runPHP, etc.)',
-      },
-    },
-    required: ['$schema', 'landingPage', 'login', 'preferredVersions'],
-  },
-};
-
 // ─── WP Playground management ─────────────────────────────────────────────────
 
 function killPlayground() {
@@ -243,62 +184,6 @@ app.post('/api/translate', async (req, res) => {
     const toolUse = message.content.find((b) => b.type === 'tool_use');
     const steps = toolUse?.input?.steps ?? [];
     res.json({ steps });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-function normalizeBlueprintShorthands(blueprint) {
-  const steps = blueprint.steps ?? [];
-  const pluginSlugs = [];
-  const remainingSteps = [];
-
-  for (const step of steps) {
-    if (step.step === 'installPlugin' && step.pluginData?.resource === 'wordpress.org/plugins') {
-      pluginSlugs.push(step.pluginData.slug);
-    } else if (
-      step.step === 'activatePlugin' ||
-      (step.step === 'wp-cli' && typeof step.command === 'string' && step.command.startsWith('wp plugin activate'))
-    ) {
-      // drop — activation is handled by the plugins shorthand
-    } else if (step.step === 'setSiteOptions') {
-      blueprint.siteOptions = { ...blueprint.siteOptions, ...step.options };
-    } else {
-      remainingSteps.push(step);
-    }
-  }
-
-  if (pluginSlugs.length) {
-    blueprint.plugins = [...new Set([...(blueprint.plugins ?? []), ...pluginSlugs])];
-  }
-
-  if (remainingSteps.length) {
-    blueprint.steps = remainingSteps;
-  } else {
-    delete blueprint.steps;
-  }
-
-  return blueprint;
-}
-
-app.post('/api/blueprint', async (req, res) => {
-  const { command } = req.body;
-  if (!command) return res.status(400).json({ error: 'command required' });
-
-  try {
-    const message = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2048,
-      system: BLUEPRINT_PROMPT,
-      tools: [BLUEPRINT_TOOL],
-      tool_choice: { type: 'tool', name: 'generate_blueprint' },
-      messages: [{ role: 'user', content: command }],
-    });
-
-    const toolUse = message.content.find((b) => b.type === 'tool_use');
-    const blueprint = normalizeBlueprintShorthands(toolUse?.input ?? {});
-    res.json({ blueprint });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });

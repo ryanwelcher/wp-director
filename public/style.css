@@ -446,6 +446,21 @@ header p {
 .action-bar button.primary:hover { background: #15803d; }
 .action-bar button.primary:disabled { background: #374151; cursor: not-allowed; }
 
+.action-bar button.danger {
+  background: #dc2626;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-left: auto;
+  padding: 0.45rem 1.2rem;
+  transition: background 0.15s;
+}
+
+.action-bar button.danger:hover { background: #b91c1c; }
+
 /* ── Main content (shifts when sidebar opens) ────────────── */
 
 .main-content {

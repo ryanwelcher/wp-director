@@ -12,6 +12,8 @@ const emptyHint = document.getElementById('empty-hint');
 const clearBtn = document.getElementById('clear-btn');
 const nameInput = document.getElementById('name-input');
 const recordBtn = document.getElementById('record-btn');
+const previewBtn = document.getElementById('preview-btn');
+const stopBtn = document.getElementById('stop-btn');
 const statusEl = document.getElementById('status');
 
 // ── Blueprint elements ────────────────────────────────────────────────────────
@@ -184,6 +186,7 @@ function renderStepList() {
   stepList.innerHTML = '';
   emptyHint.style.display = steps.length ? 'none' : '';
   recordBtn.disabled = steps.length === 0;
+  previewBtn.disabled = steps.length === 0;
   saveBtn.disabled = steps.length === 0;
   stepCount.textContent = `(${steps.length})`;
 
@@ -386,21 +389,21 @@ async function testBlueprint() {
   }
 }
 
-async function runSteps() {
-  const name = nameInput.value.trim() || `recording-${Date.now()}`;
+function setRunning(running) {
+  recordBtn.hidden = running;
+  previewBtn.hidden = running;
+  stopBtn.hidden = !running;
+}
+
+async function streamRun(fetchPromise, { onDone }) {
   logOutput.textContent = '';
   logPanel.open = true;
   logBadge.textContent = 'recording';
   logBadge.classList.remove('hidden');
-  recordBtn.disabled = true;
+  setRunning(true);
   startScreencast();
 
-  const res = await fetch('/api/run', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, steps, blueprint, videoSize: getVideoSize() }),
-  });
-
+  const res = await fetchPromise;
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
@@ -422,15 +425,45 @@ async function runSteps() {
           logOutput.scrollTop = logOutput.scrollHeight;
         } else if (msg.type === 'done') {
           stopScreencast();
-          logOutput.textContent += `\n--- Done (exit ${msg.code}) ---\n`;
-          logBadge.textContent = msg.code === 0 ? 'complete' : 'failed';
-          logBadge.className = 'badge' + (msg.code === 0 ? ' badge-pass' : ' badge-fail');
-          recordBtn.disabled = steps.length === 0;
-          loadRecordings();
+          setRunning(false);
+          if (msg.stopped) {
+            logOutput.textContent += '\n--- Stopped ---\n';
+            logBadge.textContent = 'stopped';
+            logBadge.className = 'badge badge-fail';
+          } else {
+            logOutput.textContent += `\n--- Done (exit ${msg.code}) ---\n`;
+            logBadge.textContent = msg.code === 0 ? 'complete' : 'failed';
+            logBadge.className = 'badge' + (msg.code === 0 ? ' badge-pass' : ' badge-fail');
+          }
+          onDone(msg);
         }
       } catch {}
     }
   }
+}
+
+async function runSteps() {
+  const name = nameInput.value.trim() || `recording-${Date.now()}`;
+  await streamRun(
+    fetch('/api/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, steps, blueprint, videoSize: getVideoSize() }),
+    }),
+    { onDone: (msg) => { if (!msg.stopped) loadRecordings(); } }
+  );
+}
+
+async function runPreview() {
+  const name = nameInput.value.trim() || `preview-${Date.now()}`;
+  await streamRun(
+    fetch('/api/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, steps, blueprint, videoSize: null, preview: true }),
+    }),
+    { onDone: () => {} }
+  );
 }
 
 // ── Saved Scripts ─────────────────────────────────────────────────────────────
@@ -587,6 +620,7 @@ async function recordAll() {
   logBadge.textContent = 'recording';
   logBadge.classList.remove('hidden');
   recordAllBtn.disabled = true;
+  setRunning(true);
   startScreencast();
 
   const res = await fetch('/api/run/batch', {
@@ -616,12 +650,13 @@ async function recordAll() {
           logOutput.scrollTop = logOutput.scrollHeight;
         } else if (msg.type === 'done') {
           stopScreencast();
-          logOutput.textContent += `\n--- Done (exit ${msg.code}) ---\n`;
-          logBadge.textContent = msg.code === 0 ? 'complete' : 'failed';
-          logBadge.className = 'badge' + (msg.code === 0 ? ' badge-pass' : ' badge-fail');
+          setRunning(false);
+          logOutput.textContent += msg.stopped ? '\n--- Stopped ---\n' : `\n--- Done (exit ${msg.code}) ---\n`;
+          logBadge.textContent = msg.stopped ? 'stopped' : (msg.code === 0 ? 'complete' : 'failed');
+          logBadge.className = 'badge' + (msg.stopped || msg.code !== 0 ? ' badge-fail' : ' badge-pass');
           logBadge.classList.remove('hidden');
           recordAllBtn.disabled = selectedScripts.length === 0;
-          loadRecordings();
+          if (!msg.stopped) loadRecordings();
         }
       } catch {}
     }
@@ -633,6 +668,8 @@ addBtn.addEventListener('click', addCommand);
 commandInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addCommand(); });
 clearBtn.addEventListener('click', () => { steps = []; renderSteps(); });
 recordBtn.addEventListener('click', runSteps);
+previewBtn.addEventListener('click', runPreview);
+stopBtn.addEventListener('click', () => fetch('/api/stop', { method: 'POST' }));
 
 jsonPreview.addEventListener('input', onStepsEdit);
 

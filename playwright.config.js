@@ -1,6 +1,8 @@
 // @ts-check
 const { defineConfig, devices } = require('@playwright/test');
 
+const isPreview = process.env.WP_DIRECTOR_PREVIEW === '1';
+
 module.exports = defineConfig({
   testDir: './recordings',
   outputDir: './output',
@@ -14,7 +16,7 @@ module.exports = defineConfig({
     baseURL: 'http://127.0.0.1:9400',
     headless: true,
     viewport: { width: 1920, height: 1080 },
-    video: {
+    video: isPreview ? { mode: 'off' } : {
       mode: 'on',
       size: { width: 1920, height: 1080 },
     },

@@ -40,6 +40,9 @@ const { killPlayground, startMainPlayground } = require('../playground');
 const { processVideo } = require('../video');
 const { nameToFilename } = require('./scripts');
 
+/** @type {import('child_process').ChildProcess|null} */
+let currentProc = null;
+
 /**
  * Set the three headers required to keep an SSE stream open.
  *
@@ -102,26 +105,45 @@ async function maybeRestartPlayground(blueprint, send, res) {
  * @param {import('express').Response} opts.res
  * @param {Object} [opts.doneExtra]         Extra fields merged into the final `done` event.
  */
-function runPlaywright({ grepPattern, videoSize, send, res, doneExtra = {} }) {
+function runPlaywright({ grepPattern, videoSize, send, res, doneExtra = {}, preview = false }) {
+  const env = { ...process.env };
+  if (preview) env.WP_DIRECTOR_PREVIEW = '1';
+
   const proc = spawn(
     'npx', ['playwright', 'test', 'recordings/steps-runner.spec.js', '--grep', grepPattern],
-    { cwd: ROOT, env: { ...process.env } }
+    { cwd: ROOT, env }
   );
+
+  currentProc = proc;
 
   proc.stdout.on('data', (d) => send({ type: 'stdout', text: d.toString() }));
   proc.stderr.on('data', (d) => send({ type: 'stderr', text: d.toString() }));
-  proc.on('close', async (code) => {
-    if (code === 0) await processVideo(videoSize, send);
-    send({ type: 'done', code, ...doneExtra });
+  proc.on('close', async (code, signal) => {
+    currentProc = null;
+    if (signal) {
+      send({ type: 'done', code: 1, stopped: true });
+    } else {
+      if (code === 0 && !preview) await processVideo(videoSize, send);
+      send({ type: 'done', code, ...doneExtra });
+    }
     res.end();
   });
 }
 
 function register(app) {
+  app.post('/api/stop', (req, res) => {
+    if (currentProc) {
+      currentProc.kill('SIGTERM');
+      res.json({ ok: true });
+    } else {
+      res.json({ ok: false, reason: 'no process running' });
+    }
+  });
+
   // Single-recording run: write the posted steps to a file, then grep for
   // exactly this recording by its `name`.
   app.post('/api/run', async (req, res) => {
-    const { name = `recording-${Date.now()}`, steps = [], blueprint = null, videoSize = null } = req.body;
+    const { name = `recording-${Date.now()}`, steps = [], blueprint = null, videoSize = null, preview = false } = req.body;
     if (!steps.length) return res.status(400).json({ error: 'no steps provided' });
 
     if (!fs.existsSync(STEPS_DIR)) fs.mkdirSync(STEPS_DIR);
@@ -139,7 +161,8 @@ function register(app) {
       videoSize,
       send,
       res,
-      doneExtra: { file: filePath },
+      doneExtra: preview ? {} : { file: filePath },
+      preview,
     });
   });
 

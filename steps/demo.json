@@ -1,9 +1,10 @@
 {
-  "name": "my-recording",
+  "name": "demo",
   "steps": [
     {
       "action": "navigate",
-      "url": "/wp-login.php"
+      "url": "/wp-login.php",
+      "waitUntil": "load"
     },
     {
       "action": "waitForSelector",
@@ -25,24 +26,37 @@
     },
     {
       "action": "waitForSelector",
-      "selector": "#wpadminbar"
+      "selector": "#wpadminbar",
+      "timeout": 10000
+    },
+    {
+      "action": "wpNavigate",
+      "screen": "plugins"
+    },
+    {
+      "action": "wait",
+      "ms": 500
     },
     {
       "action": "wpInstallPlugin",
-      "slug": "hello-dolly",
+      "slug": "gutenberg",
       "activate": true
+    },
+    {
+      "action": "wpNavigate",
+      "screen": "posts"
+    },
+    {
+      "action": "wait",
+      "ms": 500
     },
     {
       "action": "wpNavigate",
       "screen": "new-post"
     },
     {
-      "action": "waitForSelector",
-      "selector": ".editor-post-title__input, h1.wp-block-post-title"
-    },
-    {
-      "action": "wpSetPostTitle",
-      "title": "Hello"
+      "action": "wait",
+      "ms": 500
     }
   ]
 }

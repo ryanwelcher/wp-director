@@ -1,5 +1,5 @@
 {
-  "name": "my-recording",
+  "name": "AQL test",
   "steps": [
     {
       "action": "navigate",
@@ -29,7 +29,7 @@
     },
     {
       "action": "wpInstallPlugin",
-      "slug": "hello-dolly",
+      "slug": "advanced-query-loop",
       "activate": true
     },
     {
@@ -38,11 +38,11 @@
     },
     {
       "action": "waitForSelector",
-      "selector": ".editor-post-title__input, h1.wp-block-post-title"
+      "selector": ".editor-post-title"
     },
     {
-      "action": "wpSetPostTitle",
-      "title": "Hello"
+      "action": "wpInsertBlock",
+      "blockType": "paragraph"
     }
   ]
 }

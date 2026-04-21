@@ -141,6 +141,22 @@ let selectedScripts = [];
 let savedScripts = [];
 /** @type {Array<{name: string, filename: string, actionCount: number, builtin: boolean}>} */
 let libraryEntries = [];
+/** @type {Record<number, string>} Maps direction group index → accumulated stderr for that step */
+let stepErrors = {};
+/** Flat action index of the most recently started step during a run */
+let currentFlatStep = -1;
+/** @type {Record<number, Array<object>>} Maps direction group index → pending AI suggestion */
+let pendingSuggestions = {};
+
+// ── Step error helpers ────────────────────────────────────────────────────────
+function flatIndexToGroupIndex(flatIdx) {
+  let count = 0;
+  for (let i = 0; i < directions.length; i++) {
+    count += (directions[i].actions ?? []).length;
+    if (flatIdx < count) return i;
+  }
+  return -1;
+}
 
 // ── Step descriptions ─────────────────────────────────────────────────────────
 const WP_SCREENS = {
@@ -272,13 +288,35 @@ function renderDirectionList() {
   directions.forEach((group, i) => {
     const isOpen = !!group._open;
     const innerActions = group.actions ?? [];
+    const hasError = !!stepErrors[i];
+    const hasSuggestion = !!pendingSuggestions[i];
 
     const li = document.createElement('li');
-    li.className = 'direction-group';
+    li.className = 'direction-group' + (hasError ? ' has-error' : '');
     li.draggable = true;
 
     const innerHTML = isOpen && innerActions.length > 0
       ? `<ul class="direction-inner-list">${innerActions.map(s => `<li class="direction-inner-item">${ea(describePlain(s))}</li>`).join('')}</ul>`
+      : '';
+
+    const errorBadge = hasError
+      ? `<span class="step-error-badge" title="${ea(stepErrors[i])}">&#9888; Error</span>
+         <button class="direction-refine" data-group="${i}">Refine with AI</button>`
+      : '';
+
+    const errorPanel = hasError
+      ? `<div class="error-panel"><pre class="error-text">${ea(stepErrors[i])}</pre></div>`
+      : '';
+
+    const suggestionPanel = hasSuggestion
+      ? `<div class="refine-suggestion">
+           <div class="refine-suggestion-label">AI suggestion: <strong>${ea(pendingSuggestions[i].label)}</strong></div>
+           <ul class="refine-suggestion-actions">${(pendingSuggestions[i].actions ?? []).map(s => `<li>${ea(describePlain(s))}</li>`).join('')}</ul>
+           <div class="refine-suggestion-buttons">
+             <button class="direction-accept-suggestion primary">Accept</button>
+             <button class="direction-discard-suggestion secondary">Discard</button>
+           </div>
+         </div>`
       : '';
 
     li.innerHTML = `
@@ -290,8 +328,11 @@ function renderDirectionList() {
         <button class="direction-insert" title="Insert direction">+</button>
         ${!group._fromDirection ? '<button class="direction-save" title="Save as direction">&#128204;</button>' : ''}
         <button class="direction-delete" title="Delete step">✕</button>
+        ${errorBadge}
       </div>
       ${innerHTML}
+      ${errorPanel}
+      ${suggestionPanel}
     `;
 
     li.querySelector('.direction-toggle').addEventListener('click', (e) => {
@@ -319,6 +360,21 @@ function renderDirectionList() {
     li.querySelector('.direction-label-input').addEventListener('change', (e) => {
       directions[i].label = /** @type {HTMLInputElement} */(e.target).value;
       renderJSON();
+    });
+
+    li.querySelector('.direction-refine')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      refineStep(i);
+    });
+
+    li.querySelector('.direction-accept-suggestion')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      acceptSuggestion(i);
+    });
+
+    li.querySelector('.direction-discard-suggestion')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      discardSuggestion(i);
     });
 
     li.addEventListener('dragstart', (e) => {
@@ -527,10 +583,19 @@ async function streamRun(fetchPromise, { onDone }) {
   setRunning(true);
   startScreencast();
 
+  // Reset per-run error state
+  stepErrors = {};
+  pendingSuggestions = {};
+  currentFlatStep = -1;
+  renderDirectionList();
+
   const res = await fetchPromise;
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  // Accumulate all output since the last STEP_START marker — attributed to
+  // currentFlatStep when the run exits with a non-zero code.
+  let stepOutputBuffer = '';
 
   while (true) {
     const { done, value } = await reader.read();
@@ -547,6 +612,15 @@ async function streamRun(fetchPromise, { onDone }) {
         if (msg.type === 'stdout' || msg.type === 'stderr') {
           logOutput.textContent += msg.text;
           logOutput.scrollTop = logOutput.scrollHeight;
+
+          // Track which flat step is executing; reset buffer on each new step
+          const stepMarker = msg.text.match(/STEP_START:(\d+)/);
+          if (stepMarker) {
+            currentFlatStep = parseInt(stepMarker[1], 10);
+            stepOutputBuffer = '';
+          } else {
+            stepOutputBuffer += msg.text;
+          }
         } else if (msg.type === 'done') {
           stopScreencast();
           setRunning(false);
@@ -558,7 +632,13 @@ async function streamRun(fetchPromise, { onDone }) {
             logOutput.textContent += `\n--- Done (exit ${msg.code}) ---\n`;
             logBadge.textContent = msg.code === 0 ? 'complete' : 'failed';
             logBadge.className = 'badge' + (msg.code === 0 ? ' badge-pass' : ' badge-fail');
+            // On failure, associate buffered output with the step that was running
+            if (msg.code !== 0 && currentFlatStep >= 0 && stepOutputBuffer.trim()) {
+              const groupIdx = flatIndexToGroupIndex(currentFlatStep);
+              if (groupIdx >= 0) stepErrors[groupIdx] = stepOutputBuffer;
+            }
           }
+          if (Object.keys(stepErrors).length > 0) renderDirectionList();
           onDone(msg);
         }
       } catch {}
@@ -882,6 +962,47 @@ function exportTxt() {
   a.download = `${name}.txt`;
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+// ── AI step refinement ────────────────────────────────────────────────────────
+async function refineStep(groupIdx) {
+  const group = directions[groupIdx];
+  const errorText = stepErrors[groupIdx];
+  if (!group || !errorText) return;
+
+  const history = directions.flatMap(g => g.actions ?? []);
+  let refineBtn = stepList.querySelector(`.direction-refine[data-group="${groupIdx}"]`);
+  if (refineBtn) { refineBtn.disabled = true; refineBtn.textContent = 'Asking Claude…'; }
+
+  try {
+    const res = await fetch('/api/refine', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ step: group.actions, error: errorText, history }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Refinement failed');
+    const suggestion = data.directions?.[0];
+    if (!suggestion) throw new Error('No suggestion returned');
+    pendingSuggestions[groupIdx] = suggestion;
+    renderDirectionList();
+  } catch (err) {
+    setStatus(statusEl, err.message, true);
+    if (refineBtn) { refineBtn.disabled = false; refineBtn.textContent = 'Refine with AI'; }
+  }
+}
+
+function acceptSuggestion(groupIdx) {
+  if (!pendingSuggestions[groupIdx]) return;
+  directions[groupIdx] = { ...pendingSuggestions[groupIdx], _open: directions[groupIdx]._open };
+  delete stepErrors[groupIdx];
+  delete pendingSuggestions[groupIdx];
+  renderDirections();
+}
+
+function discardSuggestion(groupIdx) {
+  delete pendingSuggestions[groupIdx];
+  renderDirectionList();
 }
 
 // ── Event listeners ───────────────────────────────────────────────────────────

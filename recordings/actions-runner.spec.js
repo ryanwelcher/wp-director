@@ -64,7 +64,9 @@ for (const file of stepFiles) {
     const rawActions = def.actions ?? def.steps ?? [];
     const flatActions = rawActions.flatMap(s => s.actions ?? s.steps ?? [s]);
 
+    let stepIndex = 0;
     for (const step of flatActions) {
+      console.log(`STEP_START:${stepIndex}`);
       await test.step(step.action + (step.selector ? ` "${step.selector}"` : ''), async () => {
         switch (step.action) {
           case 'navigate':
@@ -189,9 +191,10 @@ for (const file of stepFiles) {
 
           case 'wpSetPostTitle': {
             const editorFrame = page.frameLocator('iframe[name="editor-canvas"]');
-            await editorFrame.locator('.wp-block-post-title').waitFor({ state: 'visible', timeout: 30_000 });
-            await editorFrame.locator('.wp-block-post-title').click();
-            await editorFrame.locator('.wp-block-post-title').fill(step.title);
+            const titleLocator = editorFrame.locator('.wp-block-post-title');
+            await titleLocator.waitFor({ state: 'visible', timeout: 30_000 });
+            await titleLocator.click();
+            await titleLocator.pressSequentially(step.title, { delay: step.delay ?? 100 });
             await page.waitForTimeout(300);
             break;
           }
@@ -209,7 +212,9 @@ for (const file of stepFiles) {
               targetLocator = editorFrame.locator('[contenteditable="true"]:not(.wp-block-post-title)').last();
             }
             await targetLocator.waitFor({ state: 'visible', timeout: 10_000 });
-            await targetLocator.fill(step.content);
+            await targetLocator.click();
+            await page.keyboard.press('Control+a');
+            await targetLocator.pressSequentially(step.content, { delay: step.delay ?? 100 });
             await page.waitForTimeout(300);
             break;
           }
@@ -260,10 +265,10 @@ for (const file of stepFiles) {
               ? step.blockType
               : `core/${step.blockType}`;
             await page.waitForFunction(() => window?.wp?.blocks && window?.wp?.data);
-            await page.evaluate((bType, attrs) => {
+            await page.evaluate(({ bType, attrs }) => {
               const block = wp.blocks.createBlock(bType, attrs || {});
               wp.data.dispatch('core/block-editor').insertBlock(block);
-            }, blockType, step.attributes ?? {});
+            }, { bType: blockType, attrs: step.attributes ?? {} });
             break;
           }
 
@@ -297,15 +302,18 @@ for (const file of stepFiles) {
           }
 
           case 'wpInsertBlockFromPanel': {
-            await page.getByRole('button', { name: 'Block Inserter', exact: true }).click();
+            const inserterBtn = page.getByRole('button', { name: 'Block Inserter', exact: true });
+            await highlightAndClick(page, inserterBtn);
             await page.waitForTimeout(400);
             const blockLibrary = page.getByRole('region', { name: 'Block Library' });
             await blockLibrary.waitFor({ state: 'visible', timeout: 10_000 });
-            await blockLibrary.getByRole('searchbox', { name: 'Search' }).fill(step.blockType);
+            const searchBox = blockLibrary.getByRole('searchbox', { name: 'Search' });
+            await searchBox.click();
+            await searchBox.pressSequentially(step.blockType, { delay: step.delay ?? 100 });
             await page.waitForTimeout(400);
             const option = page.getByRole('option', { name: step.blockType, exact: true });
             await option.waitFor({ timeout: 5_000 });
-            await option.click();
+            await highlightAndClick(page, option);
             await page.waitForTimeout(400);
             break;
           }
@@ -360,6 +368,7 @@ for (const file of stepFiles) {
             throw new Error(`Unknown action: "${step.action}"`);
         }
       });
+      stepIndex++;
     }
   });
 }

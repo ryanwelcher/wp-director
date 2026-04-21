@@ -27,6 +27,7 @@ app.use(express.static(PUBLIC_DIR));
 
 // Route modules — each registers its own handlers on `app`.
 require('./src/routes/translate').register(app);
+require('./src/routes/refine').register(app);
 require('./src/routes/blueprint').register(app);
 require('./src/routes/scripts').register(app);
 require('./src/routes/directions').register(app);

@@ -33,9 +33,9 @@ module.exports = {
   PREVIEW_PID_FILE: path.join(ROOT, '.wp-playground-preview.pid'),
 
   // Blueprint files
-  DEFAULT_BLUEPRINT:   path.join(ROOT, 'blueprint.json'),           // checked-in default
-  GENERATED_BLUEPRINT: path.join(ROOT, 'blueprint.generated.json'), // last UI-customized (gitignored)
-  PREVIEW_BLUEPRINT:   path.join(ROOT, 'blueprint.preview.json'),   // for port-9401 sandbox (gitignored)
+  DEFAULT_BLUEPRINT:   path.join(ROOT, 'blueprints', 'blueprint.json'),           // checked-in default
+  GENERATED_BLUEPRINT: path.join(ROOT, 'blueprints', 'blueprint.generated.json'), // last UI-customized (gitignored)
+  PREVIEW_BLUEPRINT:   path.join(ROOT, 'blueprints', 'blueprint.preview.json'),   // for port-9401 sandbox (gitignored)
 
   // Ports
   PLAYGROUND_PORT:         9400, // main WP (Playwright baseURL in playwright.config.js)

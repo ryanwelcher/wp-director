@@ -156,8 +156,9 @@ function register(app) {
 
     if (!(await maybeRestartPlayground(blueprint, send, res))) return;
 
+    const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     runPlaywright({
-      grepPattern: name,
+      grepPattern: `^${escapedName}$`,
       videoSize,
       send,
       res,

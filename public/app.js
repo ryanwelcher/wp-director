@@ -211,6 +211,7 @@ function renderStepList() {
         <span class="index">${i + 1}</span>
         <input class="group-label-input" data-group="${i}" value="${ea(group.label)}" title="Edit label">
         <button class="step-toggle" aria-expanded="${isOpen}" title="${isOpen ? 'Collapse' : 'Expand'} Playwright steps">${isOpen ? '▼' : '▶'}</button>
+        <button class="step-delete" title="Delete step">✕</button>
       </div>
       ${innerHTML}
     `;
@@ -219,6 +220,12 @@ function renderStepList() {
       e.stopPropagation();
       steps[i]._open = !steps[i]._open;
       renderStepList();
+    });
+
+    li.querySelector('.step-delete').addEventListener('click', (e) => {
+      e.stopPropagation();
+      steps.splice(i, 1);
+      renderSteps();
     });
 
     li.querySelector('.group-label-input').addEventListener('change', (e) => {
@@ -470,7 +477,7 @@ async function runSteps() {
     fetch('/api/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, steps, blueprint, videoSize: getVideoSize() }),
+      body: JSON.stringify({ name, steps: stepsForJSON(), blueprint, videoSize: getVideoSize() }),
     }),
     { onDone: (msg) => { if (!msg.stopped) loadRecordings(); } }
   );
@@ -482,7 +489,7 @@ async function runPreview() {
     fetch('/api/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, steps, blueprint, videoSize: null, preview: true }),
+      body: JSON.stringify({ name, steps: stepsForJSON(), blueprint, videoSize: null, preview: true }),
     }),
     { onDone: () => {} }
   );

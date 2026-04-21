@@ -322,6 +322,21 @@ header p {
 
 .step-toggle:hover { color: #94a3b8; background: #252d3d; }
 
+.step-delete {
+  background: none;
+  border: none;
+  color: #374151;
+  cursor: pointer;
+  font-size: 0.7rem;
+  line-height: 1;
+  padding: 0.2rem 0.3rem;
+  border-radius: 3px;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+
+.step-delete:hover { color: #f87171; background: #2d1f1f; }
+
 .step-inner-list {
   list-style: none;
   border-top: 1px solid #232d40;

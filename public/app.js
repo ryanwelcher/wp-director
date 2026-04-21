@@ -38,8 +38,8 @@ previewImg.addEventListener('error', () => { previewImg.src = ''; });
 
 
 // ── Steps view toggle elements ────────────────────────────────────────────────
-const stepsViewToggle = document.getElementById('steps-view-toggle');
-const stepsJsonView = document.getElementById('steps-json-view');
+const actionsViewToggle = document.getElementById('actions-view-toggle');
+const actionsJsonView = document.getElementById('actions-json-view');
 
 // ── Saved Scripts elements ────────────────────────────────────────────────────
 const saveBtn = document.getElementById('save-btn');
@@ -123,12 +123,12 @@ function stopScreencast() {
 
 // ── State ─────────────────────────────────────────────────────────────────────
 /** @type {Array<object>} */
-let steps = [];
+let actions = [];
 /** @type {object|null} */
 let blueprint = null;
 /** @type {object|null} */
 let defaultBlueprint = null;
-let updatingStepsFromCode = false;
+let updatingActionsFromCode = false;
 let updatingBlueprintFromCode = false;
 /** @type {string[]} */
 let selectedScripts = [];
@@ -175,34 +175,34 @@ function describePlain(step) {
   }
 }
 
-/** Ensure loaded steps are in grouped format { label, steps[] }. */
-function normalizeSteps(raw) {
+/** Ensure loaded actions are in grouped format { label, actions[] }. */
+function normalizeActions(raw) {
   if (!Array.isArray(raw)) return [];
-  return raw.map(s => s.label != null ? s : { label: describePlain(s), steps: [s] });
+  return raw.map(s => s.label != null ? s : { label: describePlain(s), actions: [s] });
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────
 let draggingIndex = null;
 
-function renderStepList() {
+function renderActionList() {
   stepList.innerHTML = '';
-  emptyHint.style.display = steps.length ? 'none' : '';
-  recordBtn.disabled = steps.length === 0;
-  previewBtn.disabled = steps.length === 0;
-  saveBtn.disabled = steps.length === 0;
-  exportTxtBtn.disabled = steps.length === 0;
-  stepCount.textContent = `(${steps.length})`;
+  emptyHint.style.display = actions.length ? 'none' : '';
+  recordBtn.disabled = actions.length === 0;
+  previewBtn.disabled = actions.length === 0;
+  saveBtn.disabled = actions.length === 0;
+  exportTxtBtn.disabled = actions.length === 0;
+  stepCount.textContent = `(${actions.length})`;
 
-  steps.forEach((group, i) => {
+  actions.forEach((group, i) => {
     const isOpen = !!group._open;
-    const innerSteps = group.steps ?? [];
+    const innerActions = group.actions ?? [];
 
     const li = document.createElement('li');
     li.className = 'step-group';
     li.draggable = true;
 
-    const innerHTML = isOpen && innerSteps.length > 0
-      ? `<ul class="step-inner-list">${innerSteps.map(s => `<li class="step-inner-item">${ea(describePlain(s))}</li>`).join('')}</ul>`
+    const innerHTML = isOpen && innerActions.length > 0
+      ? `<ul class="step-inner-list">${innerActions.map(s => `<li class="step-inner-item">${ea(describePlain(s))}</li>`).join('')}</ul>`
       : '';
 
     li.innerHTML = `
@@ -210,7 +210,7 @@ function renderStepList() {
         <span class="drag-handle" title="Drag to reorder">⠿</span>
         <span class="index">${i + 1}</span>
         <input class="group-label-input" data-group="${i}" value="${ea(group.label)}" title="Edit label">
-        <button class="step-toggle" aria-expanded="${isOpen}" title="${isOpen ? 'Collapse' : 'Expand'} Playwright steps">${isOpen ? '▼' : '▶'}</button>
+        <button class="step-toggle" aria-expanded="${isOpen}" title="${isOpen ? 'Collapse' : 'Expand'} Playwright actions">${isOpen ? '▼' : '▶'}</button>
         <button class="step-delete" title="Delete step">✕</button>
       </div>
       ${innerHTML}
@@ -218,18 +218,18 @@ function renderStepList() {
 
     li.querySelector('.step-toggle').addEventListener('click', (e) => {
       e.stopPropagation();
-      steps[i]._open = !steps[i]._open;
-      renderStepList();
+      actions[i]._open = !actions[i]._open;
+      renderActionList();
     });
 
     li.querySelector('.step-delete').addEventListener('click', (e) => {
       e.stopPropagation();
-      steps.splice(i, 1);
-      renderSteps();
+      actions.splice(i, 1);
+      renderActions();
     });
 
     li.querySelector('.group-label-input').addEventListener('change', (e) => {
-      steps[i].label = /** @type {HTMLInputElement} */(e.target).value;
+      actions[i].label = /** @type {HTMLInputElement} */(e.target).value;
       renderJSON();
     });
 
@@ -257,47 +257,47 @@ function renderStepList() {
     li.addEventListener('drop', (e) => {
       e.preventDefault();
       if (draggingIndex === null || draggingIndex === i) return;
-      const moved = steps.splice(draggingIndex, 1)[0];
-      steps.splice(i, 0, moved);
-      renderSteps();
+      const moved = actions.splice(draggingIndex, 1)[0];
+      actions.splice(i, 0, moved);
+      renderActions();
     });
 
     stepList.appendChild(li);
   });
 }
 
-function stepsForJSON() {
+function actionsForJSON() {
   // eslint-disable-next-line no-unused-vars
-  return steps.map(({ _open, ...rest }) => rest);
+  return actions.map(({ _open, ...rest }) => rest);
 }
 
 function renderJSON() {
-  updatingStepsFromCode = true;
-  jsonPreview.value = JSON.stringify(stepsForJSON(), null, 2);
-  updatingStepsFromCode = false;
+  updatingActionsFromCode = true;
+  jsonPreview.value = JSON.stringify(actionsForJSON(), null, 2);
+  updatingActionsFromCode = false;
   jsonPreview.classList.remove('invalid');
   jsonError.classList.add('hidden');
 }
 
-function renderSteps() {
-  renderStepList();
+function renderActions() {
+  renderActionList();
   renderJSON();
-  stepsJsonView.textContent = JSON.stringify(stepsForJSON(), null, 2);
-  const hasSteps = steps.length > 0;
-  stepsViewToggle.hidden = !hasSteps;
+  actionsJsonView.textContent = JSON.stringify(actionsForJSON(), null, 2);
+  const hasSteps = actions.length > 0;
+  actionsViewToggle.hidden = !hasSteps;
   if (!hasSteps) {
     stepList.style.display = '';
-    stepsJsonView.style.display = 'none';
-    stepsViewToggle.textContent = 'Show JSON';
+    actionsJsonView.style.display = 'none';
+    actionsViewToggle.textContent = 'Show JSON';
   }
 }
 
 // ── Steps view toggle ─────────────────────────────────────────────────────────
-stepsViewToggle.addEventListener('click', () => {
+actionsViewToggle.addEventListener('click', () => {
   const listVisible = stepList.style.display !== 'none';
   stepList.style.display = listVisible ? 'none' : '';
-  stepsJsonView.style.display = listVisible ? 'block' : 'none';
-  stepsViewToggle.textContent = listVisible ? 'Show Steps' : 'Show JSON';
+  actionsJsonView.style.display = listVisible ? 'block' : 'none';
+  actionsViewToggle.textContent = listVisible ? 'Show Actions' : 'Show JSON';
 });
 
 function renderBlueprint() {
@@ -319,13 +319,13 @@ function setStatus(el, msg, isError = false) {
 }
 
 // ── JSON edit handlers ────────────────────────────────────────────────────────
-function onStepsEdit() {
-  if (updatingStepsFromCode) return;
+function onActionsEdit() {
+  if (updatingActionsFromCode) return;
   try {
     const parsed = JSON.parse(jsonPreview.value);
     if (!Array.isArray(parsed)) throw new Error('Must be a JSON array');
-    steps = normalizeSteps(parsed);
-    renderStepList();
+    actions = normalizeActions(parsed);
+    renderActionList();
     jsonPreview.classList.remove('invalid');
     jsonError.classList.add('hidden');
   } catch (err) {
@@ -368,7 +368,7 @@ async function addCommand() {
   setStatus(statusEl, 'Translating…');
 
   try {
-    const flatHistory = steps.flatMap(g => g.steps ?? []);
+    const flatHistory = steps.flatMap(g => g.actions ?? []);
     const res = await fetch('/api/translate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -376,10 +376,10 @@ async function addCommand() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Translation failed');
-    steps.push(...data.steps);
-    renderSteps();
+    actions.push(...data.actions);
+    renderActions();
     commandInput.value = '';
-    setStatus(statusEl, `Added ${data.steps.length} step${data.steps.length !== 1 ? 's' : ''}`);
+    setStatus(statusEl, `Added ${data.actions.length} action${data.actions.length !== 1 ? 's' : ''}`);
   } catch (err) {
     setStatus(statusEl, err.message, true);
   } finally {
@@ -471,13 +471,13 @@ async function streamRun(fetchPromise, { onDone }) {
   }
 }
 
-async function runSteps() {
+async function runActions() {
   const name = nameInput.value.trim() || `recording-${Date.now()}`;
   await streamRun(
     fetch('/api/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, steps: stepsForJSON(), blueprint, videoSize: getVideoSize() }),
+      body: JSON.stringify({ name, actions: actionsForJSON(), blueprint, videoSize: getVideoSize() }),
     }),
     { onDone: (msg) => { if (!msg.stopped) loadRecordings(); } }
   );
@@ -489,7 +489,7 @@ async function runPreview() {
     fetch('/api/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, steps: stepsForJSON(), blueprint, videoSize: null, preview: true }),
+      body: JSON.stringify({ name, actions: actionsForJSON(), blueprint, videoSize: null, preview: true }),
     }),
     { onDone: () => {} }
   );
@@ -524,7 +524,7 @@ function renderSavedScripts(recordings) {
     div.innerHTML = `
       <input type="checkbox" class="script-checkbox" data-name="${recording.name}"${selectedScripts.includes(recording.name) ? ' checked' : ''}>
       <span class="script-name">${recording.name}</span>
-      <span class="script-meta">${recording.stepCount} step${recording.stepCount !== 1 ? 's' : ''}</span>
+      <span class="script-meta">${recording.actionCount} action${recording.actionCount !== 1 ? 's' : ''}</span>
       <button class="script-load-btn secondary" data-name="${recording.name}">Load</button>
       <button class="script-delete-btn danger" data-name="${recording.name}" data-filename="${recording.filename}">Delete</button>
     `;
@@ -548,9 +548,9 @@ function renderSavedScripts(recordings) {
       const name = /** @type {HTMLElement} */ (btn).dataset.name;
       const recording = savedScripts.find(s => s.name === name);
       if (!recording) return;
-      steps = normalizeSteps(recording.steps ?? []);
+      actions = normalizeActions(recording.actions ?? recording.steps ?? []);
       nameInput.value = recording.name;
-      renderSteps();
+      renderActions();
       setStatus(statusEl, `Loaded "${name}"`);
     });
   });
@@ -631,7 +631,7 @@ async function saveScript() {
     const res = await fetch('/api/scripts/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, steps }),
+      body: JSON.stringify({ name, actions }),
     });
     if (!res.ok) throw new Error('Save failed');
     setStatus(statusEl, `Saved "${name}"`);
@@ -639,8 +639,8 @@ async function saveScript() {
   } catch (err) {
     setStatus(statusEl, err.message, true);
   } finally {
-    saveBtn.disabled = steps.length === 0;
-    exportTxtBtn.disabled = steps.length === 0;
+    saveBtn.disabled = actions.length === 0;
+    exportTxtBtn.disabled = actions.length === 0;
   }
 }
 
@@ -695,7 +695,7 @@ async function recordAll() {
 
 function exportTxt() {
   const name = nameInput.value.trim() || 'recording';
-  const lines = steps.map((g, i) => `${i + 1}. ${g.label}`);
+  const lines = actions.map((g, i) => `${i + 1}. ${g.label}`);
   const text = `${name}\n${'─'.repeat(name.length)}\n\n${lines.join('\n')}\n`;
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
@@ -707,12 +707,12 @@ function exportTxt() {
 // ── Event listeners ───────────────────────────────────────────────────────────
 addBtn.addEventListener('click', addCommand);
 commandInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addCommand(); });
-clearBtn.addEventListener('click', () => { steps = []; nameInput.value = ''; renderSteps(); });
+clearBtn.addEventListener('click', () => { actions = []; nameInput.value = ''; renderActions(); });
 recordBtn.addEventListener('click', runSteps);
 previewBtn.addEventListener('click', runPreview);
 stopBtn.addEventListener('click', () => fetch('/api/stop', { method: 'POST' }));
 
-jsonPreview.addEventListener('input', onStepsEdit);
+jsonPreview.addEventListener('input', onActionsEdit);
 
 blueprintTestBtn.addEventListener('click', testBlueprint);
 blueprintResetBtn.addEventListener('click', resetBlueprint);
@@ -728,7 +728,7 @@ selectAllCheckbox.addEventListener('change', () => {
   renderBatchControls();
 });
 
-renderSteps();
+renderActions();
 Promise.all([
   fetch('/api/default-blueprint').then((r) => r.json()),
   fetch('/api/current-blueprint').then((r) => r.ok ? r.json() : null).catch(() => null),

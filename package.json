@@ -5,8 +5,8 @@
   "scripts": {
     "start": "nodemon --watch server.js --watch src server.js",
     "record": "playwright test",
-    "record:steps": "playwright test recordings/steps-runner.spec.js",
-    "record:step": "playwright test recordings/steps-runner.spec.js --grep",
+    "record:actions": "playwright test recordings/actions-runner.spec.js",
+    "record:action": "playwright test recordings/actions-runner.spec.js --grep",
     "show-report": "playwright show-report",
     "show-trace": "playwright show-trace"
   },

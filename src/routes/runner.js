@@ -12,7 +12,7 @@
  *      to `blueprint.generated.json`, and starts a new instance with it. When
  *      Playwright's global-setup.js runs next, it sees the already-running
  *      Playground via the PID file and reuses it.
- *   2. Spawn `npx playwright test recordings/steps-runner.spec.js --grep …`
+ *   2. Spawn `npx playwright test recordings/actions-runner.spec.js --grep …`
  *      where the grep pattern isolates the script(s) to run from everything
  *      else in the scripts/ directory.
  *   3. Pipe stdout/stderr back to the client as SSE events.
@@ -110,7 +110,7 @@ function runPlaywright({ grepPattern, videoSize, send, res, doneExtra = {}, prev
   if (preview) env.WP_DIRECTOR_PREVIEW = '1';
 
   const proc = spawn(
-    'npx', ['playwright', 'test', 'recordings/steps-runner.spec.js', '--grep', grepPattern],
+    'npx', ['playwright', 'test', 'recordings/actions-runner.spec.js', '--grep', grepPattern],
     { cwd: ROOT, env }
   );
 
@@ -143,13 +143,13 @@ function register(app) {
   // Single-recording run: write the posted steps to a file, then grep for
   // exactly this recording by its `name`.
   app.post('/api/run', async (req, res) => {
-    const { name = `recording-${Date.now()}`, steps = [], blueprint = null, videoSize = null, preview = false } = req.body;
-    if (!steps.length) return res.status(400).json({ error: 'no steps provided' });
+    const { name = `recording-${Date.now()}`, actions = [], blueprint = null, videoSize = null, preview = false } = req.body;
+    if (!actions.length) return res.status(400).json({ error: 'no actions provided' });
 
     if (!fs.existsSync(STEPS_DIR)) fs.mkdirSync(STEPS_DIR);
     const filename = nameToFilename(name);
     const filePath = path.join(STEPS_DIR, filename);
-    fs.writeFileSync(filePath, JSON.stringify({ name, steps }, null, 2));
+    fs.writeFileSync(filePath, JSON.stringify({ name, actions }, null, 2));
 
     sseHeaders(res);
     const send = sseSender(res);

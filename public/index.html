@@ -19,7 +19,7 @@
   <div class="main-content">
   <div class="command-bar">
     <input id="command-input" type="text" placeholder="e.g. install the advanced query loop plugin and activate it" autocomplete="off">
-    <button id="add-btn">Add Step</button>
+    <button id="add-btn">Add Action</button>
   </div>
 
   <div id="status" class="status hidden"></div>
@@ -43,14 +43,14 @@
   </div>
 
   <div class="workspace">
-    <div class="panel" id="steps-panel">
+    <div class="panel" id="actions-panel">
       <div class="panel-header">
-        <h2>Steps <span id="step-count">(0)</span></h2>
-        <button class="view-toggle-btn" id="steps-view-toggle" hidden>Show JSON</button>
+        <h2>Actions <span id="step-count">(0)</span></h2>
+        <button class="view-toggle-btn" id="actions-view-toggle" hidden>Show JSON</button>
       </div>
       <ul id="step-list"></ul>
-      <pre id="steps-json-view" style="display:none"></pre>
-      <p id="empty-hint" class="hint">No steps yet. Type a command above to begin.</p>
+      <pre id="actions-json-view" style="display:none"></pre>
+      <p id="empty-hint" class="hint">No actions yet. Type a command above to begin.</p>
     </div>
     <div class="panel" id="preview-panel">
       <h2>Live Preview</h2>

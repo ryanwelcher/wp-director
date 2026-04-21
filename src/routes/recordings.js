@@ -7,7 +7,7 @@
  *   GET /api/recordings/:dirname/video   → stream the MP4 (or WebM fallback)
  *
  * "Recordings" == directories under `output/` that have a video file.
- * Playwright names them `steps-runner-<test-name>-chromium`; we strip the
+ * Playwright names them `actions-runner-<test-name>-chromium`; we strip the
  * prefix/suffix to recover a readable slug and name for the UI.
  *
  * Why prefer MP4? After /api/run's ffmpeg step, an MP4 sits alongside the
@@ -21,10 +21,10 @@ const { findVideoFile } = require('../video');
 
 /**
  * @param {string} dirname  Raw Playwright output directory.
- * @returns {string}        "my-recording" from "steps-runner-my-recording-chromium"
+ * @returns {string}        "my-recording" from "actions-runner-my-recording-chromium"
  */
 function dirnameToSlug(dirname) {
-  return dirname.replace(/^steps-runner-/, '').replace(/-chromium$/, '');
+  return dirname.replace(/^actions-runner-/, '').replace(/-chromium$/, '');
 }
 
 function register(app) {

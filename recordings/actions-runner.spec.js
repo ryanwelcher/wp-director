@@ -60,10 +60,11 @@ for (const file of stepFiles) {
     const frameStack = [page];
     const ctx = () => frameStack[frameStack.length - 1];
 
-    // Support both grouped format ({ label, steps }) and legacy flat format
-    const flatSteps = def.steps.flatMap(s => s.steps ?? [s]);
+    // Support both grouped format ({ label, actions[] }) and legacy flat/steps format
+    const rawActions = def.actions ?? def.steps ?? [];
+    const flatActions = rawActions.flatMap(s => s.actions ?? s.steps ?? [s]);
 
-    for (const step of flatSteps) {
+    for (const step of flatActions) {
       await test.step(step.action + (step.selector ? ` "${step.selector}"` : ''), async () => {
         switch (step.action) {
           case 'navigate':

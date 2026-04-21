@@ -3,14 +3,14 @@
 /**
  * Saved-script CRUD.
  *
- *   GET    /api/scripts            → list saved recordings (name, stepCount, steps)
+ *   GET    /api/scripts            → list saved recordings (name, actionCount, actions)
  *   POST   /api/scripts/save       → write scripts/<name>.json
  *   DELETE /api/scripts/:filename  → remove a saved recording
  *
  * On-disk layout: `scripts/<slug>.json` where each file is
- *   { "name": "human readable", "steps": [ ... ] }
+ *   { "name": "human readable", "actions": [ ... ] }
  *
- * `recordings/steps-runner.spec.js` reads this directory at test-collection
+ * `recordings/actions-runner.spec.js` reads this directory at test-collection
  * time and generates one Playwright test per file, keyed by `name`. The
  * runner endpoints (/api/run, /api/run/batch) use `--grep <name>` to isolate
  * one test out of the batch.
@@ -42,15 +42,15 @@ function register(app) {
       try {
         const def = JSON.parse(fs.readFileSync(path.join(STEPS_DIR, f), 'utf8'));
         // Normalize legacy flat-format files (items with `action`) into grouped format
-        const rawSteps = def.steps ?? [];
-        const steps = rawSteps.map(s =>
-          s.label != null ? s : { label: s.action, steps: [s] }
+        const rawActions = def.actions ?? def.steps ?? [];
+        const actions = rawActions.map(s =>
+          s.label != null ? s : { label: s.action, actions: [s] }
         );
         return {
           name: def.name,
           filename: f,
-          stepCount: steps.length,
-          steps,
+          actionCount: actions.length,
+          actions,
         };
       } catch {
         // Skip malformed files rather than failing the whole listing.
@@ -61,10 +61,10 @@ function register(app) {
   });
 
   app.post('/api/scripts/save', (req, res) => {
-    const { name = `recording-${Date.now()}`, steps = [] } = req.body;
+    const { name = `recording-${Date.now()}`, actions = [] } = req.body;
     if (!fs.existsSync(STEPS_DIR)) fs.mkdirSync(STEPS_DIR);
     const filename = nameToFilename(name);
-    fs.writeFileSync(path.join(STEPS_DIR, filename), JSON.stringify({ name, steps }, null, 2));
+    fs.writeFileSync(path.join(STEPS_DIR, filename), JSON.stringify({ name, actions }, null, 2));
     res.json({ filename });
   });
 

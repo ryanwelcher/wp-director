@@ -9,9 +9,9 @@
  *               so the model can be order-aware, e.g. "delete the first block
  *               I added" makes sense relative to prior steps)
  *
- * Responds with `{ steps: Array<StepObject> }`. Because the tool use is forced
- * (`tool_choice: { type: 'tool', name: 'add_steps' }`), Claude's reply is
- * always a single `tool_use` block whose `input.steps` is the array we want.
+ * Responds with `{ actions: Array<ActionObject> }`. Because the tool use is forced
+ * (`tool_choice: { type: 'tool', name: 'add_actions' }`), Claude's reply is
+ * always a single `tool_use` block whose `input.actions` is the array we want.
  */
 
 const { client, STEPS_PROMPT, STEPS_TOOL } = require('../claude');
@@ -32,13 +32,13 @@ function register(app) {
         max_tokens: 4096,
         system: STEPS_PROMPT + historyContext,
         tools: [STEPS_TOOL],
-        tool_choice: { type: 'tool', name: 'add_steps' },
+        tool_choice: { type: 'tool', name: 'add_actions' },
         messages: [{ role: 'user', content: command }],
       });
 
       const toolUse = message.content.find((b) => b.type === 'tool_use');
-      const steps = toolUse?.input?.steps ?? [];
-      res.json({ steps });
+      const actions = toolUse?.input?.actions ?? [];
+      res.json({ actions });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: err.message });

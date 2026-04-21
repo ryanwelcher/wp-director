@@ -41,11 +41,16 @@ function register(app) {
     const scripts = files.map(f => {
       try {
         const def = JSON.parse(fs.readFileSync(path.join(STEPS_DIR, f), 'utf8'));
+        // Normalize legacy flat-format files (items with `action`) into grouped format
+        const rawSteps = def.steps ?? [];
+        const steps = rawSteps.map(s =>
+          s.label != null ? s : { label: s.action, steps: [s] }
+        );
         return {
           name: def.name,
           filename: f,
-          stepCount: (def.steps ?? []).length,
-          steps: def.steps ?? [],
+          stepCount: steps.length,
+          steps,
         };
       } catch {
         // Skip malformed files rather than failing the whole listing.

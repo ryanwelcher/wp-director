@@ -17,7 +17,10 @@ for (const file of stepFiles) {
     const frameStack = [page];
     const ctx = () => frameStack[frameStack.length - 1];
 
-    for (const step of def.steps) {
+    // Support both grouped format ({ label, steps }) and legacy flat format
+    const flatSteps = def.steps.flatMap(s => s.steps ?? [s]);
+
+    for (const step of flatSteps) {
       await test.step(step.action + (step.selector ? ` "${step.selector}"` : ''), async () => {
         switch (step.action) {
           case 'navigate':

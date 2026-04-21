@@ -25,9 +25,17 @@ const client = new Anthropic.default();
  * plus rules about when to use which action (e.g. prefer `wpSetPostTitle`
  * over manually frameLocator-ing the title field).
  */
-const STEPS_PROMPT = `You are a Playwright step generator for a WordPress recording tool. Convert natural language commands into steps by calling the add_steps tool.
+const STEPS_PROMPT = `You are a Playwright step generator for a WordPress recording tool. Convert natural language commands into grouped steps by calling the add_steps tool.
 
-## Available Actions
+## Output format
+
+Each item in the top-level \`steps\` array is a **step group** with:
+- \`label\`: a short, plain-English description of the user intent (e.g. "Log into WordPress", "Install Hello Dolly", "Create a new post")
+- \`steps\`: the underlying Playwright actions that carry out that intent
+
+Group by distinct user intentions. If the input describes multiple actions (e.g. "log in, install Hello Dolly, and create a post"), produce one group per intention. If the input is a single action, produce one group.
+
+## Available Actions (for use inside each group's \`steps\` array)
 
 ### Generic
 - navigate: { "action": "navigate", "url": "string", "waitUntil"?: "load"|"domcontentloaded"|"networkidle" }
@@ -75,20 +83,34 @@ const STEPS_PROMPT = `You are a Playwright step generator for a WordPress record
  */
 const STEPS_TOOL = {
   name: 'add_steps',
-  description: 'Add one or more Playwright steps for the recording.',
+  description: 'Add one or more high-level steps for the recording. Each step has a plain-English label and a list of underlying Playwright actions.',
   input_schema: {
     type: 'object',
     properties: {
       steps: {
         type: 'array',
-        description: 'The steps to add.',
+        description: 'The step groups to add. One group per user intent.',
         items: {
           type: 'object',
           properties: {
-            action: { type: 'string', description: 'The action type.' },
+            label: {
+              type: 'string',
+              description: 'Short plain-English description of this step shown to the user (e.g. "Log into WordPress", "Install Hello Dolly").',
+            },
+            steps: {
+              type: 'array',
+              description: 'The underlying Playwright actions that carry out this step.',
+              items: {
+                type: 'object',
+                properties: {
+                  action: { type: 'string', description: 'The action type.' },
+                },
+                required: ['action'],
+                additionalProperties: true,
+              },
+            },
           },
-          required: ['action'],
-          additionalProperties: true,
+          required: ['label', 'steps'],
         },
       },
     },

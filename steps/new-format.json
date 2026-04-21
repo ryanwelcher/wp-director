@@ -1,5 +1,5 @@
 {
-  "name": "my-recording",
+  "name": "New Format",
   "steps": [
     {
       "label": "Log into WordPress",
@@ -93,6 +93,20 @@
         {
           "action": "hover",
           "selector": ".postbox-container .postbox .hndle"
+        },
+        {
+          "action": "wait",
+          "ms": 400
+        }
+      ],
+      "_open": false
+    },
+    {
+      "label": "Toggle the Site Health Status widget closed",
+      "steps": [
+        {
+          "action": "click",
+          "selector": "#dashboard_site_health .hndle"
         },
         {
           "action": "wait",

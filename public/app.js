@@ -43,6 +43,7 @@ const stepsJsonView = document.getElementById('steps-json-view');
 
 // ── Saved Scripts elements ────────────────────────────────────────────────────
 const saveBtn = document.getElementById('save-btn');
+const exportTxtBtn = document.getElementById('export-txt-btn');
 const savedScriptsList = document.getElementById('saved-scripts-list');
 const savedCountBadge = document.getElementById('saved-count-badge');
 const selectAllCheckbox = /** @type {HTMLInputElement} */ (document.getElementById('select-all-scripts'));
@@ -148,35 +149,36 @@ function ea(val) {
   return String(val ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function fi(idx, fieldName, val, type = 'text') {
-  const cls = type === 'number' ? 'step-field step-field--num' : 'step-field';
-  return `<input class="${cls}" data-index="${idx}" data-field="${fieldName}" type="${type}" value="${ea(val)}">`;
-}
-
-function describeHTML(step, i) {
+function describePlain(step) {
   switch (step.action) {
-    case 'navigate':        return `Go to ${fi(i, 'url', step.url)}`;
-    case 'click':           return `Click "${fi(i, 'selector', step.selector)}"`;
-    case 'fill':            return `Type ${fi(i, 'value', step.value)} into "${fi(i, 'selector', step.selector)}"`;
-    case 'type':            return `Type ${fi(i, 'text', step.text)} into "${fi(i, 'selector', step.selector)}"`;
-    case 'wait':            return `Wait ${fi(i, 'ms', step.ms, 'number')}ms`;
-    case 'waitForSelector': return `Wait for "${fi(i, 'selector', step.selector)}" to appear`;
-    case 'screenshot':      return `Take a screenshot${step.path != null ? ` (${fi(i, 'path', step.path)})` : ''}`;
-    case 'scroll':          return `Scroll to (${fi(i, 'x', step.x ?? 0, 'number')}, ${fi(i, 'y', step.y ?? 0, 'number')})`;
-    case 'hover':           return `Hover over "${fi(i, 'selector', step.selector)}"`;
-    case 'press':           return `Press the ${fi(i, 'key', step.key)} key`;
-    case 'frameLocator':    return `Switch into frame "${fi(i, 'selector', step.selector)}"`;
+    case 'navigate':        return `Go to ${step.url}`;
+    case 'click':           return `Click "${step.selector}"`;
+    case 'fill':            return `Type "${step.value}" into "${step.selector}"`;
+    case 'type':            return `Type "${step.text}" into "${step.selector}"`;
+    case 'wait':            return `Wait ${step.ms}ms`;
+    case 'waitForSelector': return `Wait for "${step.selector}" to appear`;
+    case 'screenshot':      return `Take a screenshot${step.path != null ? ` (${step.path})` : ''}`;
+    case 'scroll':          return `Scroll to (${step.x ?? 0}, ${step.y ?? 0})`;
+    case 'hover':           return `Hover over "${step.selector}"`;
+    case 'press':           return `Press the ${step.key} key`;
+    case 'frameLocator':    return `Switch into frame "${step.selector}"`;
     case 'exitFrame':       return 'Return to the main page';
     case 'wpNavigate':      return `Go to ${WP_SCREENS[step.screen] ?? step.screen}`;
-    case 'wpInstallPlugin': return `Install the ${fi(i, 'slug', step.slug)} plugin${step.activate ? ' and activate it' : ''}`;
+    case 'wpInstallPlugin': return `Install the ${step.slug} plugin${step.activate ? ' and activate it' : ''}`;
     case 'wpSelectBlock':   return `Select the ${step.blockType} block`;
     case 'wpInsertBlock':   return `Insert a ${step.blockType} block`;
     case 'wpDeleteBlock':   return `Delete the ${step.blockType} block`;
-    case 'wpCommandPalette':return step.command != null ? `Run command ${fi(i, 'command', step.command)}` : 'Open the command palette';
-    case 'wpSetPostTitle':  return `Set the post title to ${fi(i, 'title', step.title)}`;
-    case 'wpSetPostContent':return `Set ${step.blockType ? step.blockType + ' block' : 'block'} content to ${fi(i, 'content', step.content)}`;
+    case 'wpCommandPalette':return step.command != null ? `Run command "${step.command}"` : 'Open the command palette';
+    case 'wpSetPostTitle':  return `Set the post title to "${step.title}"`;
+    case 'wpSetPostContent':return `Set ${step.blockType ? step.blockType + ' block' : 'block'} content to "${step.content}"`;
     default:                return step.action;
   }
+}
+
+/** Ensure loaded steps are in grouped format { label, steps[] }. */
+function normalizeSteps(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw.map(s => s.label != null ? s : { label: describePlain(s), steps: [s] });
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────
@@ -188,26 +190,40 @@ function renderStepList() {
   recordBtn.disabled = steps.length === 0;
   previewBtn.disabled = steps.length === 0;
   saveBtn.disabled = steps.length === 0;
+  exportTxtBtn.disabled = steps.length === 0;
   stepCount.textContent = `(${steps.length})`;
 
-  steps.forEach((step, i) => {
+  steps.forEach((group, i) => {
+    const isOpen = !!group._open;
+    const innerSteps = group.steps ?? [];
+
     const li = document.createElement('li');
+    li.className = 'step-group';
     li.draggable = true;
+
+    const innerHTML = isOpen && innerSteps.length > 0
+      ? `<ul class="step-inner-list">${innerSteps.map(s => `<li class="step-inner-item">${ea(describePlain(s))}</li>`).join('')}</ul>`
+      : '';
+
     li.innerHTML = `
-      <span class="drag-handle" title="Drag to reorder">⠿</span>
-      <span class="index">${i + 1}</span>
-      <span class="label">${describeHTML(step, i)}</span>
-      <span class="action-tag">${step.action}</span>
+      <div class="step-group-header">
+        <span class="drag-handle" title="Drag to reorder">⠿</span>
+        <span class="index">${i + 1}</span>
+        <input class="group-label-input" data-group="${i}" value="${ea(group.label)}" title="Edit label">
+        <button class="step-toggle" aria-expanded="${isOpen}" title="${isOpen ? 'Collapse' : 'Expand'} Playwright steps">${isOpen ? '▼' : '▶'}</button>
+      </div>
+      ${innerHTML}
     `;
 
-    li.querySelectorAll('.step-field').forEach((input) => {
-      input.addEventListener('change', () => {
-        const idx = parseInt(/** @type {HTMLInputElement} */(input).dataset.index);
-        const field = /** @type {HTMLInputElement} */(input).dataset.field;
-        const raw = /** @type {HTMLInputElement} */(input).value;
-        steps[idx][field] = /** @type {HTMLInputElement} */(input).type === 'number' ? Number(raw) : raw;
-        renderJSON();
-      });
+    li.querySelector('.step-toggle').addEventListener('click', (e) => {
+      e.stopPropagation();
+      steps[i]._open = !steps[i]._open;
+      renderStepList();
+    });
+
+    li.querySelector('.group-label-input').addEventListener('change', (e) => {
+      steps[i].label = /** @type {HTMLInputElement} */(e.target).value;
+      renderJSON();
     });
 
     li.addEventListener('dragstart', (e) => {
@@ -243,9 +259,14 @@ function renderStepList() {
   });
 }
 
+function stepsForJSON() {
+  // eslint-disable-next-line no-unused-vars
+  return steps.map(({ _open, ...rest }) => rest);
+}
+
 function renderJSON() {
   updatingStepsFromCode = true;
-  jsonPreview.value = JSON.stringify(steps, null, 2);
+  jsonPreview.value = JSON.stringify(stepsForJSON(), null, 2);
   updatingStepsFromCode = false;
   jsonPreview.classList.remove('invalid');
   jsonError.classList.add('hidden');
@@ -254,7 +275,7 @@ function renderJSON() {
 function renderSteps() {
   renderStepList();
   renderJSON();
-  stepsJsonView.textContent = JSON.stringify(steps, null, 2);
+  stepsJsonView.textContent = JSON.stringify(stepsForJSON(), null, 2);
   const hasSteps = steps.length > 0;
   stepsViewToggle.hidden = !hasSteps;
   if (!hasSteps) {
@@ -296,7 +317,7 @@ function onStepsEdit() {
   try {
     const parsed = JSON.parse(jsonPreview.value);
     if (!Array.isArray(parsed)) throw new Error('Must be a JSON array');
-    steps = parsed;
+    steps = normalizeSteps(parsed);
     renderStepList();
     jsonPreview.classList.remove('invalid');
     jsonError.classList.add('hidden');
@@ -340,10 +361,11 @@ async function addCommand() {
   setStatus(statusEl, 'Translating…');
 
   try {
+    const flatHistory = steps.flatMap(g => g.steps ?? []);
     const res = await fetch('/api/translate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ command, history: steps }),
+      body: JSON.stringify({ command, history: flatHistory }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Translation failed');
@@ -519,7 +541,7 @@ function renderSavedScripts(recordings) {
       const name = /** @type {HTMLElement} */ (btn).dataset.name;
       const recording = savedScripts.find(s => s.name === name);
       if (!recording) return;
-      steps = recording.steps ?? [];
+      steps = normalizeSteps(recording.steps ?? []);
       nameInput.value = recording.name;
       renderSteps();
       setStatus(statusEl, `Loaded "${name}"`);
@@ -611,6 +633,7 @@ async function saveScript() {
     setStatus(statusEl, err.message, true);
   } finally {
     saveBtn.disabled = steps.length === 0;
+    exportTxtBtn.disabled = steps.length === 0;
   }
 }
 
@@ -663,10 +686,21 @@ async function recordAll() {
   }
 }
 
+function exportTxt() {
+  const name = nameInput.value.trim() || 'recording';
+  const lines = steps.map((g, i) => `${i + 1}. ${g.label}`);
+  const text = `${name}\n${'─'.repeat(name.length)}\n\n${lines.join('\n')}\n`;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+  a.download = `${name}.txt`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
 // ── Event listeners ───────────────────────────────────────────────────────────
 addBtn.addEventListener('click', addCommand);
 commandInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addCommand(); });
-clearBtn.addEventListener('click', () => { steps = []; renderSteps(); });
+clearBtn.addEventListener('click', () => { steps = []; nameInput.value = ''; renderSteps(); });
 recordBtn.addEventListener('click', runSteps);
 previewBtn.addEventListener('click', runPreview);
 stopBtn.addEventListener('click', () => fetch('/api/stop', { method: 'POST' }));
@@ -678,6 +712,7 @@ blueprintResetBtn.addEventListener('click', resetBlueprint);
 blueprintPreview.addEventListener('input', onBlueprintEdit);
 
 saveBtn.addEventListener('click', saveScript);
+exportTxtBtn.addEventListener('click', exportTxt);
 recordAllBtn.addEventListener('click', recordAll);
 selectAllCheckbox.addEventListener('change', () => {
   const checkboxes = /** @type {NodeListOf<HTMLInputElement>} */ (savedScriptsList.querySelectorAll('.script-checkbox'));

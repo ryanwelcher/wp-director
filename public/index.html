@@ -9,7 +9,7 @@
 <body>
   <header>
     <h1>WP Director</h1>
-    <p>Describe each action in plain English — steps will be added one at a time.</p>
+    <p>Describe each direction in plain English — directions will be added one at a time.</p>
   </header>
 
   <button id="sidebar-toggle" class="sidebar-toggle" aria-expanded="false" aria-label="Toggle sidebar">
@@ -19,12 +19,12 @@
   <div class="main-content">
   <div class="command-bar">
     <input id="command-input" type="text" placeholder="e.g. install the advanced query loop plugin and activate it" autocomplete="off">
-    <button id="add-btn">Add Action</button>
+    <button id="add-btn">Add Direction</button>
   </div>
 
   <div id="status" class="status hidden"></div>
 
-  <div class="action-bar">
+  <div class="direction-bar">
     <label>
       Name:
       <input id="name-input" type="text" placeholder="Add script name">
@@ -43,14 +43,15 @@
   </div>
 
   <div class="workspace">
-    <div class="panel" id="actions-panel">
+    <div class="panel" id="directions-panel">
       <div class="panel-header">
-        <h2>Actions <span id="step-count">(0)</span></h2>
-        <button class="view-toggle-btn" id="actions-view-toggle" hidden>Show JSON</button>
+        <h2>Directions <span id="step-count">(0)</span></h2>
+        <button class="view-toggle-btn" id="directions-view-toggle" hidden>Show JSON</button>
       </div>
       <ul id="step-list"></ul>
-      <pre id="actions-json-view" style="display:none"></pre>
-      <p id="empty-hint" class="hint">No actions yet. Type a command above to begin.</p>
+      <pre id="directions-json-view" style="display:none"></pre>
+      <p id="empty-hint" class="hint">Type a command above, or insert a direction below.</p>
+      <div id="direction-insert-bottom"></div>
     </div>
     <div class="panel" id="preview-panel">
       <h2>Live Preview</h2>
@@ -86,6 +87,19 @@
             </label>
             <span id="selected-count" class="hint-inline">0 selected</span>
             <button id="record-all-btn" class="primary" disabled>&#9654; Record All</button>
+          </div>
+        </div>
+      </details>
+
+      <!-- Directions (collapsible) -->
+      <details id="directions-section">
+        <summary>
+          <span>Directions</span>
+          <span id="directions-count-badge" class="badge hidden">0</span>
+        </summary>
+        <div class="directions-body">
+          <div id="directions-list">
+            <p class="hint">Loading directions…</p>
           </div>
         </div>
       </details>

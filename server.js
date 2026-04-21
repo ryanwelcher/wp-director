@@ -29,6 +29,7 @@ app.use(express.static(PUBLIC_DIR));
 require('./src/routes/translate').register(app);
 require('./src/routes/blueprint').register(app);
 require('./src/routes/scripts').register(app);
+require('./src/routes/directions').register(app);
 require('./src/routes/runner').register(app);
 require('./src/routes/recordings').register(app);
 require('./src/routes/screencast').register(app);

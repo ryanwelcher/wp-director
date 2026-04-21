@@ -38,8 +38,8 @@ previewImg.addEventListener('error', () => { previewImg.src = ''; });
 
 
 // ── Steps view toggle elements ────────────────────────────────────────────────
-const actionsViewToggle = document.getElementById('actions-view-toggle');
-const actionsJsonView = document.getElementById('actions-json-view');
+const directionsViewToggle = document.getElementById('directions-view-toggle');
+const directionsJsonView = document.getElementById('directions-json-view');
 
 // ── Saved Scripts elements ────────────────────────────────────────────────────
 const saveBtn = document.getElementById('save-btn');
@@ -49,6 +49,11 @@ const savedCountBadge = document.getElementById('saved-count-badge');
 const selectAllCheckbox = /** @type {HTMLInputElement} */ (document.getElementById('select-all-scripts'));
 const selectedCountEl = document.getElementById('selected-count');
 const recordAllBtn = document.getElementById('record-all-btn');
+
+// ── Directions elements ───────────────────────────────────────────────────────
+const directionsList = document.getElementById('directions-list');
+const directionsCountBadge = document.getElementById('directions-count-badge');
+const directionInsertBottom = document.getElementById('direction-insert-bottom');
 
 // ── Video size ────────────────────────────────────────────────────────────────
 const sizeOpts = /** @type {NodeListOf<HTMLButtonElement>} */ (document.querySelectorAll('.size-opt'));
@@ -123,17 +128,19 @@ function stopScreencast() {
 
 // ── State ─────────────────────────────────────────────────────────────────────
 /** @type {Array<object>} */
-let actions = [];
+let directions = [];
 /** @type {object|null} */
 let blueprint = null;
 /** @type {object|null} */
 let defaultBlueprint = null;
-let updatingActionsFromCode = false;
+let updatingDirectionsFromCode = false;
 let updatingBlueprintFromCode = false;
 /** @type {string[]} */
 let selectedScripts = [];
 /** @type {Array<{name: string, filename: string, stepCount: number}>} */
 let savedScripts = [];
+/** @type {Array<{name: string, filename: string, actionCount: number, builtin: boolean}>} */
+let libraryEntries = [];
 
 // ── Step descriptions ─────────────────────────────────────────────────────────
 const WP_SCREENS = {
@@ -175,61 +182,142 @@ function describePlain(step) {
   }
 }
 
-/** Ensure loaded actions are in grouped format { label, actions[] }. */
+/** Ensure loaded directions are in grouped format { label, actions[] }. */
 function normalizeActions(raw) {
   if (!Array.isArray(raw)) return [];
   return raw.map(s => s.label != null ? s : { label: describePlain(s), actions: [s] });
 }
 
+// ── Direction picker ──────────────────────────────────────────────────────────
+/** @type {HTMLElement|null} */
+let activePicker = null;
+
+function closeDirectionPicker() {
+  if (activePicker) { activePicker.remove(); activePicker = null; }
+}
+
+function showDirectionPicker(actionIndex, anchorEl) {
+  closeDirectionPicker();
+  if (!libraryEntries.length) return;
+
+  // actionIndex === null means append to end (no above/below toggle needed)
+  const hasPosition = actionIndex !== null;
+  let insertAbove = false; // default: below
+
+  const picker = document.createElement('div');
+  picker.className = 'direction-picker';
+
+  function buildPicker() {
+    picker.innerHTML = `
+      ${hasPosition ? `
+        <div class="direction-picker-position">
+          <button class="direction-picker-pos-btn${!insertAbove ? ' active' : ''}" data-pos="below">&#8595; Below</button>
+          <button class="direction-picker-pos-btn${insertAbove ? ' active' : ''}" data-pos="above">&#8593; Above</button>
+        </div>
+        <div class="direction-picker-divider"></div>
+      ` : ''}
+      ${libraryEntries.map(e =>
+        `<button class="direction-picker-item${e.builtin ? ' direction-picker-item--builtin' : ''}" data-filename="${e.filename}">${e.name}</button>`
+      ).join('')}
+    `;
+
+    if (hasPosition) {
+      picker.querySelectorAll('.direction-picker-pos-btn').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          insertAbove = /** @type {HTMLElement} */(btn).dataset.pos === 'above';
+          buildPicker();
+        });
+      });
+    }
+
+    picker.querySelectorAll('.direction-picker-item').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = actionIndex === null
+          ? directions.length
+          : (insertAbove ? actionIndex : actionIndex + 1);
+        insertDirection(/** @type {HTMLElement} */(btn).dataset.filename, idx);
+        closeDirectionPicker();
+      });
+    });
+  }
+
+  buildPicker();
+  document.body.appendChild(picker);
+
+  const rect = anchorEl.getBoundingClientRect();
+  const pickerW = 220;
+  let left = rect.left + window.scrollX;
+  if (left + pickerW > window.innerWidth - 8) left = window.innerWidth - pickerW - 8;
+  picker.style.top = `${rect.bottom + window.scrollY + 4}px`;
+  picker.style.left = `${left}px`;
+
+  activePicker = picker;
+  setTimeout(() => document.addEventListener('click', closeDirectionPicker, { once: true }), 0);
+}
+
 // ── Render ────────────────────────────────────────────────────────────────────
 let draggingIndex = null;
 
-function renderActionList() {
+function renderDirectionList() {
   stepList.innerHTML = '';
-  emptyHint.style.display = actions.length ? 'none' : '';
-  recordBtn.disabled = actions.length === 0;
-  previewBtn.disabled = actions.length === 0;
-  saveBtn.disabled = actions.length === 0;
-  exportTxtBtn.disabled = actions.length === 0;
-  stepCount.textContent = `(${actions.length})`;
+  emptyHint.style.display = directions.length ? 'none' : '';
+  recordBtn.disabled = directions.length === 0;
+  previewBtn.disabled = directions.length === 0;
+  saveBtn.disabled = directions.length === 0;
+  exportTxtBtn.disabled = directions.length === 0;
+  stepCount.textContent = `(${directions.length})`;
 
-  actions.forEach((group, i) => {
+  directions.forEach((group, i) => {
     const isOpen = !!group._open;
     const innerActions = group.actions ?? [];
 
     const li = document.createElement('li');
-    li.className = 'step-group';
+    li.className = 'direction-group';
     li.draggable = true;
 
     const innerHTML = isOpen && innerActions.length > 0
-      ? `<ul class="step-inner-list">${innerActions.map(s => `<li class="step-inner-item">${ea(describePlain(s))}</li>`).join('')}</ul>`
+      ? `<ul class="direction-inner-list">${innerActions.map(s => `<li class="direction-inner-item">${ea(describePlain(s))}</li>`).join('')}</ul>`
       : '';
 
     li.innerHTML = `
-      <div class="step-group-header">
+      <div class="direction-group-header">
         <span class="drag-handle" title="Drag to reorder">⠿</span>
         <span class="index">${i + 1}</span>
-        <input class="group-label-input" data-group="${i}" value="${ea(group.label)}" title="Edit label">
-        <button class="step-toggle" aria-expanded="${isOpen}" title="${isOpen ? 'Collapse' : 'Expand'} Playwright actions">${isOpen ? '▼' : '▶'}</button>
-        <button class="step-delete" title="Delete step">✕</button>
+        <input class="direction-label-input" data-group="${i}" value="${ea(group.label)}" title="Edit label">
+        <button class="direction-toggle" aria-expanded="${isOpen}" title="${isOpen ? 'Collapse' : 'Expand'} Playwright steps">${isOpen ? '▼' : '▶'}</button>
+        <button class="direction-insert" title="Insert direction">+</button>
+        ${!group._fromDirection ? '<button class="direction-save" title="Save as direction">&#128204;</button>' : ''}
+        <button class="direction-delete" title="Delete step">✕</button>
       </div>
       ${innerHTML}
     `;
 
-    li.querySelector('.step-toggle').addEventListener('click', (e) => {
+    li.querySelector('.direction-toggle').addEventListener('click', (e) => {
       e.stopPropagation();
-      actions[i]._open = !actions[i]._open;
-      renderActionList();
+      directions[i]._open = !directions[i]._open;
+      renderDirectionList();
     });
 
-    li.querySelector('.step-delete').addEventListener('click', (e) => {
+    li.querySelector('.direction-delete').addEventListener('click', (e) => {
       e.stopPropagation();
-      actions.splice(i, 1);
-      renderActions();
+      directions.splice(i, 1);
+      renderDirections();
     });
 
-    li.querySelector('.group-label-input').addEventListener('change', (e) => {
-      actions[i].label = /** @type {HTMLInputElement} */(e.target).value;
+    li.querySelector('.direction-insert').addEventListener('click', (e) => {
+      e.stopPropagation();
+      showDirectionPicker(i, /** @type {HTMLElement} */(e.currentTarget));
+    });
+
+    li.querySelector('.direction-save')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      saveDirection(i);
+    });
+
+    li.querySelector('.direction-label-input').addEventListener('change', (e) => {
+      directions[i].label = /** @type {HTMLInputElement} */(e.target).value;
       renderJSON();
     });
 
@@ -257,47 +345,54 @@ function renderActionList() {
     li.addEventListener('drop', (e) => {
       e.preventDefault();
       if (draggingIndex === null || draggingIndex === i) return;
-      const moved = actions.splice(draggingIndex, 1)[0];
-      actions.splice(i, 0, moved);
-      renderActions();
+      const moved = directions.splice(draggingIndex, 1)[0];
+      directions.splice(i, 0, moved);
+      renderDirections();
     });
 
     stepList.appendChild(li);
   });
+
+  // Bottom insert button — appends to end, no above/below needed
+  directionInsertBottom.innerHTML = '<button class="direction-insert-plus direction-insert-plus--bottom" title="Insert direction">+ Insert direction</button>';
+  directionInsertBottom.querySelector('.direction-insert-plus').addEventListener('click', (e) => {
+    e.stopPropagation();
+    showDirectionPicker(null, /** @type {HTMLElement} */(e.currentTarget));
+  });
 }
 
-function actionsForJSON() {
+function directionsForJSON() {
   // eslint-disable-next-line no-unused-vars
-  return actions.map(({ _open, ...rest }) => rest);
+  return directions.map(({ _open, _fromDirection, ...rest }) => rest);
 }
 
 function renderJSON() {
-  updatingActionsFromCode = true;
-  jsonPreview.value = JSON.stringify(actionsForJSON(), null, 2);
-  updatingActionsFromCode = false;
+  updatingDirectionsFromCode = true;
+  jsonPreview.value = JSON.stringify(directionsForJSON(), null, 2);
+  updatingDirectionsFromCode = false;
   jsonPreview.classList.remove('invalid');
   jsonError.classList.add('hidden');
 }
 
-function renderActions() {
-  renderActionList();
+function renderDirections() {
+  renderDirectionList();
   renderJSON();
-  actionsJsonView.textContent = JSON.stringify(actionsForJSON(), null, 2);
-  const hasSteps = actions.length > 0;
-  actionsViewToggle.hidden = !hasSteps;
+  directionsJsonView.textContent = JSON.stringify(directionsForJSON(), null, 2);
+  const hasSteps = directions.length > 0;
+  directionsViewToggle.hidden = !hasSteps;
   if (!hasSteps) {
     stepList.style.display = '';
-    actionsJsonView.style.display = 'none';
-    actionsViewToggle.textContent = 'Show JSON';
+    directionsJsonView.style.display = 'none';
+    directionsViewToggle.textContent = 'Show JSON';
   }
 }
 
 // ── Steps view toggle ─────────────────────────────────────────────────────────
-actionsViewToggle.addEventListener('click', () => {
+directionsViewToggle.addEventListener('click', () => {
   const listVisible = stepList.style.display !== 'none';
   stepList.style.display = listVisible ? 'none' : '';
-  actionsJsonView.style.display = listVisible ? 'block' : 'none';
-  actionsViewToggle.textContent = listVisible ? 'Show Actions' : 'Show JSON';
+  directionsJsonView.style.display = listVisible ? 'block' : 'none';
+  directionsViewToggle.textContent = listVisible ? 'Show Actions' : 'Show JSON';
 });
 
 function renderBlueprint() {
@@ -319,13 +414,13 @@ function setStatus(el, msg, isError = false) {
 }
 
 // ── JSON edit handlers ────────────────────────────────────────────────────────
-function onActionsEdit() {
-  if (updatingActionsFromCode) return;
+function onDirectionsEdit() {
+  if (updatingDirectionsFromCode) return;
   try {
     const parsed = JSON.parse(jsonPreview.value);
     if (!Array.isArray(parsed)) throw new Error('Must be a JSON array');
-    actions = normalizeActions(parsed);
-    renderActionList();
+    directions = normalizeActions(parsed);
+    renderDirectionList();
     jsonPreview.classList.remove('invalid');
     jsonError.classList.add('hidden');
   } catch (err) {
@@ -368,7 +463,7 @@ async function addCommand() {
   setStatus(statusEl, 'Translating…');
 
   try {
-    const flatHistory = steps.flatMap(g => g.actions ?? []);
+    const flatHistory = directions.flatMap(g => g.actions ?? []);
     const res = await fetch('/api/translate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -376,10 +471,10 @@ async function addCommand() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Translation failed');
-    actions.push(...data.actions);
-    renderActions();
+    directions.push(...data.directions);
+    renderDirections();
     commandInput.value = '';
-    setStatus(statusEl, `Added ${data.actions.length} action${data.actions.length !== 1 ? 's' : ''}`);
+    setStatus(statusEl, `Added ${data.directions.length} direction${data.directions.length !== 1 ? 's' : ''}`);
   } catch (err) {
     setStatus(statusEl, err.message, true);
   } finally {
@@ -477,7 +572,7 @@ async function runActions() {
     fetch('/api/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, actions: actionsForJSON(), blueprint, videoSize: getVideoSize() }),
+      body: JSON.stringify({ name, actions: directionsForJSON(), blueprint, videoSize: getVideoSize() }),
     }),
     { onDone: (msg) => { if (!msg.stopped) loadRecordings(); } }
   );
@@ -489,7 +584,7 @@ async function runPreview() {
     fetch('/api/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, actions: actionsForJSON(), blueprint, videoSize: null, preview: true }),
+      body: JSON.stringify({ name, actions: directionsForJSON(), blueprint, videoSize: null, preview: true }),
     }),
     { onDone: () => {} }
   );
@@ -524,7 +619,7 @@ function renderSavedScripts(recordings) {
     div.innerHTML = `
       <input type="checkbox" class="script-checkbox" data-name="${recording.name}"${selectedScripts.includes(recording.name) ? ' checked' : ''}>
       <span class="script-name">${recording.name}</span>
-      <span class="script-meta">${recording.actionCount} action${recording.actionCount !== 1 ? 's' : ''}</span>
+      <span class="script-meta">${recording.directionCount} direction${recording.directionCount !== 1 ? 's' : ''}</span>
       <button class="script-load-btn secondary" data-name="${recording.name}">Load</button>
       <button class="script-delete-btn danger" data-name="${recording.name}" data-filename="${recording.filename}">Delete</button>
     `;
@@ -548,9 +643,9 @@ function renderSavedScripts(recordings) {
       const name = /** @type {HTMLElement} */ (btn).dataset.name;
       const recording = savedScripts.find(s => s.name === name);
       if (!recording) return;
-      actions = normalizeActions(recording.actions ?? recording.steps ?? []);
+      directions = normalizeActions(recording.directions ?? recording.actions ?? recording.steps ?? []);
       nameInput.value = recording.name;
-      renderActions();
+      renderDirections();
       setStatus(statusEl, `Loaded "${name}"`);
     });
   });
@@ -579,6 +674,91 @@ async function loadSavedScripts() {
     const data = await res.json();
     renderSavedScripts(data.scripts ?? []);
   } catch {}
+}
+
+// ── Directions ────────────────────────────────────────────────────────────────
+function renderDirectionLibrary(entries) {
+  libraryEntries = entries;
+
+  directionsCountBadge.textContent = entries.length.toString();
+  directionsCountBadge.classList.toggle('hidden', entries.length === 0);
+
+  if (!entries.length) {
+    directionsList.innerHTML = '<p class="hint">No directions yet.</p>';
+    return;
+  }
+
+  directionsList.innerHTML = '';
+  for (const entry of entries) {
+    const div = document.createElement('div');
+    div.className = `direction-item${entry.builtin ? ' direction-item--builtin' : ''}`;
+    div.innerHTML = `
+      <span class="direction-name">${entry.name}</span>
+      <span class="direction-meta">${entry.directionCount} step${entry.directionCount !== 1 ? 's' : ''}</span>
+      ${entry.builtin ? '<span class="direction-builtin-badge" title="Built-in direction">&#128274;</span>' : `<button class="direction-delete-btn danger" data-filename="${entry.filename}" data-name="${entry.name}">Delete</button>`}
+    `;
+    directionsList.appendChild(div);
+  }
+
+  directionsList.querySelectorAll('.direction-delete-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const filename = /** @type {HTMLElement} */ (btn).dataset.filename;
+      const name = /** @type {HTMLElement} */ (btn).dataset.name;
+      try {
+        const res = await fetch(`/api/directions/${filename}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Delete failed');
+        setStatus(statusEl, `Deleted direction "${name}"`);
+        await loadDirectionLibrary();
+      } catch (err) {
+        setStatus(statusEl, err.message, true);
+      }
+    });
+  });
+}
+
+async function loadDirectionLibrary() {
+  try {
+    const res = await fetch('/api/directions');
+    const data = await res.json();
+    renderDirectionLibrary(data.directions ?? []);
+  } catch {}
+}
+
+async function insertDirection(filename, insertIndex) {
+  try {
+    const res = await fetch(`/api/directions/${filename}`);
+    if (!res.ok) throw new Error('Could not load direction');
+    const data = await res.json();
+    const flatSteps = (data.actions ?? []).flatMap(g =>
+      g.label != null && Array.isArray(g.actions) ? g.actions : [g]
+    );
+    const idx = insertIndex != null ? insertIndex : directions.length;
+    directions.splice(idx, 0, { label: data.name, actions: flatSteps, _fromDirection: true });
+    renderDirections();
+    setStatus(statusEl, `Inserted "${data.name}"`);
+  } catch (err) {
+    setStatus(statusEl, err.message, true);
+  }
+}
+
+async function saveDirection(groupIndex) {
+  const group = groupIndex != null ? [directions[groupIndex]] : directions;
+  if (!group.length) return;
+  const name = groupIndex != null ? directions[groupIndex].label : (nameInput.value.trim() || `direction-${Date.now()}`);
+  if (!name) return;
+  try {
+    const res = await fetch('/api/directions/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, actions: group }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Save failed');
+    setStatus(statusEl, `Saved direction "${name}"`);
+    await loadDirectionLibrary();
+  } catch (err) {
+    setStatus(statusEl, err.message, true);
+  }
 }
 
 // ── Recordings ────────────────────────────────────────────────────────────────
@@ -631,7 +811,7 @@ async function saveScript() {
     const res = await fetch('/api/scripts/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, actions }),
+      body: JSON.stringify({ name, directions: directionsForJSON() }),
     });
     if (!res.ok) throw new Error('Save failed');
     setStatus(statusEl, `Saved "${name}"`);
@@ -639,8 +819,8 @@ async function saveScript() {
   } catch (err) {
     setStatus(statusEl, err.message, true);
   } finally {
-    saveBtn.disabled = actions.length === 0;
-    exportTxtBtn.disabled = actions.length === 0;
+    saveBtn.disabled = directions.length === 0;
+    exportTxtBtn.disabled = directions.length === 0;
   }
 }
 
@@ -695,7 +875,7 @@ async function recordAll() {
 
 function exportTxt() {
   const name = nameInput.value.trim() || 'recording';
-  const lines = actions.map((g, i) => `${i + 1}. ${g.label}`);
+  const lines = directions.map((g, i) => `${i + 1}. ${g.label}`);
   const text = `${name}\n${'─'.repeat(name.length)}\n\n${lines.join('\n')}\n`;
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
@@ -707,12 +887,12 @@ function exportTxt() {
 // ── Event listeners ───────────────────────────────────────────────────────────
 addBtn.addEventListener('click', addCommand);
 commandInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addCommand(); });
-clearBtn.addEventListener('click', () => { actions = []; nameInput.value = ''; renderActions(); });
-recordBtn.addEventListener('click', runSteps);
+clearBtn.addEventListener('click', () => { directions = []; nameInput.value = ''; renderDirections(); });
+recordBtn.addEventListener('click', runActions);
 previewBtn.addEventListener('click', runPreview);
 stopBtn.addEventListener('click', () => fetch('/api/stop', { method: 'POST' }));
 
-jsonPreview.addEventListener('input', onActionsEdit);
+jsonPreview.addEventListener('input', onDirectionsEdit);
 
 blueprintTestBtn.addEventListener('click', testBlueprint);
 blueprintResetBtn.addEventListener('click', resetBlueprint);
@@ -728,7 +908,7 @@ selectAllCheckbox.addEventListener('change', () => {
   renderBatchControls();
 });
 
-renderActions();
+renderDirections();
 Promise.all([
   fetch('/api/default-blueprint').then((r) => r.json()),
   fetch('/api/current-blueprint').then((r) => r.ok ? r.json() : null).catch(() => null),
@@ -738,4 +918,5 @@ Promise.all([
   renderBlueprint();
 });
 loadSavedScripts();
+loadDirectionLibrary();
 loadRecordings();

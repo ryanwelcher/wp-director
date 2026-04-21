@@ -1,0 +1,9 @@
+{
+  "name": "Open block inserter",
+  "actions": [
+    {
+      "label": "Toggle the block inserter panel open",
+      "actions": [{ "action": "wpOpenBlockInserter" }]
+    }
+  ]
+}

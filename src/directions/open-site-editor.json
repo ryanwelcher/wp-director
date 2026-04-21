@@ -1,0 +1,9 @@
+{
+  "name": "Open Site Editor",
+  "actions": [
+    {
+      "label": "Navigate to the Site Editor",
+      "actions": [{ "action": "wpNavigate", "screen": "site-editor", "waitUntil": "domcontentloaded" }]
+    }
+  ]
+}

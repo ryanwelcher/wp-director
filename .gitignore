@@ -9,3 +9,5 @@ blueprints/blueprint.generated.json
 blueprints/blueprint.preview.json
 
 scripts/*.json
+/directions/*
+!/directions/.gitkeep

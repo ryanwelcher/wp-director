@@ -41,16 +41,16 @@ function register(app) {
     const scripts = files.map(f => {
       try {
         const def = JSON.parse(fs.readFileSync(path.join(STEPS_DIR, f), 'utf8'));
-        // Normalize legacy flat-format files (items with `action`) into grouped format
-        const rawActions = def.actions ?? def.steps ?? [];
-        const actions = rawActions.map(s =>
+        // Support new `directions` key plus legacy `actions`/`steps` keys
+        const raw = def.directions ?? def.actions ?? def.steps ?? [];
+        const directions = raw.map(s =>
           s.label != null ? s : { label: s.action, actions: [s] }
         );
         return {
           name: def.name,
           filename: f,
-          actionCount: actions.length,
-          actions,
+          directionCount: directions.length,
+          directions,
         };
       } catch {
         // Skip malformed files rather than failing the whole listing.
@@ -61,10 +61,10 @@ function register(app) {
   });
 
   app.post('/api/scripts/save', (req, res) => {
-    const { name = `recording-${Date.now()}`, actions = [] } = req.body;
+    const { name = `recording-${Date.now()}`, directions = [] } = req.body;
     if (!fs.existsSync(STEPS_DIR)) fs.mkdirSync(STEPS_DIR);
     const filename = nameToFilename(name);
-    fs.writeFileSync(path.join(STEPS_DIR, filename), JSON.stringify({ name, actions }, null, 2));
+    fs.writeFileSync(path.join(STEPS_DIR, filename), JSON.stringify({ name, directions }, null, 2));
     res.json({ filename });
   });
 

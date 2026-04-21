@@ -246,7 +246,7 @@ header p {
   gap: 0.4rem;
 }
 
-#step-list li.step-group {
+#step-list li.direction-group {
   background: #1a2035;
   border: 1px solid #2d3748;
   border-radius: 6px;
@@ -257,10 +257,10 @@ header p {
   cursor: default;
 }
 
-#step-list li.step-group.dragging { opacity: 0.4; }
-#step-list li.step-group.drag-over { border-color: #6366f1; background: #1e2248; }
+#step-list li.direction-group.dragging { opacity: 0.4; }
+#step-list li.direction-group.drag-over { border-color: #6366f1; background: #1e2248; }
 
-.step-group-header {
+.direction-group-header {
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -278,14 +278,14 @@ header p {
 
 .drag-handle:active { cursor: grabbing; }
 
-.step-group-header .index {
+.direction-group-header .index {
   color: #475569;
   font-size: 0.75rem;
   min-width: 1.5rem;
   text-align: right;
 }
 
-.group-label-input {
+.direction-label-input {
   flex: 1;
   background: transparent;
   border: none;
@@ -300,14 +300,14 @@ header p {
   min-width: 0;
 }
 
-.group-label-input:hover { border-bottom-color: #374151; }
+.direction-label-input:hover { border-bottom-color: #374151; }
 
-.group-label-input:focus {
+.direction-label-input:focus {
   border-bottom-color: #6366f1;
   border-radius: 3px 3px 0 0;
 }
 
-.step-toggle {
+.direction-toggle {
   background: none;
   border: none;
   color: #475569;
@@ -320,9 +320,9 @@ header p {
   flex-shrink: 0;
 }
 
-.step-toggle:hover { color: #94a3b8; background: #252d3d; }
+.direction-toggle:hover { color: #94a3b8; background: #252d3d; }
 
-.step-delete {
+.direction-delete {
   background: none;
   border: none;
   color: #374151;
@@ -335,9 +335,9 @@ header p {
   flex-shrink: 0;
 }
 
-.step-delete:hover { color: #f87171; background: #2d1f1f; }
+.direction-delete:hover { color: #f87171; background: #2d1f1f; }
 
-.step-inner-list {
+.direction-inner-list {
   list-style: none;
   border-top: 1px solid #232d40;
   margin: 0;
@@ -347,7 +347,7 @@ header p {
   gap: 0.15rem;
 }
 
-.step-inner-item {
+.direction-inner-item {
   color: #4b5a6e;
   font-size: 0.78rem;
   padding: 0.1rem 0;
@@ -356,7 +356,7 @@ header p {
   gap: 0.4rem;
 }
 
-.step-inner-item::before {
+.direction-inner-item::before {
   content: '·';
   color: #2d3748;
   flex-shrink: 0;
@@ -405,7 +405,7 @@ header p {
 
 .json-error.hidden { display: none; }
 
-.action-bar {
+.direction-bar {
   align-items: center;
   background: #0f1117;
   border-bottom: 1px solid #1e2433;
@@ -414,7 +414,7 @@ header p {
   padding: 0.75rem 1.5rem;
 }
 
-.action-bar label {
+.direction-bar label {
   align-items: center;
   color: #94a3b8;
   display: flex;
@@ -422,7 +422,7 @@ header p {
   gap: 0.5rem;
 }
 
-.action-bar label input {
+.direction-bar label input {
   background: #1a2035;
   border: 1px solid #2d3748;
   border-radius: 5px;
@@ -433,7 +433,7 @@ header p {
   width: 180px;
 }
 
-.action-bar label input:focus { border-color: #6366f1; }
+.direction-bar label input:focus { border-color: #6366f1; }
 
 .size-toggle {
   display: inline-flex;
@@ -464,7 +464,7 @@ header p {
   color: #fff;
 }
 
-.action-bar button.secondary {
+.direction-bar button.secondary {
   background: transparent;
   border: 1px solid #374151;
   border-radius: 6px;
@@ -475,11 +475,11 @@ header p {
   transition: border-color 0.15s, color 0.15s;
 }
 
-.action-bar button.secondary:hover { border-color: #6b7280; color: #e2e8f0; }
-.action-bar button.secondary:disabled { border-color: #2d3748; color: #374151; cursor: not-allowed; }
-.action-bar button.secondary:disabled:hover { border-color: #2d3748; color: #374151; }
+.direction-bar button.secondary:hover { border-color: #6b7280; color: #e2e8f0; }
+.direction-bar button.secondary:disabled { border-color: #2d3748; color: #374151; cursor: not-allowed; }
+.direction-bar button.secondary:disabled:hover { border-color: #2d3748; color: #374151; }
 
-.action-bar button.primary {
+.direction-bar button.primary {
   background: #16a34a;
   border: none;
   border-radius: 6px;
@@ -492,10 +492,10 @@ header p {
   transition: background 0.15s;
 }
 
-.action-bar button.primary:hover { background: #15803d; }
-.action-bar button.primary:disabled { background: #374151; cursor: not-allowed; }
+.direction-bar button.primary:hover { background: #15803d; }
+.direction-bar button.primary:disabled { background: #374151; cursor: not-allowed; }
 
-.action-bar button.danger {
+.direction-bar button.danger {
   background: #dc2626;
   border: none;
   border-radius: 6px;
@@ -508,7 +508,7 @@ header p {
   transition: background 0.15s;
 }
 
-.action-bar button.danger:hover { background: #b91c1c; }
+.direction-bar button.danger:hover { background: #b91c1c; }
 
 /* ── Main content (shifts when sidebar opens) ────────────── */
 
@@ -864,4 +864,217 @@ header p {
   white-space: pre-wrap;
   word-break: break-all;
   border-top: 1px solid #1e2433;
+}
+
+/* ── Directions ──────────────────────────────────────────────────────────────── */
+#directions-section summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  list-style: none;
+  padding: 0.7rem 1.5rem;
+  text-transform: uppercase;
+  color: #64748b;
+  user-select: none;
+}
+
+#directions-section summary::-webkit-details-marker { display: none; }
+#directions-section summary::before {
+  content: '▶';
+  font-size: 0.6rem;
+  transition: transform 0.15s;
+}
+#directions-section[open] summary::before { transform: rotate(90deg); }
+#directions-section[open] summary { color: #94a3b8; }
+
+.directions-body {
+  padding: 0 1.5rem 1rem;
+}
+
+.direction-item {
+  align-items: center;
+  border-bottom: 1px solid #1a2035;
+  display: flex;
+  font-size: 0.85rem;
+  gap: 0.5rem;
+  padding: 0.45rem 0;
+}
+
+.direction-item:last-child { border-bottom: none; }
+
+.direction-item .direction-name { flex: 1; color: #cbd5e1; }
+
+.direction-item .direction-meta {
+  color: #475569;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.direction-item .direction-insert-btn {
+  background: transparent;
+  border: 1px solid #374151;
+  border-radius: 5px;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 0.78rem;
+  padding: 0.2rem 0.6rem;
+  transition: border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.direction-item .direction-insert-btn:hover { border-color: #6b7280; color: #e2e8f0; }
+
+.direction-item .direction-delete-btn {
+  background: transparent;
+  border: 1px solid #4b1c1c;
+  border-radius: 5px;
+  color: #f87171;
+  cursor: pointer;
+  font-size: 0.78rem;
+  padding: 0.2rem 0.6rem;
+  transition: border-color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+
+.direction-item .direction-delete-btn:hover { background: #4b1c1c; border-color: #ef4444; }
+
+.direction-item .direction-builtin-badge {
+  font-size: 0.8rem;
+  opacity: 0.5;
+  cursor: default;
+}
+
+.direction-item--builtin .direction-name { color: #94a3b8; }
+
+.direction-save {
+  background: none;
+  border: none;
+  color: #374151;
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 0.2rem 0.3rem;
+  border-radius: 3px;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+
+.direction-save:hover { color: #60a5fa; background: #1a2535; }
+
+/* ── Direction insert button (per action) ────────────────────────────────────── */
+.direction-insert {
+  background: none;
+  border: 1px solid #2d3a50;
+  border-radius: 50%;
+  color: #4b6080;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  width: 1.1rem;
+  height: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.direction-insert:hover {
+  border-color: #60a5fa;
+  color: #60a5fa;
+  background: #1a2535;
+}
+
+/* ── Bottom insert button ────────────────────────────────────────────────────── */
+#direction-insert-bottom {
+  padding: 0.5rem 0 0.25rem;
+}
+
+.direction-insert-plus--bottom {
+  background: none;
+  border: 1px dashed #2d3a50;
+  border-radius: 5px;
+  color: #4b6080;
+  cursor: pointer;
+  font-size: 0.78rem;
+  padding: 0.25rem 0.75rem;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.direction-insert-plus--bottom:hover {
+  border-color: #60a5fa;
+  color: #60a5fa;
+  background: #1a2535;
+}
+
+/* ── Direction picker popover ────────────────────────────────────────────────── */
+.direction-picker {
+  position: absolute;
+  z-index: 1000;
+  background: #1a2235;
+  border: 1px solid #2d3a50;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  max-width: 280px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 0.3rem 0;
+}
+
+.direction-picker-item {
+  background: none;
+  border: none;
+  color: #cbd5e1;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0.45rem 1rem;
+  text-align: left;
+  transition: background 0.1s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.direction-picker-item:hover { background: #243046; }
+
+.direction-picker-item--builtin { color: #94a3b8; }
+
+.direction-picker-position {
+  display: flex;
+  gap: 0;
+  padding: 0.3rem 0.5rem;
+}
+
+.direction-picker-pos-btn {
+  background: none;
+  border: 1px solid #2d3a50;
+  color: #64748b;
+  cursor: pointer;
+  flex: 1;
+  font-size: 0.75rem;
+  padding: 0.25rem 0;
+  transition: background 0.1s, color 0.1s;
+}
+
+.direction-picker-pos-btn:first-child { border-radius: 4px 0 0 4px; }
+.direction-picker-pos-btn:last-child  { border-radius: 0 4px 4px 0; border-left: none; }
+
+.direction-picker-pos-btn.active {
+  background: #243046;
+  color: #60a5fa;
+  border-color: #3b5270;
+}
+
+.direction-picker-divider {
+  border-top: 1px solid #2d3a50;
+  margin: 0.2rem 0;
 }

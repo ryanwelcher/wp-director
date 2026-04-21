@@ -1,0 +1,9 @@
+{
+  "name": "Save in Site Editor",
+  "actions": [
+    {
+      "label": "Save changes in the Site Editor",
+      "actions": [{ "action": "wpSiteEditorSave" }]
+    }
+  ]
+}

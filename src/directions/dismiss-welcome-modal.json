@@ -1,0 +1,12 @@
+{
+  "name": "Dismiss welcome modal",
+  "actions": [
+    {
+      "label": "Wait for and close the block editor welcome guide",
+      "actions": [
+        { "action": "waitForSelector", "selector": ".edit-post-welcome-guide" },
+        { "action": "click", "selector": ".edit-post-welcome-guide button[aria-label='Close']" }
+      ]
+    }
+  ]
+}

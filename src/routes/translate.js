@@ -32,13 +32,13 @@ function register(app) {
         max_tokens: 4096,
         system: STEPS_PROMPT + historyContext,
         tools: [STEPS_TOOL],
-        tool_choice: { type: 'tool', name: 'add_actions' },
+        tool_choice: { type: 'tool', name: 'add_directions' },
         messages: [{ role: 'user', content: command }],
       });
 
       const toolUse = message.content.find((b) => b.type === 'tool_use');
-      const actions = toolUse?.input?.actions ?? [];
-      res.json({ actions });
+      const directions = toolUse?.input?.directions ?? [];
+      res.json({ directions });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: err.message });

@@ -25,17 +25,17 @@ const client = new Anthropic.default();
  * plus rules about when to use which action (e.g. prefer `wpSetPostTitle`
  * over manually frameLocator-ing the title field).
  */
-const STEPS_PROMPT = `You are a Playwright step generator for a WordPress recording tool. Convert natural language commands into grouped actions by calling the add_actions tool.
+const STEPS_PROMPT = `You are a Playwright step generator for a WordPress recording tool. Convert natural language commands into grouped directions by calling the add_directions tool.
 
 ## Output format
 
-Each item in the top-level \`actions\` array is an **action group** with:
+Each item in the top-level \`directions\` array is a **direction** with:
 - \`label\`: a short, plain-English description of the user intent (e.g. "Log into WordPress", "Install Hello Dolly", "Create a new post")
 - \`actions\`: the underlying Playwright actions that carry out that intent
 
-Group by distinct user intentions. If the input describes multiple actions (e.g. "log in, install Hello Dolly, and create a post"), produce one group per intention. If the input is a single action, produce one group.
+Group by distinct user intentions. If the input describes multiple directions (e.g. "log in, install Hello Dolly, and create a post"), produce one direction per intention. If the input is a single direction, produce one direction.
 
-## Available Actions (for use inside each group's \`actions\` array)
+## Available Actions (for use inside each direction's \`actions\` array)
 
 ### Generic
 - navigate: { "action": "navigate", "url": "string", "waitUntil"?: "load"|"domcontentloaded"|"networkidle" }
@@ -105,24 +105,24 @@ Group by distinct user intentions. If the input describes multiple actions (e.g.
  * to enumerate them in the schema — the runner validates action-by-action.
  */
 const STEPS_TOOL = {
-  name: 'add_actions',
-  description: 'Add one or more high-level action groups for the recording. Each group has a plain-English label and a list of underlying Playwright actions.',
+  name: 'add_directions',
+  description: 'Add one or more directions for the recording. Each direction has a plain-English label and a list of underlying Playwright actions.',
   input_schema: {
     type: 'object',
     properties: {
-      actions: {
+      directions: {
         type: 'array',
-        description: 'The action groups to add. One group per user intent.',
+        description: 'The directions to add. One direction per user intent.',
         items: {
           type: 'object',
           properties: {
             label: {
               type: 'string',
-              description: 'Short plain-English description of this group shown to the user (e.g. "Log into WordPress", "Install Hello Dolly").',
+              description: 'Short plain-English description of this direction shown to the user (e.g. "Log into WordPress", "Install Hello Dolly").',
             },
             actions: {
               type: 'array',
-              description: 'The underlying Playwright actions that carry out this group.',
+              description: 'The underlying Playwright actions that carry out this direction.',
               items: {
                 type: 'object',
                 properties: {
@@ -137,7 +137,7 @@ const STEPS_TOOL = {
         },
       },
     },
-    required: ['actions'],
+    required: ['directions'],
   },
 };
 

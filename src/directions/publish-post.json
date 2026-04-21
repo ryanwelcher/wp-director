@@ -1,0 +1,16 @@
+{
+  "name": "Publish post",
+  "actions": [
+    {
+      "label": "Open the pre-publish panel",
+      "actions": [{ "action": "highlightClick", "selector": ".editor-post-publish-panel__toggle" }]
+    },
+    {
+      "label": "Confirm publish",
+      "actions": [
+        { "action": "waitForSelector", "selector": ".editor-post-publish-panel" },
+        { "action": "highlightClick", "selector": ".editor-post-publish-button" }
+      ]
+    }
+  ]
+}

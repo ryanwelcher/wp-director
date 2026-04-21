@@ -24,9 +24,11 @@ module.exports = {
   ROOT,
 
   // Directories
-  PUBLIC_DIR: path.join(ROOT, 'public'),
-  STEPS_DIR:  path.join(ROOT, 'scripts'),
-  OUTPUT_DIR: path.join(ROOT, 'output'),
+  PUBLIC_DIR:              path.join(ROOT, 'public'),
+  STEPS_DIR:               path.join(ROOT, 'scripts'),
+  OUTPUT_DIR:              path.join(ROOT, 'output'),
+  DIRECTIONS_DIR:          path.join(ROOT, 'directions'),
+  BUILTIN_DIRECTIONS_DIR:  path.join(__dirname, 'directions'),
 
   // PID files (coordinated with global-setup.js / global-teardown.js)
   PID_FILE:         path.join(ROOT, '.wp-playground.pid'),

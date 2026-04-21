@@ -25,7 +25,7 @@ module.exports = {
 
   // Directories
   PUBLIC_DIR: path.join(ROOT, 'public'),
-  STEPS_DIR:  path.join(ROOT, 'steps'),
+  STEPS_DIR:  path.join(ROOT, 'scripts'),
   OUTPUT_DIR: path.join(ROOT, 'output'),
 
   // PID files (coordinated with global-setup.js / global-teardown.js)

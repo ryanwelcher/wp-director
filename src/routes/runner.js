@@ -14,7 +14,7 @@
  *      Playground via the PID file and reuses it.
  *   2. Spawn `npx playwright test recordings/steps-runner.spec.js --grep …`
  *      where the grep pattern isolates the script(s) to run from everything
- *      else in the steps/ directory.
+ *      else in the scripts/ directory.
  *   3. Pipe stdout/stderr back to the client as SSE events.
  *   4. After Playwright exits 0, run the ffmpeg post-process step to produce
  *      an MP4 (and scale if the user picked a non-1080p size).

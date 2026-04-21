@@ -4,10 +4,10 @@
  * Saved-script CRUD.
  *
  *   GET    /api/scripts            → list saved recordings (name, stepCount, steps)
- *   POST   /api/scripts/save       → write steps/<name>.json
+ *   POST   /api/scripts/save       → write scripts/<name>.json
  *   DELETE /api/scripts/:filename  → remove a saved recording
  *
- * On-disk layout: `steps/<slug>.json` where each file is
+ * On-disk layout: `scripts/<slug>.json` where each file is
  *   { "name": "human readable", "steps": [ ... ] }
  *
  * `recordings/steps-runner.spec.js` reads this directory at test-collection
@@ -16,7 +16,7 @@
  * one test out of the batch.
  *
  * Security: the DELETE route path-parameter is regex-validated so it can't
- * traverse out of the steps/ directory.
+ * traverse out of the scripts/ directory.
  */
 
 const fs = require('fs');

@@ -7,3 +7,5 @@ test-results/
 playwright-report/
 blueprint.generated.json
 blueprint.preview.json
+
+scripts/

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Quickly record demo and support videos for WordPress sites",
   "scripts": {
-    "start": "node server.js",
+    "start": "nodemon --watch server.js --watch src server.js",
     "record": "playwright test",
     "record:steps": "playwright test recordings/steps-runner.spec.js",
     "record:step": "playwright test recordings/steps-runner.spec.js --grep",
@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.44.0",
-    "@wp-playground/cli": "^3.1.20"
+    "@wp-playground/cli": "^3.1.20",
+    "nodemon": "^3.1.14"
   }
 }

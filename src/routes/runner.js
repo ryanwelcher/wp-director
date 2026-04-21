@@ -158,7 +158,7 @@ function register(app) {
 
     const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     runPlaywright({
-      grepPattern: `^${escapedName}$`,
+      grepPattern: `${escapedName}$`,
       videoSize,
       send,
       res,

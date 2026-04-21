@@ -76,24 +76,28 @@ for (const file of stepFiles) {
 
           case 'wpNavigate': {
             const screens = {
-              'dashboard':   '/wp-admin/',
-              'posts':       '/wp-admin/edit.php',
-              'new-post':    '/wp-admin/post-new.php',
-              'pages':       '/wp-admin/edit.php?post_type=page',
-              'new-page':    '/wp-admin/post-new.php?post_type=page',
-              'media':       '/wp-admin/upload.php',
-              'comments':    '/wp-admin/edit-comments.php',
-              'plugins':     '/wp-admin/plugins.php',
-              'add-plugin':  '/wp-admin/plugin-install.php',
-              'themes':      '/wp-admin/themes.php',
-              'appearance':  '/wp-admin/themes.php',
-              'widgets':     '/wp-admin/widgets.php',
-              'menus':       '/wp-admin/nav-menus.php',
-              'site-editor': '/wp-admin/site-editor.php',
-              'customizer':  '/wp-admin/customize.php',
-              'settings':    '/wp-admin/options-general.php',
-              'users':       '/wp-admin/users.php',
-              'profile':     '/wp-admin/profile.php',
+              'dashboard':            '/wp-admin/',
+              'posts':                '/wp-admin/edit.php',
+              'new-post':             '/wp-admin/post-new.php',
+              'pages':                '/wp-admin/edit.php?post_type=page',
+              'new-page':             '/wp-admin/post-new.php?post_type=page',
+              'media':                '/wp-admin/upload.php',
+              'comments':             '/wp-admin/edit-comments.php',
+              'plugins':              '/wp-admin/plugins.php',
+              'add-plugin':           '/wp-admin/plugin-install.php',
+              'themes':               '/wp-admin/themes.php',
+              'appearance':           '/wp-admin/themes.php',
+              'widgets':              '/wp-admin/widgets.php',
+              'menus':                '/wp-admin/nav-menus.php',
+              'site-editor':          '/wp-admin/site-editor.php',
+              'site-editor-templates':'/wp-admin/site-editor.php?path=/wp_template',
+              'site-editor-patterns': '/wp-admin/site-editor.php?path=/patterns',
+              'site-editor-pages':    '/wp-admin/site-editor.php?path=/page',
+              'site-editor-styles':   '/wp-admin/site-editor.php?path=/wp_global_styles',
+              'customizer':           '/wp-admin/customize.php',
+              'settings':             '/wp-admin/options-general.php',
+              'users':                '/wp-admin/users.php',
+              'profile':              '/wp-admin/profile.php',
             };
             const url = screens[step.screen] ?? `/wp-admin/${step.screen}`;
             await page.goto(url, { waitUntil: step.waitUntil ?? 'domcontentloaded' });
@@ -227,6 +231,82 @@ for (const file of stepFiles) {
             await page.waitForTimeout(200);
             await page.keyboard.press('Backspace');
             await page.waitForTimeout(300);
+            break;
+          }
+
+          case 'wpSiteEditorSave': {
+            await page.getByRole('button', { name: 'Save', exact: true }).click();
+            await page.waitForTimeout(500);
+            const publishPanel = page.getByRole('region', { name: 'Editor publish' });
+            await publishPanel.waitFor({ state: 'visible', timeout: 10_000 });
+            await publishPanel.getByRole('button', { name: 'Save', exact: true }).click();
+            await page.waitForTimeout(800);
+            break;
+          }
+
+          case 'wpOpenBlockInserter': {
+            await page.getByRole('button', { name: 'Block Inserter', exact: true }).click();
+            await page.waitForTimeout(400);
+            break;
+          }
+
+          case 'wpInsertBlockFromPanel': {
+            await page.getByRole('button', { name: 'Block Inserter', exact: true }).click();
+            await page.waitForTimeout(400);
+            const blockLibrary = page.getByRole('region', { name: 'Block Library' });
+            await blockLibrary.waitFor({ state: 'visible', timeout: 10_000 });
+            await blockLibrary.getByRole('searchbox', { name: 'Search' }).fill(step.blockType);
+            await page.waitForTimeout(400);
+            const option = page.getByRole('option', { name: step.blockType, exact: true });
+            await option.waitFor({ timeout: 5_000 });
+            await option.click();
+            await page.waitForTimeout(400);
+            break;
+          }
+
+          case 'wpAdminMenuClick': {
+            const menuItem = page.locator('#adminmenu a').filter({ hasText: step.item });
+            await menuItem.first().click();
+            await page.waitForLoadState('domcontentloaded');
+            await page.waitForTimeout(500);
+            break;
+          }
+
+          case 'wpBlockToolbar': {
+            const toolbar = page.getByRole('toolbar', { name: 'Block tools' });
+            await toolbar.getByRole('button', { name: step.button }).click();
+            await page.waitForTimeout(300);
+            break;
+          }
+
+          case 'wpToggleInspector': {
+            await page.getByRole('button', { name: 'Settings', exact: true }).click();
+            await page.waitForTimeout(400);
+            break;
+          }
+
+          case 'wpInspectorTab': {
+            await page.getByRole('tab', { name: step.tab }).click();
+            await page.waitForTimeout(300);
+            break;
+          }
+
+          case 'wpInspectorPanel': {
+            const sidebar = page.getByRole('region', { name: 'Editor settings' });
+            try {
+              await sidebar.waitFor({ state: 'visible', timeout: 3_000 });
+            } catch {
+              await page.getByRole('button', { name: 'Settings', exact: true }).click();
+              await sidebar.waitFor({ state: 'visible', timeout: 5_000 });
+            }
+            await sidebar.getByRole('button', { name: step.panel }).click();
+            await page.waitForTimeout(300);
+            break;
+          }
+
+          case 'wpOpenListView': {
+            await page.getByRole('button', { name: 'Document Overview' }).click();
+            await page.waitForTimeout(400);
             break;
           }
 

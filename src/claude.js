@@ -52,7 +52,7 @@ Group by distinct user intentions. If the input describes multiple actions (e.g.
 - exitFrame: { "action": "exitFrame" }
 
 ### WordPress-specific (prefer these when intent is WordPress-related)
-- wpNavigate: { "action": "wpNavigate", "screen": "dashboard"|"posts"|"new-post"|"pages"|"new-page"|"media"|"comments"|"plugins"|"add-plugin"|"themes"|"appearance"|"widgets"|"menus"|"site-editor"|"customizer"|"settings"|"users"|"profile" }
+- wpNavigate: { "action": "wpNavigate", "screen": "dashboard"|"posts"|"new-post"|"pages"|"new-page"|"media"|"comments"|"plugins"|"add-plugin"|"themes"|"appearance"|"widgets"|"menus"|"site-editor"|"site-editor-templates"|"site-editor-patterns"|"site-editor-pages"|"site-editor-styles"|"customizer"|"settings"|"users"|"profile" }
 - wpInstallPlugin: { "action": "wpInstallPlugin", "slug": "plugin-slug", "activate"?: boolean }
 - wpSelectBlock: { "action": "wpSelectBlock", "blockType": "paragraph"|"heading"|"image"|etc, "index"?: number }
 - wpInsertBlock: { "action": "wpInsertBlock", "blockType": "paragraph"|"heading"|"image"|etc, "afterIndex"?: number }
@@ -60,16 +60,30 @@ Group by distinct user intentions. If the input describes multiple actions (e.g.
 - wpCommandPalette: { "action": "wpCommandPalette", "command"?: "string" }
 - wpSetPostTitle: { "action": "wpSetPostTitle", "title": "string" }
 - wpSetPostContent: { "action": "wpSetPostContent", "content": "string", "blockType"?: "heading"|"paragraph"|etc, "index"?: number, "replace"?: boolean, "delay"?: number } — types into a block; when blockType is given, targets that specific block by index (0-based); replace defaults to true (triple-click to select all existing text first); set replace:false to append
+- wpSiteEditorSave: { "action": "wpSiteEditorSave" } — clicks Save in the site editor top bar, then confirms in the publish panel
+- wpOpenBlockInserter: { "action": "wpOpenBlockInserter" } — toggles the Block Inserter panel open/closed
+- wpInsertBlockFromPanel: { "action": "wpInsertBlockFromPanel", "blockType": "string" } — opens the inserter, searches by name, and clicks the matching block option
+- wpAdminMenuClick: { "action": "wpAdminMenuClick", "item": "string" } — clicks an admin sidebar menu item matching the given text (e.g. "Appearance", "Plugins", "Settings")
+- wpBlockToolbar: { "action": "wpBlockToolbar", "button": "string" } — clicks a button in the block tools toolbar by accessible name (e.g. "Bold", "Italic", "Link", "Align text", "Transform to", "Options")
+- wpToggleInspector: { "action": "wpToggleInspector" } — toggles the Settings/Inspector sidebar open or closed
+- wpInspectorTab: { "action": "wpInspectorTab", "tab": "Post"|"Block"|"Styles" } — switches between tabs in the inspector sidebar
+- wpInspectorPanel: { "action": "wpInspectorPanel", "panel": "string" } — opens a collapsible panel in the inspector sidebar by name (e.g. "Categories", "Tags", "Featured image", "Permalink", "Excerpt", "Status and Visibility")
+- wpOpenListView: { "action": "wpOpenListView" } — toggles the Document Overview (list view) open
 
 ## Rules
 - Always include wait steps (400-800ms) after navigation or significant UI interactions
 - Use wpInstallPlugin for installing plugins — derive the slug from the plugin name (lowercase, hyphens)
 - Use wpNavigate instead of navigate for WordPress admin screens
+- Use wpNavigate with site-editor-templates/patterns/pages/styles to navigate directly to site editor sections
 - Include waitForSelector before interacting with elements that may not be immediately present
 - When entering the block editor, frameLocator to 'iframe[name="editor-canvas"]' MUST come first — before any waitForSelector, click, fill, or type that targets editor content. exitFrame after.
 - To set the post/page title, always use wpSetPostTitle — never manually frameLocator + click/fill the title field
 - To update/replace content of a specific block, use wpSetPostContent with blockType and index — do NOT use wpSelectBlock followed by wpSetPostContent
 - To set/replace/update block content, use wpSetPostContent — it triple-clicks to select all existing text first (replace:true by default); only pass replace:false when the intent is to append
+- To save changes in the site editor, use wpSiteEditorSave — do NOT use generic click on the Save button
+- To click admin sidebar navigation items by label, use wpAdminMenuClick — prefer this over click with #adminmenu selectors
+- To interact with block formatting toolbar (Bold, Italic, alignment, etc.), use wpBlockToolbar
+- To open sidebar panels like Categories or Tags, use wpInspectorPanel — it opens the sidebar automatically if needed
 - Never invent action types — only use the actions listed above`;
 
 /**

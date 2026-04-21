@@ -80,7 +80,12 @@ Step definitions live in `steps/*.json`. Each file is one recording:
 
 `recordings/steps-runner.spec.js` reads all `*.json` files at runtime and generates one `test()` per file.
 
-**Generic actions:** `navigate`, `click`, `fill`, `type`, `wait`, `waitForSelector`, `screenshot`, `scroll`, `hover`, `press`, `frameLocator`, `exitFrame`
+**Generic actions:** `navigate`, `click`, `highlightClick`, `fill`, `type`, `slowType`, `wait`, `waitForSelector`, `screenshot`, `scroll`, `hover`, `press`, `frameLocator`, `exitFrame`
+
+| Action | Key params | Notes |
+|---|---|---|
+| `highlightClick` | `selector` | Draws a pulsing blue ring around the element for 1 s before clicking. Use for user-visible actions in recordings. |
+| `slowType` | `selector`, `text`, `delay?` | Scrolls into view, clicks, then types character-by-character via `pressSequentially`. Default 100 ms per keystroke. |
 
 **WordPress shortcut actions:**
 
@@ -89,7 +94,8 @@ Step definitions live in `steps/*.json`. Each file is one recording:
 | `wpNavigate` | `screen`, `waitUntil?` | Friendly names: `dashboard`, `posts`, `new-post`, `pages`, `plugins`, `themes`, `site-editor`, `site-editor-templates`, `site-editor-patterns`, `site-editor-pages`, `site-editor-styles`, `settings`, etc. Falls back to `/wp-admin/{screen}` |
 | `wpInstallPlugin` | `slug`, `activate?` | Navigates the plugin installer UI, searches by slug, installs, optionally activates |
 | `wpSelectBlock` | `blockType`, `index?` | Clicks block by `data-type` inside the editor iframe. Short names (`paragraph`) auto-prefixed with `core/` |
-| `wpInsertBlock` | `blockType` | Always appends at the end — clicks the last block, presses Enter to create new block, uses slash command to insert |
+| `wpInsertBlock` | `blockType` | Clicks the "Add default block" appender inside the canvas, then inserts via slash command. Autocomplete resolves on `page`, not the iframe. |
+| `wpInsertBlockProgrammatic` | `blockType`, `attributes?` | Inserts via `wp.blocks.createBlock` + `wp.data.dispatch`. Invisible but reliable; use for setup steps that don't need to appear on screen. Short names auto-prefixed with `core/`. |
 | `wpDeleteBlock` | `blockType`, `index?` | Selects block, presses Escape to enter block-selection mode, then Backspace to remove |
 | `wpCommandPalette` | `command?` | Opens with `Meta+K`; if `command` is given, types it and presses Enter |
 | `wpSetPostTitle` | `title` | Waits for and fills the post/page title inside the editor iframe — handles frame context internally |
@@ -104,9 +110,17 @@ Step definitions live in `steps/*.json`. Each file is one recording:
 | `wpInspectorPanel` | `panel` | Opens a collapsible panel in the inspector by name (e.g. `"Categories"`, `"Tags"`, `"Featured image"`). Opens the sidebar first if it is closed. |
 | `wpOpenListView` | — | Toggles the Document Overview (block list view) open. |
 
-**`wpInsertBlock` gotcha.** Do NOT click `.block-list-appender button` to insert — that opens the block inserter panel and keyboard focus stays there. Instead, click the last `[data-block]` element, press End + Enter to create a new empty block, then type `/{blockName}` for the slash inserter. Wait ~1000ms before pressing Enter to give the slash inserter popover time to appear.
+**`wpInsertBlock` approach.** Uses `getByRole('button', { name: 'Add default block' })` inside the editor canvas, then the slash inserter. The autocomplete option appears on `page` (not inside the iframe) and is waited for before clicking.
 
 **`wpDeleteBlock` gotcha.** Clicking a text block puts the cursor in text-editing mode. Press Escape first to enter block-selection mode, then Backspace to delete.
+
+**Do not use `wait` steps to paper over load timing.** Use `waitForSelector` before any action targeting an element that may not be immediately present. `wait` (ms) is for deliberate visual pauses only.
+
+**Collapsed meta boxes.** Classic editor meta boxes render with `.postbox.closed` by default. Click the `.postbox-header` toggle button to expand, then `waitForSelector` on the revealed content before interacting.
+
+**Admin list table selectors.** Post/page/CPT list tables have two links per row with the same text (row title + row-action hover link). Scope to `.row-title a` to target the title reliably. Avoid `#title` — it matches both the title `<input>` and a `<th>`.
+
+**Plugin sidebar opening.** `enableComplementaryArea()` opens the Document tab, not plugin sidebars. Find and click `button[aria-label="{Sidebar Title}"]` directly. Read the plugin's `registerPlugin()` call to find the exact sidebar title string.
 
 ## Long-term goal
 

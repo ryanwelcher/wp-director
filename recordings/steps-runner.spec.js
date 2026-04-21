@@ -3,6 +3,49 @@ const { test } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
 
+const HIGHLIGHT_HOLD = 1000;
+
+async function highlightAndClick(page, locator) {
+  await locator.scrollIntoViewIfNeeded();
+  const box = await locator.boundingBox();
+  if (box) {
+    await page.evaluate(({ cx, cy, d }) => {
+      if (!document.getElementById('psdd-highlight-style')) {
+        const style = document.createElement('style');
+        style.id = 'psdd-highlight-style';
+        style.textContent = `
+          @keyframes psdd-pulse {
+            0%,80%,100% { transform:scale(1);   opacity:1;   }
+            20%,60%     { transform:scale(1.08); opacity:0.7; }
+          }`;
+        document.head.appendChild(style);
+      }
+      const ring = document.createElement('div');
+      ring.id = 'psdd-click-ring';
+      ring.style.cssText = `
+        position:fixed;z-index:999998;pointer-events:none;
+        left:${cx - d / 2}px;top:${cy - d / 2}px;width:${d}px;height:${d}px;
+        border:3px solid #3b82f6;border-radius:50%;
+        box-shadow:0 0 12px rgba(59,130,246,.5);
+        animation:psdd-pulse .9s ease-in-out;`;
+      document.body.appendChild(ring);
+    }, {
+      cx: box.x + box.width / 2,
+      cy: box.y + box.height / 2,
+      d: Math.max(box.width, box.height) + 24,
+    });
+  }
+  await page.waitForTimeout(HIGHLIGHT_HOLD);
+  await locator.click();
+  await page.evaluate(() => document.getElementById('psdd-click-ring')?.remove());
+}
+
+async function typeSlow(locator, text, delay = 100) {
+  await locator.scrollIntoViewIfNeeded();
+  await locator.click();
+  await locator.pressSequentially(text, { delay });
+}
+
 const stepsDir = path.join(__dirname, '..', 'steps');
 
 const stepFiles = fs.existsSync(stepsDir)
@@ -31,6 +74,10 @@ for (const file of stepFiles) {
             await ctx().locator(step.selector).click();
             break;
 
+          case 'highlightClick':
+            await highlightAndClick(page, ctx().locator(step.selector));
+            break;
+
           case 'fill':
             await ctx().locator(step.selector).fill(step.value);
             break;
@@ -38,6 +85,10 @@ for (const file of stepFiles) {
           case 'type':
             await ctx().locator(step.selector).click();
             await page.keyboard.type(step.text, { delay: step.delay ?? 0 });
+            break;
+
+          case 'slowType':
+            await typeSlow(ctx().locator(step.selector), step.text, step.delay ?? 100);
             break;
 
           case 'wait':
@@ -192,32 +243,26 @@ for (const file of stepFiles) {
               ? step.blockType.split('/')[1]
               : step.blockType;
             const editorFrame = page.frameLocator('iframe[name="editor-canvas"]');
-            const contentBlocks = editorFrame.locator('[data-block]:not([data-type="core/post-title"])');
-            const blockCount = await contentBlocks.count();
-            if (blockCount === 0) {
-              await editorFrame.locator('[data-type="core/post-title"]').click();
-              await page.keyboard.press('End');
-              await page.keyboard.press('Enter');
-              await page.waitForTimeout(400);
-            } else {
-              const lastBlock = contentBlocks.last();
-              const lastText = (await lastBlock.textContent().catch(() => 'x')).trim();
-              if (lastText !== '') {
-                await lastBlock.click();
-                await page.waitForTimeout(200);
-                await page.keyboard.press('End');
-                await page.keyboard.press('Enter');
-                await page.waitForTimeout(400);
-              } else {
-                const editable = lastBlock.locator('[contenteditable="true"]');
-                await editable.evaluate(el => el.focus());
-                await page.waitForTimeout(200);
-              }
-            }
+            const appender = editorFrame.getByRole('button', { name: 'Add default block' });
+            await appender.waitFor({ state: 'visible', timeout: 10_000 });
+            await appender.click();
             await page.keyboard.type(`/${shortName}`, { delay: 50 });
-            await page.waitForTimeout(1000);
-            await page.keyboard.press('Enter');
-            await page.waitForTimeout(600);
+            const option = page.getByRole('option', { name: new RegExp(shortName, 'i') });
+            await option.waitFor({ state: 'visible', timeout: 5_000 });
+            await option.click();
+            await page.waitForTimeout(400);
+            break;
+          }
+
+          case 'wpInsertBlockProgrammatic': {
+            const blockType = step.blockType.includes('/')
+              ? step.blockType
+              : `core/${step.blockType}`;
+            await page.waitForFunction(() => window?.wp?.blocks && window?.wp?.data);
+            await page.evaluate((bType, attrs) => {
+              const block = wp.blocks.createBlock(bType, attrs || {});
+              wp.data.dispatch('core/block-editor').insertBlock(block);
+            }, blockType, step.attributes ?? {});
             break;
           }
 

@@ -46,7 +46,7 @@ async function typeSlow(locator, text, delay = 100) {
   await locator.pressSequentially(text, { delay });
 }
 
-const stepsDir = path.join(__dirname, '..', 'steps');
+const stepsDir = path.join(__dirname, '..', 'scripts');
 
 const stepFiles = fs.existsSync(stepsDir)
   ? fs.readdirSync(stepsDir).filter((f) => f.endsWith('.json'))

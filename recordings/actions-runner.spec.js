@@ -22,6 +22,7 @@ const fs = require('fs');
 const path = require('path');
 
 const HIGHLIGHT_HOLD = 1000;
+const DEFAULT_END_PAUSE = 2000;
 
 /**
  * Scroll `locator` into view, inject a pulsing blue ring around it for
@@ -365,5 +366,7 @@ for (const file of stepFiles) {
         }
       });
     }
+
+    await page.waitForTimeout(def.endPause ?? DEFAULT_END_PAUSE);
   });
 }

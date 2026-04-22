@@ -25,6 +25,8 @@ const jsonError = document.getElementById('json-error');
 const emptyHint = document.getElementById('empty-hint');
 const clearBtn = document.getElementById('clear-btn');
 const nameInput = document.getElementById('name-input');
+/** @type {HTMLInputElement} */
+const endPauseInput = /** @type {any} */ (document.getElementById('end-pause-input'));
 const recordBtn = document.getElementById('record-btn');
 const previewBtn = document.getElementById('preview-btn');
 const stopBtn = document.getElementById('stop-btn');
@@ -726,13 +728,18 @@ async function streamRun(fetchPromise, { onDone }) {
  * Run the current directions as a full recording (with ffmpeg video conversion)
  * via POST `/api/run`. Reloads the recordings list on successful completion.
  */
+function getEndPause() {
+  const val = parseInt(endPauseInput.value, 10);
+  return isNaN(val) || val < 0 ? 2000 : val;
+}
+
 async function runActions() {
   const name = nameInput.value.trim() || `recording-${Date.now()}`;
   await streamRun(
     fetch('/api/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, actions: directionsForJSON(), blueprint, videoSize: getVideoSize() }),
+      body: JSON.stringify({ name, actions: directionsForJSON(), blueprint, videoSize: getVideoSize(), endPause: getEndPause() }),
     }),
     { onDone: (msg) => { if (!msg.stopped) loadRecordings(); } }
   );
@@ -821,6 +828,7 @@ function renderSavedScripts(recordings) {
       if (!recording) return;
       directions = normalizeActions(recording.directions ?? recording.actions ?? recording.steps ?? []);
       nameInput.value = recording.name;
+      endPauseInput.value = String(recording.endPause ?? 2000);
       renderDirections();
       setStatus(statusEl, `Loaded "${name}"`);
     });
@@ -1025,7 +1033,7 @@ async function saveScript() {
     const res = await fetch('/api/scripts/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, directions: directionsForJSON() }),
+      body: JSON.stringify({ name, directions: directionsForJSON(), endPause: getEndPause() }),
     });
     if (!res.ok) throw new Error('Save failed');
     setStatus(statusEl, `Saved "${name}"`);
@@ -1089,7 +1097,7 @@ function exportTxt() {
 // ── Event listeners ───────────────────────────────────────────────────────────
 addBtn.addEventListener('click', addCommand);
 commandInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addCommand(); });
-clearBtn.addEventListener('click', () => { directions = []; nameInput.value = ''; renderDirections(); });
+clearBtn.addEventListener('click', () => { directions = []; nameInput.value = ''; endPauseInput.value = '2000'; renderDirections(); });
 recordBtn.addEventListener('click', runActions);
 previewBtn.addEventListener('click', runPreview);
 stopBtn.addEventListener('click', () => fetch('/api/stop', { method: 'POST' }));

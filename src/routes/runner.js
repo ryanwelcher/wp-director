@@ -143,13 +143,15 @@ function register(app) {
   // Single-recording run: write the posted steps to a file, then grep for
   // exactly this recording by its `name`.
   app.post('/api/run', async (req, res) => {
-    const { name = `recording-${Date.now()}`, actions = [], blueprint = null, videoSize = null, preview = false } = req.body;
+    const { name = `recording-${Date.now()}`, actions = [], blueprint = null, videoSize = null, preview = false, endPause } = req.body;
     if (!actions.length) return res.status(400).json({ error: 'no actions provided' });
 
     if (!fs.existsSync(STEPS_DIR)) fs.mkdirSync(STEPS_DIR);
     const filename = nameToFilename(name);
     const filePath = path.join(STEPS_DIR, filename);
-    fs.writeFileSync(filePath, JSON.stringify({ name, actions }, null, 2));
+    const scriptData = { name, actions };
+    if (endPause != null) scriptData.endPause = endPause;
+    fs.writeFileSync(filePath, JSON.stringify(scriptData, null, 2));
 
     sseHeaders(res);
     const send = sseSender(res);

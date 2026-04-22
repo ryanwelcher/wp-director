@@ -728,10 +728,16 @@ async function streamRun(fetchPromise, { onDone }) {
  * Run the current directions as a full recording (with ffmpeg video conversion)
  * via POST `/api/run`. Reloads the recordings list on successful completion.
  */
+const endPauseDisplay = document.getElementById('end-pause-display');
+
 function getEndPause() {
-  const val = parseInt(endPauseInput.value, 10);
-  return isNaN(val) || val < 0 ? 2000 : val;
+  const secs = parseFloat(endPauseInput.value);
+  return isNaN(secs) || secs < 0 ? 2000 : Math.round(secs * 1000);
 }
+
+endPauseInput.addEventListener('input', () => {
+  endPauseDisplay.textContent = `${endPauseInput.value}s`;
+});
 
 async function runActions() {
   const name = nameInput.value.trim() || `recording-${Date.now()}`;
@@ -828,7 +834,9 @@ function renderSavedScripts(recordings) {
       if (!recording) return;
       directions = normalizeActions(recording.directions ?? recording.actions ?? recording.steps ?? []);
       nameInput.value = recording.name;
-      endPauseInput.value = String(recording.endPause ?? 2000);
+      const secs = ((recording.endPause ?? 2000) / 1000).toString();
+      endPauseInput.value = secs;
+      endPauseDisplay.textContent = `${secs}s`;
       renderDirections();
       setStatus(statusEl, `Loaded "${name}"`);
     });
@@ -1097,7 +1105,7 @@ function exportTxt() {
 // ── Event listeners ───────────────────────────────────────────────────────────
 addBtn.addEventListener('click', addCommand);
 commandInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addCommand(); });
-clearBtn.addEventListener('click', () => { directions = []; nameInput.value = ''; endPauseInput.value = '2000'; renderDirections(); });
+clearBtn.addEventListener('click', () => { directions = []; nameInput.value = ''; endPauseInput.value = '2'; endPauseDisplay.textContent = '2s'; renderDirections(); });
 recordBtn.addEventListener('click', runActions);
 previewBtn.addEventListener('click', runPreview);
 stopBtn.addEventListener('click', () => fetch('/api/stop', { method: 'POST' }));

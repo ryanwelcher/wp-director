@@ -30,8 +30,9 @@
       <input id="name-input" type="text" placeholder="Add script name">
     </label>
     <label>
-      End pause (ms):
-      <input id="end-pause-input" type="number" min="0" step="500" value="2000">
+      Pause at end:
+      <input id="end-pause-input" type="range" min="0" max="10" step="0.5" value="2">
+      <span id="end-pause-display">2s</span>
     </label>
     <button id="save-btn" class="secondary" disabled>Save Script</button>
     <button id="export-txt-btn" class="secondary" disabled>Export TXT</button>

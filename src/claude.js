@@ -105,23 +105,28 @@ After navigating to new-post or new-page, always emit \`tryClick\` with selector
 **Block Inserter toggle**:
   Use \`highlightClick\` with selector \`button[aria-label="Block Inserter, Add block"]\`
 
-**Inspector sidebar — Color panel**:
+**Inspector sidebar — general pattern**:
 
-  The Color panel has two levels. First, the Color options (⋮) menu controls which color types are visible. Second, once a color type is visible, click its button to open the actual color picker.
+  All sidebar controls live inside \`[aria-label="Editor settings"]\`. Always scope selectors to this region.
 
-  | Intent | Action | Selector |
-  |---|---|---|
-  | Open the Color options (⋮) menu | \`highlightClick\` | \`button[aria-label="Color options"]\` |
-  | Toggle Text color row on/off | \`highlightClick\` | \`[role="menuitemcheckbox"][aria-label="Text"]\` |
-  | Toggle Background color row on/off | \`highlightClick\` | \`[role="menuitemcheckbox"][aria-label="Background"]\` |
-  | Toggle Link color row on/off | \`highlightClick\` | \`[role="menuitemcheckbox"][aria-label="Show Link"]\` |
-  | Open the Text color picker | \`highlightClick\` | \`[aria-label="Editor settings"] button:has-text("Text")\` |
-  | Open the Background color picker | \`highlightClick\` | \`[aria-label="Editor settings"] button:has-text("Background")\` |
-  | Open the custom hex color picker | \`highlightClick\` | \`button[aria-label="Custom color picker"]\` |
-  | Enter a hex color value | \`slowType\` | \`[role="textbox"][aria-label="Hex color"]\` |
-  | Choose a named color swatch | \`highlightClick\` | \`[role="option"][aria-label="<Color name>"]\` (e.g. "Cyan bluish gray") |
+  **Opening a panel's options (⋮) menu** — formula: \`button[aria-label="<Panel> options"]\`
+  Examples: \`button[aria-label="Color options"]\`, \`button[aria-label="Typography options"]\`, \`button[aria-label="Dimensions options"]\`
 
-  **Important**: "Color options" opens the ⋮ menu only — it does NOT open the color picker. To open a color picker, use the "Text color" or "Background color" button selectors above.
+  **Enabling a hidden control via the options menu** — formula: \`[role="menuitemcheckbox"][aria-label="Show <Control name>"]\`
+  Most panels use the "Show" prefix. Exception: Color panel uses \`"Text"\` and \`"Background"\` (no "Show") but \`"Show Link"\` for the Link option.
+
+  **Interacting with a control** — scope to the sidebar and use the control's accessible name:
+  - Buttons: \`[aria-label="Editor settings"] button[aria-label="<Name>"]\`
+  - Buttons identified by visible text: \`[aria-label="Editor settings"] button:has-text("<Text>")\`
+  - Radio options (e.g. font size): \`[aria-label="Editor settings"] [role="radio"][aria-label="<Full name>"]\`
+  - Text inputs: \`[aria-label="Editor settings"] [role="textbox"][aria-label="<Name>"]\`
+  - Color swatches: \`[role="option"][aria-label="<Color name>"]\`
+
+  **Panel-specific notes**:
+  - Font size radios display abbreviations (S/M/L/XL/XXL) but their aria-labels are the full names — always use the full name (e.g. \`"Large"\`, not \`"L"\`)
+  - Text and Background color pickers are buttons with visible text only; use \`button:has-text("Text")\` and \`button:has-text("Background")\` scoped to \`[aria-label="Editor settings"]\`
+  - Custom color picker: \`button[aria-label="Custom color picker"]\`
+  - Hex color input: \`[role="textbox"][aria-label="Hex color"]\`
 
 **Command palette**:
   Emit \`press\` key \`"Meta+k"\`, then \`waitForSelector\` selector \`[role="combobox"]\`, then \`slowType\` on \`[role="combobox"]\`, then \`press\` key \`"Enter"\`.
@@ -160,8 +165,8 @@ After navigating to new-post or new-page, always emit \`tryClick\` with selector
 - Collapsed meta boxes in the classic editor render with .postbox.closed by default — click the .postbox-header button to expand, then waitForSelector on the revealed content before interacting
 - In admin list tables (posts, pages, CPTs), title links are duplicated (row title + row-action hover); scope to .row-title a to avoid ambiguity; avoid the #title ID selector (matches both the <input> and a <th>)
 - To open a registerPlugin sidebar, click button[aria-label="{Sidebar Title}"] directly — do NOT use enableComplementaryArea, which opens the Document tab instead
-- For inspector sidebar color controls, always use the selectors from the Inspector sidebar — Color panel table; do NOT guess CSS class names or data attributes for color buttons
-- For any inspector sidebar control (Color, Typography, Dimensions, Spacing, Border, Layout, etc.), assume the control is already visible and go straight to interacting with it — do NOT click the options (⋮) menu for any panel as a precaution. Only emit steps to open an options menu if the recording explicitly needs to enable a control that is not shown by default
+- For all inspector sidebar controls (Color, Typography, Dimensions, Spacing, Border, Layout, etc.), always scope selectors to \`[aria-label="Editor settings"]\` and follow the general pattern in the Inspector sidebar section above — do NOT guess CSS class names or data attributes
+- Assume all sidebar controls are already visible — do NOT open a panel's options (⋮) menu as a precaution; only open it when the recording explicitly needs to enable a control that is hidden by default
 - Never invent action types — only use the actions listed above
 - Each direction should contain ONLY the actions required to accomplish its stated intent — do NOT add setup steps (opening the sidebar, selecting a block, switching tabs, etc.) that a prior direction may have already handled. Assume the UI is in the state the prior directions left it in. For example, if the user just selected a block, the sidebar is already open on the Block tab — do not emit steps to open Settings or click the Block tab again`;
 

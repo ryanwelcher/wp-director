@@ -126,44 +126,11 @@ for (const file of stepFiles) {
             if (frameStack.length > 1) frameStack.pop();
             break;
 
-          case 'wpNavigate': {
-            const screens = {
-              'dashboard':            '/wp-admin/',
-              'posts':                '/wp-admin/edit.php',
-              'new-post':             '/wp-admin/post-new.php',
-              'pages':                '/wp-admin/edit.php?post_type=page',
-              'new-page':             '/wp-admin/post-new.php?post_type=page',
-              'media':                '/wp-admin/upload.php',
-              'comments':             '/wp-admin/edit-comments.php',
-              'plugins':              '/wp-admin/plugins.php',
-              'add-plugin':           '/wp-admin/plugin-install.php',
-              'themes':               '/wp-admin/themes.php',
-              'appearance':           '/wp-admin/themes.php',
-              'widgets':              '/wp-admin/widgets.php',
-              'menus':                '/wp-admin/nav-menus.php',
-              'site-editor':          '/wp-admin/site-editor.php',
-              'site-editor-templates':'/wp-admin/site-editor.php?path=/wp_template',
-              'site-editor-patterns': '/wp-admin/site-editor.php?path=/patterns',
-              'site-editor-pages':    '/wp-admin/site-editor.php?path=/page',
-              'site-editor-styles':   '/wp-admin/site-editor.php?path=/wp_global_styles',
-              'customizer':           '/wp-admin/customize.php',
-              'settings':             '/wp-admin/options-general.php',
-              'users':                '/wp-admin/users.php',
-              'profile':              '/wp-admin/profile.php',
-            };
-            const url = screens[step.screen] ?? `/wp-admin/${step.screen}`;
-            await page.goto(url, { waitUntil: step.waitUntil ?? 'domcontentloaded' });
-            await page.waitForTimeout(500);
-            if (step.screen === 'new-post' || step.screen === 'new-page') {
-              const dialog = page.locator('.components-modal__screen-overlay');
-              try {
-                await dialog.waitFor({ state: 'visible', timeout: 5_000 });
-                await page.locator('.components-modal__header button[aria-label="Close"]').click();
-                await dialog.waitFor({ state: 'hidden', timeout: 3_000 });
-              } catch {
-                // no dialog appeared, continue
-              }
-            }
+          case 'tryClick': {
+            try {
+              await ctx().locator(step.selector).waitFor({ state: 'visible', timeout: step.timeout ?? 3_000 });
+              await ctx().locator(step.selector).click();
+            } catch { /* element not present, continue */ }
             break;
           }
 
@@ -233,30 +200,57 @@ for (const file of stepFiles) {
             break;
           }
 
-          case 'wpCommandPalette': {
-            await page.keyboard.press('Meta+k');
-            await page.waitForTimeout(500);
-            if (step.command) {
-              await page.keyboard.type(step.command, { delay: 40 });
-              await page.waitForTimeout(600);
-              await page.keyboard.press('Enter');
-              await page.waitForTimeout(500);
-            }
-            break;
-          }
-
           case 'wpInsertBlock': {
             const shortName = step.blockType.includes('/')
               ? step.blockType.split('/')[1]
               : step.blockType;
             const editorFrame = page.frameLocator('iframe[name="editor-canvas"]');
-            const appender = editorFrame.getByRole('button', { name: 'Add default block' });
-            await appender.waitFor({ state: 'visible', timeout: 10_000 });
-            await appender.click();
-            await page.keyboard.type(`/${shortName}`, { delay: 50 });
-            const option = page.getByRole('option', { name: new RegExp(shortName, 'i') });
-            await option.waitFor({ state: 'visible', timeout: 5_000 });
-            await option.click();
+
+            if (step.afterIndex !== undefined && step.afterIndex >= 0) {
+              // Insert an empty paragraph at the exact position and use its clientId
+              // to click it directly — avoids focus/keyboard state issues entirely.
+              const newClientId = await page.evaluate((idx) => {
+                const newBlock = wp.blocks.createBlock('core/paragraph');
+                wp.data.dispatch('core/block-editor').insertBlock(newBlock, idx + 1);
+                return newBlock.clientId;
+              }, step.afterIndex);
+              await page.waitForTimeout(300);
+              const newBlockEl = editorFrame.locator(`[data-block="${newClientId}"]`);
+              await newBlockEl.waitFor({ state: 'visible', timeout: 5_000 });
+              await newBlockEl.click();
+            } else {
+              // Insert at the end
+              const appender = editorFrame.getByRole('button', { name: 'Add default block' });
+              try {
+                await appender.waitFor({ state: 'visible', timeout: 3_000 });
+                await appender.click();
+              } catch {
+                // No appender — move cursor to absolute end of last text block, then Enter if it has content
+                const lastEditable = editorFrame.locator('[contenteditable="true"]:not(.wp-block-post-title)').last();
+                await lastEditable.click();
+                const isEmpty = (await lastEditable.textContent()) === '';
+                if (!isEmpty) {
+                  await lastEditable.evaluate(el => {
+                    const range = document.createRange();
+                    range.selectNodeContents(el);
+                    range.collapse(false);
+                    const sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                  });
+                  await page.keyboard.press('Enter');
+                }
+              }
+            }
+
+            // Paragraph is the default block — no slash command needed
+            if (shortName !== 'paragraph') {
+              await page.keyboard.type(`/${shortName}`, { delay: 50 });
+              const option = page.getByRole('option', { name: new RegExp(`^${shortName}$`, 'i') });
+              await option.waitFor({ state: 'visible', timeout: 5_000 });
+              await option.click();
+              await page.keyboard.press('Enter');
+            }
             await page.waitForTimeout(400);
             break;
           }
@@ -296,12 +290,6 @@ for (const file of stepFiles) {
             break;
           }
 
-          case 'wpOpenBlockInserter': {
-            await page.getByRole('button', { name: 'Block Inserter', exact: true }).click();
-            await page.waitForTimeout(400);
-            break;
-          }
-
           case 'wpInsertBlockFromPanel': {
             await page.getByRole('button', { name: 'Block Inserter', exact: true }).click();
             await page.waitForTimeout(400);
@@ -316,33 +304,6 @@ for (const file of stepFiles) {
             break;
           }
 
-          case 'wpAdminMenuClick': {
-            const menuItem = page.locator('#adminmenu a').filter({ hasText: step.item });
-            await menuItem.first().click();
-            await page.waitForLoadState('domcontentloaded');
-            await page.waitForTimeout(500);
-            break;
-          }
-
-          case 'wpBlockToolbar': {
-            const toolbar = page.getByRole('toolbar', { name: 'Block tools' });
-            await toolbar.getByRole('button', { name: step.button }).click();
-            await page.waitForTimeout(300);
-            break;
-          }
-
-          case 'wpToggleInspector': {
-            await page.getByRole('button', { name: 'Settings', exact: true }).click();
-            await page.waitForTimeout(400);
-            break;
-          }
-
-          case 'wpInspectorTab': {
-            await page.getByRole('tab', { name: step.tab }).click();
-            await page.waitForTimeout(300);
-            break;
-          }
-
           case 'wpInspectorPanel': {
             const sidebar = page.getByRole('region', { name: 'Editor settings' });
             try {
@@ -353,12 +314,6 @@ for (const file of stepFiles) {
             }
             await sidebar.getByRole('button', { name: step.panel }).click();
             await page.waitForTimeout(300);
-            break;
-          }
-
-          case 'wpOpenListView': {
-            await page.getByRole('button', { name: 'Document Overview' }).click();
-            await page.waitForTimeout(400);
             break;
           }
 

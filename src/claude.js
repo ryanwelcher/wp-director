@@ -53,25 +53,73 @@ Group by distinct user intentions. If the input describes multiple directions (e
 - frameLocator: { "action": "frameLocator", "selector": "string" }
 - exitFrame: { "action": "exitFrame" }
 
+### WordPress Admin URLs
+
+Use \`navigate\` for all WordPress admin screens. \`baseURL\` is pre-configured so relative paths work.
+Always use \`"waitUntil": "domcontentloaded"\` for WordPress admin navigation.
+
+| Screen | URL path |
+|---|---|
+| Dashboard | /wp-admin/ |
+| Posts list | /wp-admin/edit.php |
+| New post | /wp-admin/post-new.php |
+| Pages list | /wp-admin/edit.php?post_type=page |
+| New page | /wp-admin/post-new.php?post_type=page |
+| Media | /wp-admin/upload.php |
+| Comments | /wp-admin/edit-comments.php |
+| Plugins | /wp-admin/plugins.php |
+| Add plugin | /wp-admin/plugin-install.php |
+| Themes | /wp-admin/themes.php |
+| Widgets | /wp-admin/widgets.php |
+| Menus | /wp-admin/nav-menus.php |
+| Site editor | /wp-admin/site-editor.php |
+| Site editor → templates | /wp-admin/site-editor.php?path=/wp_template |
+| Site editor → patterns | /wp-admin/site-editor.php?path=/patterns |
+| Site editor → pages | /wp-admin/site-editor.php?path=/page |
+| Site editor → styles | /wp-admin/site-editor.php?path=/wp_global_styles |
+| Customizer | /wp-admin/customize.php |
+| Settings | /wp-admin/options-general.php |
+| Users | /wp-admin/users.php |
+| Profile | /wp-admin/profile.php |
+
+After navigating to new-post or new-page, always emit \`tryClick\` with selector \`.components-modal__header button[aria-label="Close"]\` to dismiss the welcome dialog if it appears.
+
+### WordPress Common Selectors
+
+**Admin sidebar navigation** — to click a menu item by label:
+  Use \`highlightClick\` with selector \`#adminmenu a:has-text("<Label>")\`
+  After clicking (which triggers navigation), emit \`waitForSelector\` on a landmark element of the destination page.
+
+**Block toolbar buttons** (Bold, Italic, Link, Align text, etc.):
+  Use \`highlightClick\` with selector \`[role="toolbar"][aria-label="Block tools"] button[aria-label="<ButtonName>"]\`
+
+**Settings/Inspector sidebar toggle**:
+  Use \`highlightClick\` with selector \`button[aria-label="Settings"]\`
+
+**Inspector sidebar tabs** (Post, Block, Styles):
+  Use \`highlightClick\` with selector \`[role="tab"][aria-label="<TabName>"]\`
+
+**Document Overview (list view)**:
+  Use \`highlightClick\` with selector \`button[aria-label="Document Overview"]\`
+
+**Block Inserter toggle**:
+  Use \`highlightClick\` with selector \`button[aria-label="Block Inserter, Add block"]\`
+
+**Command palette**:
+  Emit \`press\` key \`"Meta+k"\`, then \`waitForSelector\` selector \`[role="combobox"]\`, then \`slowType\` on \`[role="combobox"]\`, then \`press\` key \`"Enter"\`.
+
 ### WordPress-specific (prefer these when intent is WordPress-related)
-- wpNavigate: { "action": "wpNavigate", "screen": "dashboard"|"posts"|"new-post"|"pages"|"new-page"|"media"|"comments"|"plugins"|"add-plugin"|"themes"|"appearance"|"widgets"|"menus"|"site-editor"|"site-editor-templates"|"site-editor-patterns"|"site-editor-pages"|"site-editor-styles"|"customizer"|"settings"|"users"|"profile" }
+- tryClick: { "action": "tryClick", "selector": "string", "timeout"?: number } — clicks an element only if it appears within timeout; silently skips if absent. Use for optional UI like welcome dialogs.
 - wpInstallPlugin: { "action": "wpInstallPlugin", "slug": "plugin-slug", "activate"?: boolean }
 - wpSelectBlock: { "action": "wpSelectBlock", "blockType": "paragraph"|"heading"|"image"|etc, "index"?: number }
-- wpInsertBlock: { "action": "wpInsertBlock", "blockType": "paragraph"|"heading"|"image"|etc, "afterIndex"?: number }
-- wpInsertBlockProgrammatic: { "action": "wpInsertBlockProgrammatic", "blockType": "string", "attributes"?: object } — inserts via wp.blocks/wp.data JS API; invisible but reliable for setup; use when insertion doesn't need to appear on screen
+- wpInsertBlock: { "action": "wpInsertBlock", "blockType": "paragraph"|"heading"|"image"|etc, "afterIndex"?: number } — use when user says "type", "insert", "add", "write", or implies a visible on-screen action; types the slash command so it appears in the recording
+- wpInsertBlockProgrammatic: { "action": "wpInsertBlockProgrammatic", "blockType": "string", "attributes"?: object } — use when user says "programmatically", "silently", "in the background", "set up", or "pre-populate"; inserts via JS API with no visible UI interaction
 - wpDeleteBlock: { "action": "wpDeleteBlock", "blockType": "paragraph"|"heading"|"image"|etc, "index"?: number }
-- wpCommandPalette: { "action": "wpCommandPalette", "command"?: "string" }
 - wpSetPostTitle: { "action": "wpSetPostTitle", "title": "string" }
 - wpSetPostContent: { "action": "wpSetPostContent", "content": "string", "blockType"?: "heading"|"paragraph"|etc, "index"?: number, "replace"?: boolean, "delay"?: number } — types into a block; when blockType is given, targets that specific block by index (0-based); replace defaults to true (triple-click to select all existing text first); set replace:false to append
 - wpSiteEditorSave: { "action": "wpSiteEditorSave" } — clicks Save in the site editor top bar, then confirms in the publish panel
-- wpOpenBlockInserter: { "action": "wpOpenBlockInserter" } — toggles the Block Inserter panel open/closed
 - wpInsertBlockFromPanel: { "action": "wpInsertBlockFromPanel", "blockType": "string" } — opens the inserter, searches by name, and clicks the matching block option
-- wpAdminMenuClick: { "action": "wpAdminMenuClick", "item": "string" } — clicks an admin sidebar menu item matching the given text (e.g. "Appearance", "Plugins", "Settings")
-- wpBlockToolbar: { "action": "wpBlockToolbar", "button": "string" } — clicks a button in the block tools toolbar by accessible name (e.g. "Bold", "Italic", "Link", "Align text", "Transform to", "Options")
-- wpToggleInspector: { "action": "wpToggleInspector" } — toggles the Settings/Inspector sidebar open or closed
-- wpInspectorTab: { "action": "wpInspectorTab", "tab": "Post"|"Block"|"Styles" } — switches between tabs in the inspector sidebar
-- wpInspectorPanel: { "action": "wpInspectorPanel", "panel": "string" } — opens a collapsible panel in the inspector sidebar by name (e.g. "Categories", "Tags", "Featured image", "Permalink", "Excerpt", "Status and Visibility")
-- wpOpenListView: { "action": "wpOpenListView" } — toggles the Document Overview (list view) open
+- wpInspectorPanel: { "action": "wpInspectorPanel", "panel": "string" } — opens a collapsible panel in the inspector sidebar by name (e.g. "Categories", "Tags", "Featured image", "Permalink", "Excerpt", "Status and Visibility"); opens the sidebar automatically if needed
 
 ## Rules
 - ALWAYS use highlightClick instead of click for any user-visible click — never emit a bare click action unless dismissing a modal or closing a panel
@@ -79,16 +127,17 @@ Group by distinct user intentions. If the input describes multiple directions (e
 - After navigation, prefer waitForSelector targeting the first element you will interact with — do NOT use wait steps as a blanket post-navigation pause
 - Only use wait (ms) for deliberate visual pauses in a recording (e.g. holding a result on screen); do not use it to paper over load timing
 - Use wpInstallPlugin for installing plugins — derive the slug from the plugin name (lowercase, hyphens)
-- Use wpNavigate instead of navigate for WordPress admin screens
-- Use wpNavigate with site-editor-templates/patterns/pages/styles to navigate directly to site editor sections
+- For WordPress admin navigation, use navigate with the URL path from the WordPress Admin URLs table; always set waitUntil: "domcontentloaded"
+- After navigating to new-post or new-page, emit tryClick with selector .components-modal__header button[aria-label="Close"] to dismiss the welcome dialog
 - Include waitForSelector before interacting with elements that may not be immediately present
 - When entering the block editor, frameLocator to 'iframe[name="editor-canvas"]' MUST come first — before any waitForSelector, click, fill, or type that targets editor content. exitFrame after.
+- To insert a block, choose based on user intent: use wpInsertBlock (slash-command UI) when the user says "type", "insert", "add", "write", or implies a visible on-screen action; use wpInsertBlockProgrammatic when the user says "programmatically", "silently", "in the background", "set up", or "pre-populate" — invisible, no UI interaction shown in the recording
 - To set the post/page title, always use wpSetPostTitle — never manually frameLocator + click/fill the title field
 - To update/replace content of a specific block, use wpSetPostContent with blockType and index — do NOT use wpSelectBlock followed by wpSetPostContent
 - To set/replace/update block content, use wpSetPostContent — it triple-clicks to select all existing text first (replace:true by default); only pass replace:false when the intent is to append
 - To save changes in the site editor, use wpSiteEditorSave — do NOT use generic click on the Save button
-- To click admin sidebar navigation items by label, use wpAdminMenuClick — prefer this over click with #adminmenu selectors
-- To interact with block formatting toolbar (Bold, Italic, alignment, etc.), use wpBlockToolbar
+- To click admin sidebar items by label, use highlightClick with selector #adminmenu a:has-text("<Label>"); follow with waitForSelector on a landmark element of the destination page
+- To interact with block formatting toolbar (Bold, Italic, alignment, etc.), use highlightClick with selector [role="toolbar"][aria-label="Block tools"] button[aria-label="<ButtonName>"]
 - To open sidebar panels like Categories or Tags, use wpInspectorPanel — it opens the sidebar automatically if needed
 - Collapsed meta boxes in the classic editor render with .postbox.closed by default — click the .postbox-header button to expand, then waitForSelector on the revealed content before interacting
 - In admin list tables (posts, pages, CPTs), title links are duplicated (row title + row-action hover); scope to .row-title a to avoid ambiguity; avoid the #title ID selector (matches both the <input> and a <th>)

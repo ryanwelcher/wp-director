@@ -3,7 +3,7 @@
   "actions": [
     {
       "label": "Navigate to the Site Editor",
-      "actions": [{ "action": "wpNavigate", "screen": "site-editor", "waitUntil": "domcontentloaded" }]
+      "actions": [{ "action": "navigate", "url": "/wp-admin/site-editor.php", "waitUntil": "domcontentloaded" }]
     }
   ]
 }

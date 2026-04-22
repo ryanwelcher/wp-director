@@ -3,7 +3,7 @@
   "actions": [
     {
       "label": "Toggle the block inserter panel open",
-      "actions": [{ "action": "wpOpenBlockInserter" }]
+      "actions": [{ "action": "highlightClick", "selector": "button[aria-label=\"Block Inserter, Add block\"]" }]
     }
   ]
 }

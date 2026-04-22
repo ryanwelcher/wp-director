@@ -11,3 +11,4 @@ blueprints/blueprint.preview.json
 scripts/*.json
 /directions/*
 !/directions/.gitkeep
+.DS_Store

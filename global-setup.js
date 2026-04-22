@@ -1,4 +1,21 @@
 // @ts-check
+/**
+ * Playwright globalSetup hook — runs once before the test suite starts.
+ *
+ * Starts a WP Playground server on port 9400. If a Playground is already
+ * listening (e.g. started by the Express server via `playground.js`), this
+ * hook reuses it by writing its PID to the PID file and returning early.
+ * This is the main coordination point that lets `npm start` + `npm run record`
+ * share the same Playground process.
+ *
+ * Three execution paths:
+ *  1. Port is occupied and responding → reuse; write PID, return.
+ *  2. Port is occupied but not responding → kill the orphan, then start fresh.
+ *  3. Port is free → start fresh.
+ *
+ * Playground is spawned detached + unref'd so it outlives the Playwright
+ * worker process (global-teardown.js kills it by PID when tests finish).
+ */
 const { spawn, execSync } = require('child_process');
 const fs = require('fs');
 const net = require('net');
@@ -7,6 +24,14 @@ const path = require('path');
 const PID_FILE = path.join(__dirname, '.wp-playground.pid');
 const PORT = 9400;
 
+/**
+ * Check whether something is listening on `port` by attempting a TCP connect.
+ * The 2s timeout prevents hanging if a port accepts connections but never
+ * sends a response (e.g. a crashed process holding the socket).
+ *
+ * @param {number} port
+ * @returns {Promise<boolean>}
+ */
 function isPortInUse(port) {
   return new Promise((resolve) => {
     const socket = new net.Socket();
@@ -18,6 +43,13 @@ function isPortInUse(port) {
   });
 }
 
+/**
+ * Return the PID of the process listening on `port`, or null if none.
+ * Uses `lsof` — macOS/Linux only.
+ *
+ * @param {number} port
+ * @returns {number|null}
+ */
 function getPidOnPort(port) {
   try {
     const out = execSync(`lsof -ti:${port}`, { encoding: 'utf8' }).trim();
@@ -27,6 +59,7 @@ function getPidOnPort(port) {
   }
 }
 
+/** @returns {Promise<void>} */
 module.exports = async function globalSetup() {
   if (await isPortInUse(PORT)) {
     const pid = getPidOnPort(PORT);

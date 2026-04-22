@@ -47,4 +47,7 @@ module.exports = {
 
   // Playground-ready timeout
   PLAYGROUND_READY_TIMEOUT_MS: 120_000,
+
+  // Filename validation — safe on-disk names for scripts and directions
+  SAFE_FILENAME_RE: /^[a-z0-9-]+\.json$/i,
 };

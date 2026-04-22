@@ -1,4 +1,18 @@
 // @ts-check
+/**
+ * WP Director — single-page UI.
+ *
+ * Manages the full recording lifecycle:
+ *   1. Translate plain-English commands → direction objects via `/api/translate`
+ *   2. Edit, reorder, and persist directions in a live list + JSON textarea
+ *   3. Run recordings via `/api/run` (single) or `/api/run/batch` (multi),
+ *      streaming stdout/stderr back over SSE
+ *   4. Preview the running browser live via the `/api/screencast` SSE stream
+ *   5. Browse and download completed MP4 recordings
+ *
+ * State is held in module-level variables (`directions`, `blueprint`, etc.)
+ * and is never persisted to the server except through explicit save actions.
+ */
 
 // ── Steps elements ────────────────────────────────────────────────────────────
 const commandInput = document.getElementById('command-input');
@@ -67,6 +81,12 @@ sizeOpts.forEach((btn) => {
   });
 });
 
+/**
+ * Read the active size-option button and return its dimensions.
+ * Defaults to 1920×1080 if no button is active.
+ *
+ * @returns {{ width: number, height: number }}
+ */
 function getVideoSize() {
   const active = /** @type {HTMLButtonElement} */ (document.querySelector('.size-opt.active'));
   const [w, h] = (active?.dataset.size ?? '1920x1080').split('x').map(Number);
@@ -82,6 +102,11 @@ const rightSidebar = document.getElementById('right-sidebar');
 const sidebarToggle = document.getElementById('sidebar-toggle');
 const mainContent = document.querySelector('.main-content');
 
+/**
+ * Pin the right sidebar flush below the header so it fills the remaining
+ * viewport height without overlapping the header or overflowing the page.
+ * Called once on load and should be called again if the header height changes.
+ */
 function positionSidebar() {
   const headerHeight = document.querySelector('header').offsetHeight;
   rightSidebar.style.top = headerHeight + 'px';
@@ -100,6 +125,11 @@ sidebarToggle.addEventListener('click', () => {
 /** @type {EventSource|null} */
 let screencastSource = null;
 
+/**
+ * Open an `EventSource` to `/api/screencast` and render each JPEG frame
+ * into the preview `<img>`. No-op if a source is already open.
+ * Shows "Connecting…" until the first frame arrives.
+ */
 function startScreencast() {
   if (screencastSource) return;
   previewPlaceholder.textContent = 'Connecting to browser…';
@@ -117,6 +147,10 @@ function startScreencast() {
   screencastSource.onerror = () => {};
 }
 
+/**
+ * Close the screencast `EventSource` (if open) and reset the preview panel
+ * to its "No preview yet." placeholder state.
+ */
 function stopScreencast() {
   if (screencastSource) { screencastSource.close(); screencastSource = null; }
   previewPanel.classList.remove('polling');
@@ -152,10 +186,24 @@ const WP_SCREENS = {
   settings: 'Settings', users: 'Users', profile: 'Profile',
 };
 
+/**
+ * HTML-escape a value for safe insertion via `innerHTML`.
+ *
+ * @param {*} val
+ * @returns {string}
+ */
 function ea(val) {
   return String(val ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+/**
+ * Produce a human-readable one-line description of a single action object.
+ * Used as the default label for a direction group when Claude returns actions
+ * without an explicit label, and in the expanded inner-action list.
+ *
+ * @param {object} step  A raw action object (e.g. `{ action: 'click', selector: '...' }`).
+ * @returns {string}
+ */
 function describePlain(step) {
   switch (step.action) {
     case 'navigate':        return `Go to ${step.url}`;
@@ -182,7 +230,15 @@ function describePlain(step) {
   }
 }
 
-/** Ensure loaded directions are in grouped format { label, actions[] }. */
+/**
+ * Ensure loaded data is in grouped direction format `{ label, actions[] }`.
+ * Promotes legacy flat action objects (no `label` key) by wrapping each in a
+ * group whose label is derived from `describePlain`. This means the rest of
+ * the UI only ever handles one format.
+ *
+ * @param {Array} raw  Raw array from the server or JSON textarea.
+ * @returns {Array<{ label: string, actions: object[] }>}
+ */
 function normalizeActions(raw) {
   if (!Array.isArray(raw)) return [];
   return raw.map(s => s.label != null ? s : { label: describePlain(s), actions: [s] });
@@ -192,10 +248,22 @@ function normalizeActions(raw) {
 /** @type {HTMLElement|null} */
 let activePicker = null;
 
+/** Remove the floating direction picker from the DOM and clear `activePicker`. */
 function closeDirectionPicker() {
   if (activePicker) { activePicker.remove(); activePicker = null; }
 }
 
+/**
+ * Show the floating direction-picker menu anchored below `anchorEl`.
+ * Selecting an entry calls `insertDirection()` at the computed index.
+ * When `actionIndex` is not null the picker shows Above/Below toggle buttons
+ * so the user can choose insertion position relative to that group.
+ * Dismisses automatically on the next outside click.
+ *
+ * @param {number|null} actionIndex  Index of the adjacent direction group, or
+ *   null to always append at the end (used by the bottom insert button).
+ * @param {HTMLElement} anchorEl  Button that triggered the picker (used for positioning).
+ */
 function showDirectionPicker(actionIndex, anchorEl) {
   closeDirectionPicker();
   if (!libraryEntries.length) return;
@@ -260,6 +328,12 @@ function showDirectionPicker(actionIndex, anchorEl) {
 // ── Render ────────────────────────────────────────────────────────────────────
 let draggingIndex = null;
 
+/**
+ * Rebuild the `<ul>` of direction groups from the current `directions` state.
+ * Each group renders with a drag handle, numbered index, editable label,
+ * expand/collapse toggle, and insert/save/delete action buttons.
+ * Also wires up drag-to-reorder event listeners.
+ */
 function renderDirectionList() {
   stepList.innerHTML = '';
   emptyHint.style.display = directions.length ? 'none' : '';
@@ -361,11 +435,23 @@ function renderDirectionList() {
   });
 }
 
+/**
+ * Return `directions` with UI-only fields removed, ready for JSON serialisation
+ * and submission to the server. Strips `_open` (expand state) and
+ * `_fromDirection` (provenance flag) so they don't pollute saved files.
+ *
+ * @returns {Array<{ label: string, actions: object[] }>}
+ */
 function directionsForJSON() {
   // eslint-disable-next-line no-unused-vars
   return directions.map(({ _open, _fromDirection, ...rest }) => rest);
 }
 
+/**
+ * Sync the `jsonPreview` textarea from the current `directions` state.
+ * Sets `updatingDirectionsFromCode` while writing so the textarea's `input`
+ * handler (`onDirectionsEdit`) doesn't re-parse its own programmatic update.
+ */
 function renderJSON() {
   updatingDirectionsFromCode = true;
   jsonPreview.value = JSON.stringify(directionsForJSON(), null, 2);
@@ -374,6 +460,10 @@ function renderJSON() {
   jsonError.classList.add('hidden');
 }
 
+/**
+ * Full directions re-render: updates the visual list, JSON textarea, and the
+ * raw-JSON code view. Also manages visibility of the JSON/Actions toggle button.
+ */
 function renderDirections() {
   renderDirectionList();
   renderJSON();
@@ -395,6 +485,11 @@ directionsViewToggle.addEventListener('click', () => {
   directionsViewToggle.textContent = listVisible ? 'Show Actions' : 'Show JSON';
 });
 
+/**
+ * Sync the `blueprintPreview` textarea from the current `blueprint` state.
+ * Shows the "Modified" badge when `blueprint` differs from `defaultBlueprint`.
+ * Uses the same programmatic-write guard pattern as `renderJSON`.
+ */
 function renderBlueprint() {
   updatingBlueprintFromCode = true;
   blueprintPreview.value = blueprint ? JSON.stringify(blueprint, null, 2) : '';
@@ -406,6 +501,14 @@ function renderBlueprint() {
 }
 
 // ── Status helpers ────────────────────────────────────────────────────────────
+/**
+ * Show a status message in `el`. Success messages auto-hide after 3 s;
+ * error messages persist until the next status update.
+ *
+ * @param {HTMLElement} el
+ * @param {string} msg
+ * @param {boolean} [isError]
+ */
 function setStatus(el, msg, isError = false) {
   el.textContent = msg;
   el.className = 'status' + (isError ? ' error' : '');
@@ -414,6 +517,13 @@ function setStatus(el, msg, isError = false) {
 }
 
 // ── JSON edit handlers ────────────────────────────────────────────────────────
+/**
+ * Handle manual edits to the JSON directions textarea. Parses the value,
+ * normalises it, and updates `directions` state + the visual list.
+ * Marks the textarea invalid (red border + error message) on parse failure.
+ * Guarded by `updatingDirectionsFromCode` to prevent feedback loops when
+ * `renderJSON` writes to the textarea programmatically.
+ */
 function onDirectionsEdit() {
   if (updatingDirectionsFromCode) return;
   try {
@@ -430,6 +540,11 @@ function onDirectionsEdit() {
   }
 }
 
+/**
+ * Handle manual edits to the blueprint JSON textarea. Parses and updates
+ * `blueprint` state. An empty textarea resets to `defaultBlueprint`.
+ * Same feedback pattern as `onDirectionsEdit` for invalid JSON.
+ */
 function onBlueprintEdit() {
   if (updatingBlueprintFromCode) return;
   const val = blueprintPreview.value.trim();
@@ -454,6 +569,12 @@ function onBlueprintEdit() {
 }
 
 // ── Commands ──────────────────────────────────────────────────────────────────
+/**
+ * Translate the current command-input value to directions via `/api/translate`
+ * and append the returned directions to the session. Passes the flattened
+ * current directions as history context so the model can be order-aware
+ * (e.g. "delete the last block I added" makes sense relative to prior steps).
+ */
 async function addCommand() {
   const command = commandInput.value.trim();
   if (!command) return;
@@ -484,11 +605,16 @@ async function addCommand() {
   }
 }
 
+/** Restore `blueprint` to `defaultBlueprint` and re-render the textarea. */
 function resetBlueprint() {
   blueprint = defaultBlueprint;
   renderBlueprint();
 }
 
+/**
+ * POST the current blueprint to `/api/preview-blueprint`, which starts a
+ * throwaway Playground on port 9401, then open the returned URL in a new tab.
+ */
 async function testBlueprint() {
   if (!blueprint) return;
   blueprintTestBtn.disabled = true;
@@ -513,21 +639,27 @@ async function testBlueprint() {
   }
 }
 
+/**
+ * Toggle the UI between idle and running states.
+ * Hides Record/Preview and shows Stop while a run is active; reverses on completion.
+ *
+ * @param {boolean} running
+ */
 function setRunning(running) {
   recordBtn.hidden = running;
   previewBtn.hidden = running;
   stopBtn.hidden = !running;
 }
 
-async function streamRun(fetchPromise, { onDone }) {
-  logOutput.textContent = '';
-  logPanel.open = true;
-  logBadge.textContent = 'recording';
-  logBadge.classList.remove('hidden');
-  setRunning(true);
-  startScreencast();
-
-  const res = await fetchPromise;
+/**
+ * Low-level SSE reader. Appends `stdout`/`stderr` lines to the log panel and
+ * calls `onDone` when the terminal `done` event arrives. Both single-run and
+ * batch-run callers share this loop — only their `onDone` logic differs.
+ *
+ * @param {Response} res
+ * @param {(msg: object) => void} onDone
+ */
+async function readSSE(res, onDone) {
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
@@ -548,17 +680,6 @@ async function streamRun(fetchPromise, { onDone }) {
           logOutput.textContent += msg.text;
           logOutput.scrollTop = logOutput.scrollHeight;
         } else if (msg.type === 'done') {
-          stopScreencast();
-          setRunning(false);
-          if (msg.stopped) {
-            logOutput.textContent += '\n--- Stopped ---\n';
-            logBadge.textContent = 'stopped';
-            logBadge.className = 'badge badge-fail';
-          } else {
-            logOutput.textContent += `\n--- Done (exit ${msg.code}) ---\n`;
-            logBadge.textContent = msg.code === 0 ? 'complete' : 'failed';
-            logBadge.className = 'badge' + (msg.code === 0 ? ' badge-pass' : ' badge-fail');
-          }
           onDone(msg);
         }
       } catch {}
@@ -566,6 +687,45 @@ async function streamRun(fetchPromise, { onDone }) {
   }
 }
 
+/**
+ * Drive a single recording run from start to finish.
+ *
+ * Awaits `fetchPromise` (a call to `/api/run`), then reads the SSE response
+ * body via `readSSE`. Manages the screencast preview and running-state UI
+ * around the run.
+ *
+ * @param {Promise<Response>} fetchPromise  In-flight fetch to the run endpoint.
+ * @param {{ onDone: (msg: object) => void }} opts
+ */
+async function streamRun(fetchPromise, { onDone }) {
+  logOutput.textContent = '';
+  logPanel.open = true;
+  logBadge.textContent = 'recording';
+  logBadge.classList.remove('hidden');
+  setRunning(true);
+  startScreencast();
+
+  const res = await fetchPromise;
+  await readSSE(res, (msg) => {
+    stopScreencast();
+    setRunning(false);
+    if (msg.stopped) {
+      logOutput.textContent += '\n--- Stopped ---\n';
+      logBadge.textContent = 'stopped';
+      logBadge.className = 'badge badge-fail';
+    } else {
+      logOutput.textContent += `\n--- Done (exit ${msg.code}) ---\n`;
+      logBadge.textContent = msg.code === 0 ? 'complete' : 'failed';
+      logBadge.className = 'badge' + (msg.code === 0 ? ' badge-pass' : ' badge-fail');
+    }
+    onDone(msg);
+  });
+}
+
+/**
+ * Run the current directions as a full recording (with ffmpeg video conversion)
+ * via POST `/api/run`. Reloads the recordings list on successful completion.
+ */
 async function runActions() {
   const name = nameInput.value.trim() || `recording-${Date.now()}`;
   await streamRun(
@@ -578,6 +738,10 @@ async function runActions() {
   );
 }
 
+/**
+ * Run the current directions as a preview (no video conversion, `preview: true`)
+ * via POST `/api/run`. Used to verify behaviour without producing an MP4.
+ */
 async function runPreview() {
   const name = nameInput.value.trim() || `preview-${Date.now()}`;
   await streamRun(
@@ -591,6 +755,11 @@ async function runPreview() {
 }
 
 // ── Saved Scripts ─────────────────────────────────────────────────────────────
+/**
+ * Update the batch-run controls to reflect the current `selectedScripts` set:
+ * selected count label, Record All disabled state, and select-all checkbox
+ * (checked / indeterminate / unchecked).
+ */
 function renderBatchControls() {
   selectedCountEl.textContent = `${selectedScripts.length} selected`;
   recordAllBtn.disabled = selectedScripts.length === 0;
@@ -599,6 +768,13 @@ function renderBatchControls() {
   selectAllCheckbox.indeterminate = selectedScripts.length > 0 && selectedScripts.length < total;
 }
 
+/**
+ * Render the saved-scripts list from `recordings`. Each item has a checkbox
+ * (for batch selection), a Load button (loads into the direction editor), and
+ * a Delete button. Prunes `selectedScripts` of names that no longer exist.
+ *
+ * @param {Array<{ name: string, filename: string, directionCount: number, directions?: Array }>} recordings
+ */
 function renderSavedScripts(recordings) {
   savedScripts = recordings;
   selectedScripts = selectedScripts.filter(n => recordings.some(s => s.name === n));
@@ -668,6 +844,7 @@ function renderSavedScripts(recordings) {
   renderBatchControls();
 }
 
+/** Fetch `/api/scripts` and pass the result to `renderSavedScripts`. */
 async function loadSavedScripts() {
   try {
     const res = await fetch('/api/scripts');
@@ -677,6 +854,12 @@ async function loadSavedScripts() {
 }
 
 // ── Directions ────────────────────────────────────────────────────────────────
+/**
+ * Render the directions library list. Built-in entries show a lock badge;
+ * user-created entries show a Delete button.
+ *
+ * @param {Array<{ name: string, filename: string, directionCount: number, builtin: boolean }>} entries
+ */
 function renderDirectionLibrary(entries) {
   libraryEntries = entries;
 
@@ -716,6 +899,7 @@ function renderDirectionLibrary(entries) {
   });
 }
 
+/** Fetch `/api/directions` and pass the result to `renderDirectionLibrary`. */
 async function loadDirectionLibrary() {
   try {
     const res = await fetch('/api/directions');
@@ -724,6 +908,16 @@ async function loadDirectionLibrary() {
   } catch {}
 }
 
+/**
+ * Fetch a direction entry by filename, flatten any nested action groups to a
+ * single `actions[]`, and splice it into `directions` at `insertIndex`.
+ * Flattening is necessary because direction files may themselves use the
+ * grouped format — inserting them as a single flat group keeps the editor
+ * predictable.
+ *
+ * @param {string} filename  On-disk filename of the direction entry.
+ * @param {number} insertIndex  Position in `directions` to splice at.
+ */
 async function insertDirection(filename, insertIndex) {
   try {
     const res = await fetch(`/api/directions/${filename}`);
@@ -741,6 +935,14 @@ async function insertDirection(filename, insertIndex) {
   }
 }
 
+/**
+ * Save a direction to the user library via POST `/api/directions/save`.
+ * When `groupIndex` is a number, saves only that group (using its label as
+ * the name). When null, saves all current directions as a single new entry
+ * named from `nameInput`.
+ *
+ * @param {number|null} groupIndex
+ */
 async function saveDirection(groupIndex) {
   const group = groupIndex != null ? [directions[groupIndex]] : directions;
   if (!group.length) return;
@@ -762,6 +964,13 @@ async function saveDirection(groupIndex) {
 }
 
 // ── Recordings ────────────────────────────────────────────────────────────────
+/**
+ * Render the completed recordings list. Each item has a Preview button (toggles
+ * an inline `<video>` element) and a Download link pointing to
+ * `/api/recordings/:dirname/video`.
+ *
+ * @param {Array<{ name: string, slug: string, dirname: string, ext: string, size: number }>} recordings
+ */
 function renderRecordings(recordings) {
   recordingsCountBadge.textContent = recordings.length.toString();
   recordingsCountBadge.classList.toggle('hidden', recordings.length === 0);
@@ -796,6 +1005,7 @@ function renderRecordings(recordings) {
   }
 }
 
+/** Fetch `/api/recordings` and pass the result to `renderRecordings`. */
 async function loadRecordings() {
   try {
     const res = await fetch('/api/recordings');
@@ -804,6 +1014,10 @@ async function loadRecordings() {
   } catch {}
 }
 
+/**
+ * POST the current directions to `/api/scripts/save` using `nameInput.value`
+ * as the script name, then reload the saved-scripts list.
+ */
 async function saveScript() {
   const name = nameInput.value.trim() || `recording-${Date.now()}`;
   saveBtn.disabled = true;
@@ -824,6 +1038,11 @@ async function saveScript() {
   }
 }
 
+/**
+ * Batch-run all scripts in `selectedScripts` via POST `/api/run/batch`.
+ * Uses its own SSE read loop (rather than `streamRun`) because batch runs
+ * always reload the recordings list on success and don't use `onDone`.
+ */
 async function recordAll() {
   logOutput.textContent = '';
   logPanel.open = true;
@@ -839,40 +1058,23 @@ async function recordAll() {
     body: JSON.stringify({ names: selectedScripts, blueprint, videoSize: getVideoSize() }),
   });
 
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const events = buffer.split('\n\n');
-    buffer = events.pop();
-
-    for (const event of events) {
-      const line = event.replace(/^data: /, '').trim();
-      if (!line) continue;
-      try {
-        const msg = JSON.parse(line);
-        if (msg.type === 'stdout' || msg.type === 'stderr') {
-          logOutput.textContent += msg.text;
-          logOutput.scrollTop = logOutput.scrollHeight;
-        } else if (msg.type === 'done') {
-          stopScreencast();
-          setRunning(false);
-          logOutput.textContent += msg.stopped ? '\n--- Stopped ---\n' : `\n--- Done (exit ${msg.code}) ---\n`;
-          logBadge.textContent = msg.stopped ? 'stopped' : (msg.code === 0 ? 'complete' : 'failed');
-          logBadge.className = 'badge' + (msg.stopped || msg.code !== 0 ? ' badge-fail' : ' badge-pass');
-          logBadge.classList.remove('hidden');
-          recordAllBtn.disabled = selectedScripts.length === 0;
-          if (!msg.stopped) loadRecordings();
-        }
-      } catch {}
-    }
-  }
+  await readSSE(res, (msg) => {
+    stopScreencast();
+    setRunning(false);
+    logOutput.textContent += msg.stopped ? '\n--- Stopped ---\n' : `\n--- Done (exit ${msg.code}) ---\n`;
+    logBadge.textContent = msg.stopped ? 'stopped' : (msg.code === 0 ? 'complete' : 'failed');
+    logBadge.className = 'badge' + (msg.stopped || msg.code !== 0 ? ' badge-fail' : ' badge-pass');
+    logBadge.classList.remove('hidden');
+    recordAllBtn.disabled = selectedScripts.length === 0;
+    if (!msg.stopped) loadRecordings();
+  });
 }
 
+/**
+ * Export the current directions as a numbered plain-text outline and trigger
+ * a browser download. Useful for sharing a human-readable script summary
+ * without exposing the underlying JSON.
+ */
 function exportTxt() {
   const name = nameInput.value.trim() || 'recording';
   const lines = directions.map((g, i) => `${i + 1}. ${g.label}`);

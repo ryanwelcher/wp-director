@@ -126,4 +126,4 @@ function processVideo(videoSize, send) {
   });
 }
 
-module.exports = { findNewestVideoDir, findVideoFile, processVideo };
+module.exports = { findVideoFile, processVideo };

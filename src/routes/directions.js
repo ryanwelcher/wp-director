@@ -15,7 +15,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { DIRECTIONS_DIR, BUILTIN_DIRECTIONS_DIR } = require('../config');
+const { DIRECTIONS_DIR, BUILTIN_DIRECTIONS_DIR, SAFE_FILENAME_RE } = require('../config');
 const { nameToFilename } = require('./scripts');
 
 /** @param {string} dir @param {boolean} builtin */
@@ -49,7 +49,7 @@ function register(app) {
 
   app.get('/api/directions/:filename', (req, res) => {
     const filename = req.params.filename;
-    if (!/^[a-z0-9-]+\.json$/i.test(filename)) {
+    if (!SAFE_FILENAME_RE.test(filename)) {
       return res.status(400).json({ error: 'invalid filename' });
     }
     const builtinPath = path.join(BUILTIN_DIRECTIONS_DIR, filename);
@@ -78,7 +78,7 @@ function register(app) {
 
   app.put('/api/directions/:filename', (req, res) => {
     const filename = req.params.filename;
-    if (!/^[a-z0-9-]+\.json$/i.test(filename)) {
+    if (!SAFE_FILENAME_RE.test(filename)) {
       return res.status(400).json({ error: 'invalid filename' });
     }
     if (isBuiltin(filename)) return res.status(403).json({ error: 'cannot modify built-in directions' });
@@ -96,7 +96,7 @@ function register(app) {
 
   app.delete('/api/directions/:filename', (req, res) => {
     const filename = req.params.filename;
-    if (!/^[a-z0-9-]+\.json$/i.test(filename)) {
+    if (!SAFE_FILENAME_RE.test(filename)) {
       return res.status(400).json({ error: 'invalid filename' });
     }
     if (isBuiltin(filename)) return res.status(403).json({ error: 'cannot delete built-in directions' });

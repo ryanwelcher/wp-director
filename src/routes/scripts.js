@@ -21,7 +21,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { STEPS_DIR } = require('../config');
+const { STEPS_DIR, SAFE_FILENAME_RE } = require('../config');
 
 /**
  * Normalize a user-provided name into a safe on-disk filename.
@@ -71,7 +71,7 @@ function register(app) {
   app.delete('/api/scripts/:filename', (req, res) => {
     const filename = req.params.filename;
     // Reject any filename containing path separators or unexpected chars.
-    if (!/^[a-z0-9-]+\.json$/i.test(filename)) {
+    if (!SAFE_FILENAME_RE.test(filename)) {
       return res.status(400).json({ error: 'invalid filename' });
     }
     const filePath = path.join(STEPS_DIR, filename);

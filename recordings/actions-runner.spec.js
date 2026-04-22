@@ -1,10 +1,40 @@
 // @ts-check
+/**
+ * Dynamic test suite for WP Director recordings.
+ *
+ * At collection time this file reads every `*.json` from `scripts/` and
+ * registers one Playwright `test()` per file, keyed by `def.name`. Supports
+ * two on-disk formats:
+ *
+ *  - Grouped (modern): `{ name, directions: [{ label, actions[] }, ...] }`
+ *  - Flat (legacy):    `{ name, actions: [ actionObj, ... ] }`
+ *
+ * Both are normalised to a flat `actionObj[]` before execution. The test
+ * name is used as the `--grep` pattern by `/api/run` and `/api/run/batch`,
+ * so only the targeted recording runs when invoked from the UI.
+ *
+ * Helper functions `highlightAndClick` and `typeSlow` are thin wrappers
+ * over Playwright primitives that add visual feedback appropriate for demo
+ * recordings.
+ */
 const { test } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
 
 const HIGHLIGHT_HOLD = 1000;
 
+/**
+ * Scroll `locator` into view, inject a pulsing blue ring around it for
+ * `HIGHLIGHT_HOLD` ms, click it, then remove the ring.
+ *
+ * The ring is injected into the top-level page (not into any iframe) so it
+ * renders above the editor-canvas iframe overlay. The animation is CSS
+ * keyframe-based and inlined to avoid any stylesheet dependency.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {import('@playwright/test').Locator} locator
+ * @returns {Promise<void>}
+ */
 async function highlightAndClick(page, locator) {
   await locator.scrollIntoViewIfNeeded();
   const box = await locator.boundingBox();
@@ -40,6 +70,19 @@ async function highlightAndClick(page, locator) {
   await page.evaluate(() => document.getElementById('psdd-click-ring')?.remove());
 }
 
+/**
+ * Scroll `locator` into view, click to focus it, then type `text`
+ * character-by-character at `delay` ms per keystroke via `pressSequentially`.
+ *
+ * Focuses before typing so native `keydown`/`keyup` events fire correctly —
+ * required by Gutenberg's rich-text editor which listens to keyboard events
+ * to update its internal block state.
+ *
+ * @param {import('@playwright/test').Locator} locator
+ * @param {string} text
+ * @param {number} [delay] Milliseconds between keystrokes (default 100).
+ * @returns {Promise<void>}
+ */
 async function typeSlow(locator, text, delay = 100) {
   await locator.scrollIntoViewIfNeeded();
   await locator.click();

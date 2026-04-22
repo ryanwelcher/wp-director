@@ -29,11 +29,6 @@
       Name:
       <input id="name-input" type="text" placeholder="Add script name">
     </label>
-    <label>
-      Pause at end:
-      <input id="end-pause-input" type="range" min="0" max="10" step="0.5" value="2">
-      <span id="end-pause-display">2s</span>
-    </label>
     <button id="save-btn" class="secondary" disabled>Save Script</button>
     <button id="export-txt-btn" class="secondary" disabled>Export TXT</button>
     <button id="clear-btn" class="secondary">Clear</button>
@@ -45,6 +40,11 @@
       <button type="button" class="size-opt active" data-size="1920x1080" role="radio" aria-checked="true" title="1080p (1920×1080)">1080p</button>
       <button type="button" class="size-opt" data-size="3840x2160" role="radio" aria-checked="false" title="4K (3840×2160)">4K</button>
     </div>
+    <label>
+      Outro length:
+      <input id="end-pause-input" type="range" min="0" max="10" step="0.5" value="2">
+      <span id="end-pause-display">2s</span>
+    </label>
   </div>
 
   <div class="workspace">

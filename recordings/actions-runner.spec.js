@@ -219,10 +219,16 @@ for (const file of stepFiles) {
             const index = step.index ?? 0;
             const editorFrame = page.frameLocator('iframe[name="editor-canvas"]');
             const block = editorFrame.locator(`[data-type="${blockType}"]`).nth(index);
+            const sidebar = page.getByRole('region', { name: 'Editor settings' });
             await block.waitFor({ state: 'visible', timeout: 10_000 });
-            const editable = block.locator('[contenteditable="true"]');
-            await editable.click();
-            await editorFrame.locator('.is-selected [contenteditable="true"]').waitFor({ state: 'visible', timeout: 5_000 });
+            const sidebarWasOpen = await sidebar.isVisible();
+            await block.click();
+            await editorFrame.locator(`[data-type="${blockType}"].is-selected`).nth(index).waitFor({ state: 'visible', timeout: 5_000 });
+            await page.waitForTimeout(300);
+            if (sidebarWasOpen && !(await sidebar.isVisible())) {
+              await page.getByRole('button', { name: 'Settings', exact: true }).click();
+              await sidebar.waitFor({ state: 'visible', timeout: 5_000 });
+            }
             await page.waitForTimeout(100);
             break;
           }
@@ -260,10 +266,10 @@ for (const file of stepFiles) {
               ? step.blockType
               : `core/${step.blockType}`;
             await page.waitForFunction(() => window?.wp?.blocks && window?.wp?.data);
-            await page.evaluate((bType, attrs) => {
+            await page.evaluate(({ bType, attrs }) => {
               const block = wp.blocks.createBlock(bType, attrs || {});
               wp.data.dispatch('core/block-editor').insertBlock(block);
-            }, blockType, step.attributes ?? {});
+            }, { bType: blockType, attrs: step.attributes ?? {} });
             break;
           }
 

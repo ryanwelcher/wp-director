@@ -103,6 +103,7 @@ for (const file of stepFiles) {
     // Frame context stack: top of stack is the active locator context
     const frameStack = [page];
     const ctx = () => frameStack[frameStack.length - 1];
+    const sidebar = page.getByRole('region', { name: 'Editor settings' });
 
     // Support both grouped format ({ label, actions[] }) and legacy flat/steps format
     const rawActions = def.actions ?? def.steps ?? [];
@@ -110,6 +111,7 @@ for (const file of stepFiles) {
 
     for (const step of flatActions) {
       await test.step(step.action + (step.selector ? ` "${step.selector}"` : ''), async () => {
+        const sidebarWasOpen = await sidebar.isVisible();
         switch (step.action) {
           case 'navigate':
             await page.goto(step.url, { waitUntil: step.waitUntil ?? 'load' });
@@ -230,17 +232,10 @@ for (const file of stepFiles) {
             const index = step.index ?? 0;
             const editorFrame = page.frameLocator('iframe[name="editor-canvas"]');
             const block = editorFrame.locator(`[data-type="${blockType}"]`).nth(index);
-            const sidebar = page.getByRole('region', { name: 'Editor settings' });
             await block.waitFor({ state: 'visible', timeout: 10_000 });
-            const sidebarWasOpen = await sidebar.isVisible();
             await block.click();
-            await editorFrame.locator(`[data-type="${blockType}"].is-selected`).nth(index).waitFor({ state: 'visible', timeout: 5_000 });
-            await page.waitForTimeout(300);
-            if (sidebarWasOpen && !(await sidebar.isVisible())) {
-              await page.getByRole('button', { name: 'Settings', exact: true }).click();
-              await sidebar.waitFor({ state: 'visible', timeout: 5_000 });
-            }
-            await page.waitForTimeout(100);
+            await block.and(editorFrame.locator('.is-selected')).waitFor({ state: 'visible', timeout: 5_000 });
+            await page.waitForTimeout(400);
             break;
           }
 
@@ -363,6 +358,12 @@ for (const file of stepFiles) {
 
           default:
             throw new Error(`Unknown action: "${step.action}"`);
+        }
+
+        // If the sidebar was open before this action and has since closed, reopen it.
+        if (sidebarWasOpen && !(await sidebar.isVisible())) {
+          await page.getByRole('button', { name: 'Settings', exact: true }).click();
+          await sidebar.waitFor({ state: 'visible', timeout: 5_000 });
         }
       });
     }

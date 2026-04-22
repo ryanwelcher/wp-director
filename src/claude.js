@@ -115,6 +115,17 @@ After navigating to new-post or new-page, always emit \`tryClick\` with selector
   **Enabling a hidden control via the options menu** — formula: \`[role="menuitemcheckbox"][aria-label="Show <Control name>"]\`
   Most panels use the "Show" prefix. Exception: Color panel uses \`"Text"\` and \`"Background"\` (no "Show") but \`"Show Link"\` for the Link option.
 
+  **Typography options menu — exact item names** (use these verbatim):
+  - Size: always visible, cannot be toggled
+  - Font family: \`"Show Font"\` (when hidden) — when already enabled the label becomes \`"Hide and reset Font"\`
+  - Appearance: \`"Show Appearance"\`
+  - Line height: \`"Show Line height"\`
+  - Letter spacing: \`"Show Letter spacing"\`
+  - Decoration: \`"Show Decoration"\` (NOT "Text decoration")
+  - Orientation: \`"Show Orientation"\` (NOT "Text transform")
+  - Letter case: \`"Show Letter case"\` (NOT "Text transform")
+  - Drop cap: \`"Show Drop cap"\`
+
   **Interacting with a control** — scope to the sidebar and use the control's accessible name:
   - Buttons: \`[aria-label="Editor settings"] button[aria-label="<Name>"]\`
   - Buttons identified by visible text: \`[aria-label="Editor settings"] button:has-text("<Text>")\`
@@ -124,6 +135,7 @@ After navigating to new-post or new-page, always emit \`tryClick\` with selector
 
   **Panel-specific notes**:
   - Font size radios display abbreviations (S/M/L/XL/XXL) but their aria-labels are the full names — always use the full name (e.g. \`"Large"\`, not \`"L"\`)
+  - Font family is a combobox whose accessible name comes from a label element (not aria-label), so \`[aria-label="Font"]\` will NOT match. Use \`[aria-label="Editor settings"] [role="combobox"]\` to open it, then select a font with \`[role="option"]:has-text("<Font name>")\` (e.g. \`[role="option"]:has-text("Fira Code")\`) — font options use text content, NOT aria-label
   - Text and Background color pickers are buttons with visible text only; use \`button:has-text("Text")\` and \`button:has-text("Background")\` scoped to \`[aria-label="Editor settings"]\`
   - Custom color picker: \`button[aria-label="Custom color picker"]\`
   - Hex color input: \`[role="textbox"][aria-label="Hex color"]\`

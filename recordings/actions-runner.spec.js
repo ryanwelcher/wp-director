@@ -285,7 +285,8 @@ for (const file of stepFiles) {
             // Paragraph is the default block — no slash command needed
             if (shortName !== 'paragraph') {
               await page.keyboard.type(`/${shortName}`, { delay: 50 });
-              const option = page.getByRole('option', { name: new RegExp(`^${shortName}$`, 'i') });
+              const displayName = shortName.replace(/-/g, ' ');
+              const option = page.getByRole('option', { name: new RegExp(`^${displayName}$`, 'i') });
               await option.waitFor({ state: 'visible', timeout: 5_000 });
               await option.click();
               await page.keyboard.press('Enter');

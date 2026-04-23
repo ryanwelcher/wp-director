@@ -165,7 +165,7 @@ async function acquire(blueprintPath, onData = null) {
       slot.status = 'active';
       slot.onData = onData;
       _refreshOther(slot.port, blueprintPath);
-      console.log('[Playground Pool] Using warm slot', slot.port);
+      console.log('[Playground Pool] Using warm playground', slot.port);
       return slot.port;
     }
   }
@@ -177,6 +177,7 @@ async function acquire(blueprintPath, onData = null) {
     s => s.status === 'booting' && s.pendingHash === hash && s.bootPromise
   );
   if (matchingBoots.length > 0) {
+    console.log('[Playground Pool] Waiting for a playground to boot ...');
     await Promise.race(matchingBoots.map(s => s.bootPromise.catch(() => {})));
     // Re-check fast path: whichever slot won the race is now warm.
     for (const slot of slots) {
@@ -184,7 +185,7 @@ async function acquire(blueprintPath, onData = null) {
         slot.status = 'active';
         slot.onData = onData;
         _refreshOther(slot.port, blueprintPath);
-        console.log('[Playground Pool] Using medium slot', slot.port);
+        console.log('[Playground Pool] Using booted playground', slot.port);
         return slot.port;
       }
     }
@@ -199,21 +200,13 @@ async function acquire(blueprintPath, onData = null) {
   if (target.status === 'booting') {
     // Let the current boot finish before overriding (avoids port conflicts).
     try { await target.bootPromise; } catch {}
-    // If the boot we just awaited produced the right blueprint, use it as-is.
-    if (target.status === 'warm' && target.blueprintHash === hash) {
-      target.status = 'active';
-      target.onData = onData;
-      _refreshOther(target.port, blueprintPath);
-      console.log('[Playground Pool] Using slow slot (blueprint matched after wait)', target.port);
-      return target.port;
-    }
   }
-  onData?.({ type: 'stdout', text: '[Playground] Starting WP Playground with updated blueprint…\n' });
+
   await bootSlot(idx, blueprintPath);
   target.status = 'active';
   target.onData = onData;
   _refreshOther(target.port, blueprintPath);
-  console.log('[Playground Pool] Using slow slot', target.port);
+  console.log('[Playground Pool] Rebooting playground', target.port);
   return target.port;
 }
 
@@ -228,7 +221,7 @@ async function acquire(blueprintPath, onData = null) {
 function release(port, blueprintPath) {
   const index = slots.findIndex(s => s.port === port);
   if (index === -1) return;
-  console.log('[Playground Pool] Releasing port', port);
+  console.log('[Playground Pool] Releasing playground', port);
   bootSlot(index, blueprintPath).catch((err) => {
     console.error('[Playground Pool] Post-recording slot refresh failed (port', port, '):', err.message);
   });

@@ -44,6 +44,10 @@ const { killPid, startPlayground } = require('./playground');
  * @property {string|null}        blueprintHash  Hash of the blueprint the slot is warm with.
  * @property {string|null}        pendingHash    Hash of the blueprint currently being booted.
  * @property {Promise<void>|null} bootPromise
+ * @property {((event: {type:string,text:string}) => void)|null} onData
+ *   Current log callback. Set by acquire() when a slot is handed out; cleared
+ *   by bootSlot() on each reboot. The process's stdout/stderr listeners
+ *   delegate to this dynamically so the callback can be swapped between runs.
  */
 
 /** @type {Slot} */
@@ -54,6 +58,7 @@ const slot1 = {
   blueprintHash: null,
   pendingHash: null,
   bootPromise: null,
+  onData: null,
 };
 
 /** @type {Slot} */
@@ -64,6 +69,7 @@ const slot2 = {
   blueprintHash: null,
   pendingHash: null,
   bootPromise: null,
+  onData: null,
 };
 
 /**
@@ -97,8 +103,11 @@ function bootSlot(slot, blueprintPath, onData = null) {
   slot.status = 'booting';
   slot.blueprintHash = null;
   slot.pendingHash = hashBlueprint(blueprintPath);
+  slot.onData = onData;
 
-  const promise = startPlayground({ port: slot.port, blueprintPath, pidFile: slot.pidFile, onData })
+  // Pass a dynamic wrapper so the process's stdout/stderr listeners always
+  // delegate to slot.onData — even after acquire() swaps in a new callback.
+  const promise = startPlayground({ port: slot.port, blueprintPath, pidFile: slot.pidFile, onData: (e) => slot.onData?.(e) })
     .then(() => {
       slot.status = 'warm';
       slot.blueprintHash = slot.pendingHash;
@@ -154,22 +163,30 @@ async function acquire(blueprintPath, onData = null) {
   for (const slot of [slot1, slot2]) {
     if (slot.status === 'warm' && slot.blueprintHash === hash) {
       slot.status = 'active';
+      slot.onData = onData;
       _refreshOther(slot.port, blueprintPath);
+      console.log('[Pool] Using warm slot', slot.port);
       return slot.port;
     }
   }
 
-  // Medium path — a slot is already booting with the same blueprint; wait for it.
-  for (const slot of [slot1, slot2]) {
-    if (slot.status === 'booting' && slot.pendingHash === hash && slot.bootPromise) {
-      try {
-        await slot.bootPromise;
-        if (slot.blueprintHash === hash) {
-          slot.status = 'active';
-          _refreshOther(slot.port, blueprintPath);
-          return slot.port;
-        }
-      } catch { /* fall through to slow path */ }
+  // Medium path — one or more slots are booting with the matching blueprint.
+  // Race them so whichever finishes first is used, rather than always waiting
+  // for slot 1 even if slot 2 boots sooner.
+  const matchingBoots = [slot1, slot2].filter(
+    s => s.status === 'booting' && s.pendingHash === hash && s.bootPromise
+  );
+  if (matchingBoots.length > 0) {
+    await Promise.race(matchingBoots.map(s => s.bootPromise.catch(() => {})));
+    // Re-check fast path: whichever slot won the race is now warm.
+    for (const slot of [slot1, slot2]) {
+      if (slot.status === 'warm' && slot.blueprintHash === hash) {
+        slot.status = 'active';
+        slot.onData = onData;
+        _refreshOther(slot.port, blueprintPath);
+        console.log('[Pool] Using medium slot', slot.port);
+        return slot.port;
+      }
     }
   }
 
@@ -181,9 +198,11 @@ async function acquire(blueprintPath, onData = null) {
     // Let the current boot finish before overriding (avoids port conflicts).
     try { await target.bootPromise; } catch {}
   }
+  // @todo if there's a target.boolPromise that we've awaited then this bootSlot() call would kill it and restart it needlessly.
   await bootSlot(target, blueprintPath, onData);
   target.status = 'active';
   _refreshOther(target.port, blueprintPath);
+  console.log('[Pool] Using slow slot', target.port);
   return target.port;
 }
 

@@ -43,6 +43,6 @@ app.listen(PORT, () => {
   // without waiting for a cold boot.
   const blueprintPath = fs.existsSync(GENERATED_BLUEPRINT) ? GENERATED_BLUEPRINT : DEFAULT_BLUEPRINT;
   require('./src/playground-pool').init(blueprintPath).catch((err) => {
-    console.error('[Pool] Failed to initialise:', err.message);
+    console.error('[Playground Pool] Failed to initialise:', err.message);
   });
 });

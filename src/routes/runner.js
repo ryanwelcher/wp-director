@@ -161,7 +161,7 @@ function register(app) {
 
     let port;
     try {
-      port = await pool.acquire(blueprintPath, send);
+      port = await pool.acquire( blueprintPath, send );
     } catch (err) {
       send({ type: 'stderr', text: `[Playground] Failed to start: ${err.message}\n` });
       send({ type: 'done', code: 1 });

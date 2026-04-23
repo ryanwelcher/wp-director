@@ -9,8 +9,8 @@
  * eliminating the ~30 s Playground boot wait between consecutive runs.
  *
  * Port assignments:
- *   RECORDING_PLAYGROUND_1_PORT (9400) — slot 1
- *   RECORDING_PLAYGROUND_2_PORT (9401) — slot 2
+ *   RECORDING_PLAYGROUND_1_PORT (9400) — slots[0]
+ *   RECORDING_PLAYGROUND_2_PORT (9401) — slots[1]
  *
  * Typical lifecycle:
  *   1. init()    — on server start; boots both slots with the default blueprint.
@@ -50,27 +50,27 @@ const { killPid, startPlayground } = require('./playground');
  *   delegate to this dynamically so the callback can be swapped between runs.
  */
 
-/** @type {Slot} */
-const slot1 = {
-  port: RECORDING_PLAYGROUND_1_PORT,
-  pidFile: RECORDING_1_PID_FILE,
-  status: 'idle',
-  blueprintHash: null,
-  pendingHash: null,
-  bootPromise: null,
-  onData: null,
-};
-
-/** @type {Slot} */
-const slot2 = {
-  port: RECORDING_PLAYGROUND_2_PORT,
-  pidFile: RECORDING_2_PID_FILE,
-  status: 'idle',
-  blueprintHash: null,
-  pendingHash: null,
-  bootPromise: null,
-  onData: null,
-};
+/** @type {Slot[]} */
+const slots = [
+  {
+    port: RECORDING_PLAYGROUND_1_PORT,
+    pidFile: RECORDING_1_PID_FILE,
+    status: 'idle',
+    blueprintHash: null,
+    pendingHash: null,
+    bootPromise: null,
+    onData: null,
+  },
+  {
+    port: RECORDING_PLAYGROUND_2_PORT,
+    pidFile: RECORDING_2_PID_FILE,
+    status: 'idle',
+    blueprintHash: null,
+    pendingHash: null,
+    bootPromise: null,
+    onData: null,
+  },
+];
 
 /**
  * MD5 hash of the blueprint file contents, used to detect when the active
@@ -89,25 +89,25 @@ function hashBlueprint(blueprintPath) {
 }
 
 /**
- * Kill whatever is running on `slot.port`, then spawn a fresh Playground
- * with the given blueprint. Updates slot status and hash fields throughout.
- * Returns a Promise that resolves when "Ready!" is seen on stdout.
+ * Kill whatever is running on `slots[index].port`, then spawn a fresh
+ * Playground with the given blueprint. Updates slot status and hash fields
+ * throughout. Returns a Promise that resolves when "Ready!" is seen on stdout.
  *
- * @param {Slot} slot
+ * @param {number} index         Index into the `slots` array.
  * @param {string} blueprintPath
- * @param {((event: {type:string,text:string}) => void)|null} [onData]
  * @returns {Promise<void>}
  */
-function bootSlot(slot, blueprintPath, onData = null) {
+function bootSlot(index, blueprintPath) {
+  const slot = slots[index];
   killPid(slot.pidFile);
   slot.status = 'booting';
   slot.blueprintHash = null;
   slot.pendingHash = hashBlueprint(blueprintPath);
-  slot.onData = onData;
+  slot.onDone = null;
 
   // Pass a dynamic wrapper so the process's stdout/stderr listeners always
   // delegate to slot.onData — even after acquire() swaps in a new callback.
-  const promise = startPlayground({ port: slot.port, blueprintPath, pidFile: slot.pidFile, onData: (e) => slot.onData?.(e) })
+  const promise = startPlayground({ port: slot.port, blueprintPath, pidFile: slot.pidFile, onData: (e) => slots[index]?.onData?.(e) })
     .then(() => {
       slot.status = 'warm';
       slot.blueprintHash = slot.pendingHash;
@@ -127,17 +127,17 @@ function bootSlot(slot, blueprintPath, onData = null) {
 
 /**
  * Boot both slots with `defaultBlueprintPath` in parallel. Resolves once
- * slot A is warm (or rejects if slot A fails). Slot B boots silently in the
+ * slot 0 is warm (or rejects if slot 0 fails). Slot 1 boots silently in the
  * background — if it fails only a console warning is emitted.
  *
  * @param {string} defaultBlueprintPath
  * @returns {Promise<void>}
  */
 async function init(defaultBlueprintPath) {
-  bootSlot(slot2, defaultBlueprintPath).catch((err) => {
-    console.error('[Pool] Recording slot 2 (port', RECORDING_PLAYGROUND_2_PORT, ') failed to start:', err.message);
+  bootSlot(1, defaultBlueprintPath).catch((err) => {
+    console.error('[Playground Pool] Recording slot 1 (port', RECORDING_PLAYGROUND_2_PORT, ') failed to start:', err.message);
   });
-  await bootSlot(slot1, defaultBlueprintPath);
+  await bootSlot(0, defaultBlueprintPath);
 }
 
 /**
@@ -160,31 +160,31 @@ async function acquire(blueprintPath, onData = null) {
   const hash = hashBlueprint(blueprintPath);
 
   // Fast path — warm slot already has the right blueprint.
-  for (const slot of [slot1, slot2]) {
+  for (const slot of slots) {
     if (slot.status === 'warm' && slot.blueprintHash === hash) {
       slot.status = 'active';
       slot.onData = onData;
       _refreshOther(slot.port, blueprintPath);
-      console.log('[Pool] Using warm slot', slot.port);
+      console.log('[Playground Pool] Using warm slot', slot.port);
       return slot.port;
     }
   }
 
   // Medium path — one or more slots are booting with the matching blueprint.
   // Race them so whichever finishes first is used, rather than always waiting
-  // for slot 1 even if slot 2 boots sooner.
-  const matchingBoots = [slot1, slot2].filter(
+  // for slot 0 even if slot 1 boots sooner.
+  const matchingBoots = slots.filter(
     s => s.status === 'booting' && s.pendingHash === hash && s.bootPromise
   );
   if (matchingBoots.length > 0) {
     await Promise.race(matchingBoots.map(s => s.bootPromise.catch(() => {})));
     // Re-check fast path: whichever slot won the race is now warm.
-    for (const slot of [slot1, slot2]) {
+    for (const slot of slots) {
       if (slot.status === 'warm' && slot.blueprintHash === hash) {
         slot.status = 'active';
         slot.onData = onData;
         _refreshOther(slot.port, blueprintPath);
-        console.log('[Pool] Using medium slot', slot.port);
+        console.log('[Playground Pool] Using medium slot', slot.port);
         return slot.port;
       }
     }
@@ -192,7 +192,10 @@ async function acquire(blueprintPath, onData = null) {
 
   // Slow path — blueprint changed (or pool not yet initialised). Reboot the
   // first non-active slot and wait for it.
-  const target = [slot1, slot2].find(s => s.status !== 'active') ?? slot1;
+  const targetIndex = slots.findIndex(s => s.status !== 'active');
+  const idx = targetIndex === -1 ? 0 : targetIndex;
+  const target = slots[idx];
+
   if (target.status === 'booting') {
     // Let the current boot finish before overriding (avoids port conflicts).
     try { await target.bootPromise; } catch {}
@@ -201,15 +204,16 @@ async function acquire(blueprintPath, onData = null) {
       target.status = 'active';
       target.onData = onData;
       _refreshOther(target.port, blueprintPath);
-      console.log('[Pool] Using slow slot (blueprint matched after wait)', target.port);
+      console.log('[Playground Pool] Using slow slot (blueprint matched after wait)', target.port);
       return target.port;
     }
   }
   onData?.({ type: 'stdout', text: '[Playground] Starting WP Playground with updated blueprint…\n' });
-  await bootSlot(target, blueprintPath, onData);
+  await bootSlot(idx, blueprintPath);
   target.status = 'active';
+  target.onData = onData;
   _refreshOther(target.port, blueprintPath);
-  console.log('[Pool] Using slow slot', target.port);
+  console.log('[Playground Pool] Using slow slot', target.port);
   return target.port;
 }
 
@@ -222,19 +226,15 @@ async function acquire(blueprintPath, onData = null) {
  * @param {string} blueprintPath Blueprint the recording ran with.
  */
 function release(port, blueprintPath) {
-  const used = _slotForPort(port);
-  if (!used) return;
-  bootSlot(used, blueprintPath).catch((err) => {
-    console.error('[Pool] Post-recording slot refresh failed (port', port, '):', err.message);
+  const index = slots.findIndex(s => s.port === port);
+  if (index === -1) return;
+  console.log('[Playground Pool] Releasing port', port);
+  bootSlot(index, blueprintPath).catch((err) => {
+    console.error('[Playground Pool] Post-recording slot refresh failed (port', port, '):', err.message);
   });
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
-
-/** @param {number} port @returns {Slot|undefined} */
-function _slotForPort(port) {
-  return [slot1, slot2].find(s => s.port === port);
-}
 
 /**
  * If the slot at the OTHER port is not already warm (or booting) with the
@@ -245,12 +245,14 @@ function _slotForPort(port) {
  * @param {string} blueprintPath
  */
 function _refreshOther(usedPort, blueprintPath) {
-  const other = usedPort === RECORDING_PLAYGROUND_1_PORT ? slot2 : slot1;
+  const index = slots.findIndex(s => s.port !== usedPort);
+  if (index === -1) return;
+  const other = slots[index];
   const hash = hashBlueprint(blueprintPath);
   if (other.status === 'warm'    && other.blueprintHash === hash) return;
   if (other.status === 'booting' && other.pendingHash   === hash) return;
-  bootSlot(other, blueprintPath).catch((err) => {
-    console.error('[Pool] Background slot refresh failed (port', other.port, '):', err.message);
+  bootSlot(index, blueprintPath).catch((err) => {
+    console.error('[Playground Pool] Background slot refresh failed (port', other.port, '):', err.message);
   });
 }
 

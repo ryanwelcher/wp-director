@@ -1,8 +1,7 @@
 node_modules/
 .env
 .idea/
-.wp-playground.pid
-.wp-playground-preview.pid
+.wp-playground-*.pid
 output/
 test-results/
 playwright-report/

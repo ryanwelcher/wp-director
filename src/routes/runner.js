@@ -7,17 +7,21 @@
  *   POST /api/run/batch  → run multiple saved recordings, stream logs over SSE
  *
  * Both endpoints:
- *   1. (Optional) restart WP Playground with a custom blueprint if one is
- *      posted. The server kills the existing Playground, writes the blueprint
- *      to `blueprint.generated.json`, and starts a new instance with it. When
- *      Playwright's global-setup.js runs next, it sees the already-running
- *      Playground via the PID file and reuses it.
- *   2. Spawn `npx playwright test recordings/actions-runner.spec.js --grep …`
- *      where the grep pattern isolates the script(s) to run from everything
- *      else in the scripts/ directory.
- *   3. Pipe stdout/stderr back to the client as SSE events.
- *   4. After Playwright exits 0, run the ffmpeg post-process step to produce
+ *   1. Determine the active blueprint path (from the posted blueprint object
+ *      or from the last-saved generated blueprint / default).
+ *   2. Call pool.acquire() to get a warm Playground port immediately — no wait
+ *      on the common path where the blueprint has not changed. On blueprint
+ *      change the acquire() call boots a slot synchronously (same latency as
+ *      before the pool existed).
+ *   3. Spawn `npx playwright test recordings/actions-runner.spec.js --grep …`
+ *      with WP_DIRECTOR_PLAYGROUND_PORT set so playwright.config.js connects
+ *      to the correct slot, and WP_DIRECTOR_SERVER=1 so global-teardown.js
+ *      does not kill the pool-owned process.
+ *   4. Pipe stdout/stderr back to the client as SSE events.
+ *   5. After Playwright exits 0, run the ffmpeg post-process step to produce
  *      an MP4 (and scale if the user picked a non-1080p size).
+ *   6. Call pool.release() so the used slot is rebooted in the background,
+ *      ready for the run after next.
  *
  * ## SSE event contract
  *
@@ -34,9 +38,10 @@ const { spawn } = require('child_process');
 const {
   ROOT,
   STEPS_DIR,
+  DEFAULT_BLUEPRINT,
   GENERATED_BLUEPRINT,
 } = require('../config');
-const { killPlayground, startMainPlayground } = require('../playground');
+const pool = require('../playground-pool');
 const { processVideo } = require('../video');
 const { nameToFilename } = require('./scripts');
 
@@ -65,33 +70,20 @@ function sseSender(res) {
 }
 
 /**
- * If the request included a `blueprint`, write it to
- * `blueprint.generated.json`, kill any existing Playground, and start a new
- * one loaded with the new blueprint. Streams status back via `send`.
+ * Resolve the blueprint file path for a run request.
+ * If a blueprint object was posted, write it to GENERATED_BLUEPRINT and
+ * return that path. Otherwise return the last-generated blueprint (if it
+ * exists) or the checked-in default.
  *
- * On failure, emits a `done` event with code 1 and closes the response. The
- * caller should check the return value and abort if false.
- *
- * @param {any}  blueprint  The blueprint object (or falsy to skip).
- * @param {(data: any) => void} send
- * @param {import('express').Response} res
- * @returns {Promise<boolean>}  true if OK to continue, false if we aborted.
+ * @param {any} blueprint  The posted blueprint object, or null/undefined.
+ * @returns {string}
  */
-async function maybeRestartPlayground(blueprint, send, res) {
-  if (!blueprint) return true;
-  try {
-    send({ type: 'stdout', text: '[Blueprint] Restarting WP Playground with custom blueprint…\n' });
+function resolveBlueprintPath(blueprint) {
+  if (blueprint) {
     fs.writeFileSync(GENERATED_BLUEPRINT, JSON.stringify(blueprint, null, 2));
-    killPlayground();
-    await startMainPlayground(GENERATED_BLUEPRINT, send);
-    send({ type: 'stdout', text: '[Blueprint] WP Playground ready.\n' });
-    return true;
-  } catch (err) {
-    send({ type: 'stderr', text: `[Blueprint] Failed to start WP Playground: ${err.message}\n` });
-    send({ type: 'done', code: 1 });
-    res.end();
-    return false;
+    return GENERATED_BLUEPRINT;
   }
+  return fs.existsSync(GENERATED_BLUEPRINT) ? GENERATED_BLUEPRINT : DEFAULT_BLUEPRINT;
 }
 
 /**
@@ -100,13 +92,20 @@ async function maybeRestartPlayground(blueprint, send, res) {
  *
  * @param {Object} opts
  * @param {string} opts.grepPattern         Regex pattern passed to `playwright --grep`.
+ * @param {number} opts.port                Playground port (from pool.acquire).
+ * @param {string} opts.blueprintPath       Blueprint path (passed to pool.release on close).
  * @param {any}    opts.videoSize           Target size for ffmpeg scaling.
  * @param {(data: any) => void} opts.send   SSE writer.
  * @param {import('express').Response} opts.res
  * @param {Object} [opts.doneExtra]         Extra fields merged into the final `done` event.
+ * @param {boolean} [opts.preview]
  */
-function runPlaywright({ grepPattern, videoSize, send, res, doneExtra = {}, preview = false }) {
-  const env = { ...process.env };
+function runPlaywright({ grepPattern, port, blueprintPath, videoSize, send, res, doneExtra = {}, preview = false }) {
+  const env = {
+    ...process.env,
+    WP_DIRECTOR_SERVER: '1',
+    WP_DIRECTOR_PLAYGROUND_PORT: String(port),
+  };
   if (preview) env.WP_DIRECTOR_PREVIEW = '1';
 
   const proc = spawn(
@@ -120,6 +119,8 @@ function runPlaywright({ grepPattern, videoSize, send, res, doneExtra = {}, prev
   proc.stderr.on('data', (d) => send({ type: 'stderr', text: d.toString() }));
   proc.on('close', async (code, signal) => {
     currentProc = null;
+    // Reboot the used slot in the background regardless of outcome.
+    pool.release(port, blueprintPath);
     if (signal) {
       send({ type: 'done', code: 1, stopped: true });
     } else {
@@ -156,11 +157,23 @@ function register(app) {
     sseHeaders(res);
     const send = sseSender(res);
 
-    if (!(await maybeRestartPlayground(blueprint, send, res))) return;
+    const blueprintPath = resolveBlueprintPath(blueprint);
+
+    let port;
+    try {
+      port = await pool.acquire(blueprintPath, send);
+    } catch (err) {
+      send({ type: 'stderr', text: `[Playground] Failed to start: ${err.message}\n` });
+      send({ type: 'done', code: 1 });
+      res.end();
+      return;
+    }
 
     const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     runPlaywright({
       grepPattern: `${escapedName}$`,
+      port,
+      blueprintPath,
       videoSize,
       send,
       res,
@@ -178,12 +191,22 @@ function register(app) {
     sseHeaders(res);
     const send = sseSender(res);
 
-    if (!(await maybeRestartPlayground(blueprint, send, res))) return;
+    const blueprintPath = resolveBlueprintPath(blueprint);
+
+    let port;
+    try {
+      port = await pool.acquire(blueprintPath, send);
+    } catch (err) {
+      send({ type: 'stderr', text: `[Playground] Failed to start: ${err.message}\n` });
+      send({ type: 'done', code: 1 });
+      res.end();
+      return;
+    }
 
     const escaped = names.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
     const grepPattern = `(${escaped.join('|')})`;
 
-    runPlaywright({ grepPattern, videoSize, send, res });
+    runPlaywright({ grepPattern, port, blueprintPath, videoSize, send, res });
   });
 }
 

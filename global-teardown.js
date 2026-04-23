@@ -10,10 +10,14 @@
 const fs = require('fs');
 const path = require('path');
 
-const PID_FILE = path.join(__dirname, '.wp-playground.pid');
+const PID_FILE = path.join(__dirname, '.wp-playground-recording-1.pid');
 
 /** @returns {Promise<void>} */
 module.exports = async function globalTeardown() {
+  // When Playwright is spawned by the Express server, playground-pool.js owns
+  // the Playground lifecycle. Tearing it down here would kill warm pool slots.
+  if (process.env.WP_DIRECTOR_SERVER === '1') return;
+
   if (!fs.existsSync(PID_FILE)) return;
 
   const pid = parseInt(fs.readFileSync(PID_FILE, 'utf8'));

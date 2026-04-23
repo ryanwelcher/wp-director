@@ -13,7 +13,7 @@ module.exports = defineConfig({
   globalTeardown: './global-teardown.js',
 
   use: {
-    baseURL: 'http://127.0.0.1:9400',
+    baseURL: `http://127.0.0.1:${process.env.WP_DIRECTOR_PLAYGROUND_PORT ?? 9400}`,
     headless: true,
     viewport: { width: 1920, height: 1080 },
     video: isPreview ? { mode: 'off' } : {

@@ -21,8 +21,8 @@ const fs = require('fs');
 const net = require('net');
 const path = require('path');
 
-const PID_FILE = path.join(__dirname, '.wp-playground.pid');
-const PORT = 9400;
+const PID_FILE = path.join(__dirname, '.wp-playground-recording-1.pid');
+const PORT = parseInt(process.env.WP_DIRECTOR_PLAYGROUND_PORT ?? '9400');
 
 /**
  * Check whether something is listening on `port` by attempting a TCP connect.

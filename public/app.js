@@ -615,7 +615,7 @@ function resetBlueprint() {
 
 /**
  * POST the current blueprint to `/api/preview-blueprint`, which starts a
- * throwaway Playground on port 9401, then open the returned URL in a new tab.
+ * throwaway Playground on port 9410, then open the returned URL in a new tab.
  */
 async function testBlueprint() {
   if (!blueprint) return;

@@ -2,7 +2,7 @@
 
 /**
  * WP Playground process lifecycle — start and stop the local Playground
- * servers used for recording (port 9400) and preview (port 9401).
+ * servers used for recording (ports 9400/9401) and preview (port 9410).
  *
  * ## PID coordination with Playwright
  *
@@ -11,7 +11,7 @@
  *   2. Playwright's `global-setup.js`, when a recording is launched from the
  *      CLI with no server involvement.
  *
- * Both write the child PID to `.wp-playground.pid` once the process prints
+ * Both write the child PID to `.wp-playground-recording-1.pid` once the process prints
  * "Ready!". When Playwright's global-setup runs AFTER the server has already
  * started Playground, it sees the PID file, checks the process is alive with
  * `process.kill(pid, 0)`, and reuses it instead of starting a second one.
@@ -31,9 +31,9 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 const {
   ROOT,
-  PID_FILE,
+  RECORDING_1_PID_FILE,
   PREVIEW_PID_FILE,
-  PLAYGROUND_PORT,
+  RECORDING_PLAYGROUND_1_PORT,
   PREVIEW_PLAYGROUND_PORT,
   PLAYGROUND_READY_TIMEOUT_MS,
 } = require('./config');
@@ -107,15 +107,15 @@ function startPlayground({ port, blueprintPath, pidFile, onData = null }) {
 }
 
 /**
- * Stop the main recording Playground (port 9400), if running.
+ * Stop recording slot 1 (port 9400), if running.
  */
 function killPlayground() {
-  killPid(PID_FILE);
+  killPid(RECORDING_1_PID_FILE);
 }
 
 /**
- * Start the main recording Playground on port 9400, loading the given
- * blueprint. Resolves when the child prints "Ready!".
+ * Start recording slot 1 on port 9400, loading the given blueprint.
+ * Resolves when the child prints "Ready!".
  *
  * @param {string} blueprintPath                             Absolute blueprint path.
  * @param {((event: SseEvent) => void) | null} [onData]      Optional log forwarder.
@@ -123,22 +123,22 @@ function killPlayground() {
  */
 function startMainPlayground(blueprintPath, onData = null) {
   return startPlayground({
-    port: PLAYGROUND_PORT,
+    port: RECORDING_PLAYGROUND_1_PORT,
     blueprintPath,
-    pidFile: PID_FILE,
+    pidFile: RECORDING_1_PID_FILE,
     onData,
   });
 }
 
 /**
- * Stop the preview Playground (port 9401), if running.
+ * Stop the preview Playground (port 9410), if running.
  */
 function killPreviewPlayground() {
   killPid(PREVIEW_PID_FILE);
 }
 
 /**
- * Start the preview Playground on port 9401 (the "Test in Playground"
+ * Start the preview Playground on port 9410 (the "Test in Playground"
  * sandbox). Intentionally does NOT stream logs — preview is a throwaway
  * instance opened in a new tab; its output isn't surfaced in the UI.
  *
@@ -158,4 +158,7 @@ module.exports = {
   startMainPlayground,
   killPreviewPlayground,
   startPreviewPlayground,
+  // Low-level primitives used by playground-pool.js
+  killPid,
+  startPlayground,
 };

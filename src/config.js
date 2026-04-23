@@ -47,6 +47,8 @@ module.exports = {
   PREVIEW_PLAYGROUND_PORT:     9410, // "Test in Playground" sandbox
   CHROME_DEBUG_PORT:           9222, // Chrome remote-debugging (launched by playwright.config.js)
   DEFAULT_SERVER_PORT:         3000, // Express UI port (overridable via PORT env var)
+  CLI_PLAYGROUND_PORT_MIN:     9450, // CLI recording instances use this range (never conflicts with server)
+  CLI_PLAYGROUND_PORT_MAX:     9499,
 
   // Playground-ready timeout
   PLAYGROUND_READY_TIMEOUT_MS: 120_000,

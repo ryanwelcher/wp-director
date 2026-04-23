@@ -11,10 +11,11 @@
  *   2. Playwright's `global-setup.js`, when a recording is launched from the
  *      CLI with no server involvement.
  *
- * Both write the child PID to `.wp-playground-recording-1.pid` once the process prints
- * "Ready!". When Playwright's global-setup runs AFTER the server has already
- * started Playground, it sees the PID file, checks the process is alive with
- * `process.kill(pid, 0)`, and reuses it instead of starting a second one.
+ * Both write the child PID to `.wp-playground-recording-1.pid` once the
+ * process prints "Ready!". Because processes are no longer detached, they are
+ * normal children of the server and are automatically cleaned up when the
+ * server exits — explicit `killPlayground()` calls are only needed between
+ * recordings to ensure a fresh WordPress state.
  *
  * ## Gotchas
  *
@@ -77,7 +78,7 @@ function startPlayground({ port, blueprintPath, pidFile, onData = null }) {
     const server = spawn(
       'npx',
       ['@wp-playground/cli', 'server', `--port=${port}`, '--login', `--blueprint=${blueprintPath}`],
-      { stdio: ['ignore', 'pipe', 'pipe'], detached: true, cwd: ROOT }
+      { stdio: ['ignore', 'pipe', 'pipe'], cwd: ROOT }
     );
 
     const timeout = setTimeout(
@@ -91,9 +92,6 @@ function startPlayground({ port, blueprintPath, pidFile, onData = null }) {
       if (text.includes('Ready!')) {
         clearTimeout(timeout);
         fs.writeFileSync(pidFile, server.pid.toString());
-        // Detach so the child survives parent exit (it'll be cleaned up by
-        // killPid on next start, or by global-teardown.js for CLI runs).
-        server.unref();
         resolve();
       }
     });

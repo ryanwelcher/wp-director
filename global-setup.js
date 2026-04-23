@@ -3,26 +3,27 @@
  * Playwright globalSetup hook — runs once before the test suite starts.
  *
  * Server path (WP_DIRECTOR_SERVER=1): playground-pool.js has already booted
- * both recording slots and written their PID files. Nothing to do here.
+ * both recording slots. Nothing to do here.
  *
- * CLI path (npm run record):
- *   - If recording instances are already running (e.g. server.js is active),
- *     reuse them and update PID files so teardown can clean up.
- *   - If not running, delegate to playground-pool.init() which boots both
- *     recording slots fresh and writes PID files.
+ * CLI path (npm run record): scans the CLI port range (9450-9499) for the
+ * first available port, boots a non-detached Playground instance on it, and
+ * stores the child process in cli-playground-state.js so global-teardown can
+ * kill it. Setting process.env.WP_DIRECTOR_PLAYGROUND_PORT here propagates to
+ * Playwright worker processes (which are forked after globalSetup) so they
+ * pick up the correct baseURL from playwright.config.js.
  */
+const { spawn } = require('child_process');
 const fs = require('fs');
 const net = require('net');
 const {
-  RECORDING_PLAYGROUND_1_PORT,
+  CLI_PLAYGROUND_PORT_MIN,
+  CLI_PLAYGROUND_PORT_MAX,
   GENERATED_BLUEPRINT,
   DEFAULT_BLUEPRINT,
 } = require('./src/config');
-const pool = require('./src/playground-pool');
+const cliState = require('./src/cli-playground-state');
 
 /**
- * Check whether something is listening on `port` by attempting a TCP connect.
- *
  * @param {number} port
  * @returns {Promise<boolean>}
  */
@@ -37,22 +38,64 @@ function isPortInUse(port) {
   });
 }
 
+/**
+ * @param {number} min
+ * @param {number} max
+ * @returns {Promise<number>}
+ */
+async function findAvailablePort(min, max) {
+  for (let port = min; port <= max; port++) {
+    if (!await isPortInUse(port)) return port;
+  }
+  throw new Error(`No available CLI Playground port in range ${min}–${max}`);
+}
 
 /** @returns {Promise<void>} */
 module.exports = async function globalSetup() {
   // Server path: playground-pool.js already manages the instances.
   if (process.env.WP_DIRECTOR_SERVER === '1') return;
 
+  const port = await findAvailablePort(CLI_PLAYGROUND_PORT_MIN, CLI_PLAYGROUND_PORT_MAX);
   const blueprintPath = fs.existsSync(GENERATED_BLUEPRINT) ? GENERATED_BLUEPRINT : DEFAULT_BLUEPRINT;
 
-  // If the primary recording slot is already up (e.g. server.js is running),
-  // reuse the existing instances. The server owns their PID files, so don't
-  // touch them here.
-  if (await isPortInUse(RECORDING_PLAYGROUND_1_PORT)) {
-    console.log('\n[WP Playground] Reusing existing recording instances\n');
-    return;
-  }
+  // Propagate to worker processes so playwright.config.js uses the right baseURL.
+  process.env.WP_DIRECTOR_PLAYGROUND_PORT = String(port);
 
-  // No instances running — boot both recording slots fresh via the pool.
-  await pool.init(blueprintPath);
+  console.log(`\n[WP Playground] Starting CLI instance on port ${port}...\n`);
+
+  // Spawn without detached/unref so the process is tied to this Playwright run.
+  const server = spawn(
+    'npx',
+    ['@wp-playground/cli', 'server', `--port=${port}`, '--login', `--blueprint=${blueprintPath}`],
+    { stdio: ['ignore', 'pipe', 'pipe'] }
+  );
+
+  cliState.set(server);
+
+  await new Promise((resolve, reject) => {
+    const timeout = setTimeout(
+      () => reject(new Error('WP Playground did not start within 120s')),
+      120_000
+    );
+
+    server.stdout.on('data', (data) => {
+      const text = data.toString();
+      process.stdout.write(`[WP Playground] ${text}`);
+      if (text.includes('Ready!')) {
+        clearTimeout(timeout);
+        resolve();
+      }
+    });
+
+    server.stderr.on('data', (data) => {
+      process.stderr.write(`[WP Playground] ${data}`);
+    });
+
+    server.on('error', (err) => {
+      clearTimeout(timeout);
+      reject(err);
+    });
+  });
+
+  console.log(`\n[WP Playground] Ready at http://127.0.0.1:${port} (pid ${server.pid})\n`);
 };

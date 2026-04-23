@@ -192,13 +192,20 @@ async function acquire(blueprintPath, onData = null) {
 
   // Slow path — blueprint changed (or pool not yet initialised). Reboot the
   // first non-active slot and wait for it.
-  onData?.({ type: 'stdout', text: '[Playground] Starting WP Playground with updated blueprint…\n' });
   const target = [slot1, slot2].find(s => s.status !== 'active') ?? slot1;
   if (target.status === 'booting') {
     // Let the current boot finish before overriding (avoids port conflicts).
     try { await target.bootPromise; } catch {}
+    // If the boot we just awaited produced the right blueprint, use it as-is.
+    if (target.status === 'warm' && target.blueprintHash === hash) {
+      target.status = 'active';
+      target.onData = onData;
+      _refreshOther(target.port, blueprintPath);
+      console.log('[Pool] Using slow slot (blueprint matched after wait)', target.port);
+      return target.port;
+    }
   }
-  // @todo if there's a target.boolPromise that we've awaited then this bootSlot() call would kill it and restart it needlessly.
+  onData?.({ type: 'stdout', text: '[Playground] Starting WP Playground with updated blueprint…\n' });
   await bootSlot(target, blueprintPath, onData);
   target.status = 'active';
   _refreshOther(target.port, blueprintPath);

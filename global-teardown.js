@@ -2,17 +2,16 @@
 /**
  * Playwright globalTeardown hook — runs once after all tests finish.
  *
- * Server path (WP_DIRECTOR_SERVER=1): playground-pool.js owns the Playground
+ * Server path (WP_DIRECTOR_SERVER=1): playground-server.js owns the Playground
  * lifecycle — return immediately so warm pool slots are not killed.
  *
  * CLI path: kills the non-detached Playground instance that global-setup.js
- * spawned, retrieved via the shared cli-playground-state.js module.
+ * spawned via playground-cli.js.
  */
-const cliState = require('./src/cli-playground-state');
+const cliPlayground = require('./src/playground-cli');
 
 /** @returns {Promise<void>} */
 module.exports = async function globalTeardown() {
   if (process.env.WP_DIRECTOR_SERVER === '1') return;
-
-  cliState.kill();
+  cliPlayground.kill();
 };

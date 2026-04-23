@@ -42,7 +42,7 @@ app.listen(PORT, () => {
   // Pre-warm both Playground slots so the first recording starts immediately
   // without waiting for a cold boot.
   const blueprintPath = fs.existsSync(GENERATED_BLUEPRINT) ? GENERATED_BLUEPRINT : DEFAULT_BLUEPRINT;
-  require('./src/playground-pool').init(blueprintPath).catch((err) => {
+  require('./src/playground-server').init(blueprintPath).catch((err) => {
     console.error('[Playground Pool] Failed to initialise:', err.message);
   });
 });

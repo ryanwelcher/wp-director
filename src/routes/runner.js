@@ -41,7 +41,7 @@ const {
   DEFAULT_BLUEPRINT,
   GENERATED_BLUEPRINT,
 } = require('../config');
-const pool = require('../playground-pool');
+const pool = require('../playground-server');
 const { processVideo } = require('../video');
 const { nameToFilename } = require('./scripts');
 

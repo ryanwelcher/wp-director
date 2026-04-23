@@ -11,11 +11,10 @@
  *   2. Playwright's `global-setup.js`, when a recording is launched from the
  *      CLI with no server involvement.
  *
- * Both write the child PID to `.wp-playground-recording-1.pid` once the
- * process prints "Ready!". Because processes are no longer detached, they are
- * normal children of the server and are automatically cleaned up when the
- * server exits — explicit `killPlayground()` calls are only needed between
- * recordings to ensure a fresh WordPress state.
+ * Server mode keeps 2 playground processes alive until it is killed.
+ * This is done for performance reasons so that a freshly restarted
+ * instance is always available for a new recording or preview.
+ * CLI mode runs its own separate playground process until it finishes.
  *
  * ## Gotchas
  *
@@ -32,9 +31,7 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 const {
   ROOT,
-  RECORDING_1_PID_FILE,
   PREVIEW_PID_FILE,
-  RECORDING_PLAYGROUND_1_PORT,
   PREVIEW_PLAYGROUND_PORT,
   PLAYGROUND_READY_TIMEOUT_MS,
 } = require('./config');
@@ -105,30 +102,6 @@ function startPlayground({ port, blueprintPath, pidFile, onData = null }) {
 }
 
 /**
- * Stop recording slot 1 (port 9400), if running.
- */
-function killPlayground() {
-  killPid(RECORDING_1_PID_FILE);
-}
-
-/**
- * Start recording slot 1 on port 9400, loading the given blueprint.
- * Resolves when the child prints "Ready!".
- *
- * @param {string} blueprintPath                             Absolute blueprint path.
- * @param {((event: SseEvent) => void) | null} [onData]      Optional log forwarder.
- * @returns {Promise<void>}
- */
-function startMainPlayground(blueprintPath, onData = null) {
-  return startPlayground({
-    port: RECORDING_PLAYGROUND_1_PORT,
-    blueprintPath,
-    pidFile: RECORDING_1_PID_FILE,
-    onData,
-  });
-}
-
-/**
  * Stop the preview Playground (port 9410), if running.
  */
 function killPreviewPlayground() {
@@ -152,11 +125,8 @@ function startPreviewPlayground(blueprintPath) {
 }
 
 module.exports = {
-  killPlayground,
-  startMainPlayground,
   killPreviewPlayground,
   startPreviewPlayground,
-  // Low-level primitives used by playground-pool.js
   killPid,
   startPlayground,
 };

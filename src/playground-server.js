@@ -222,6 +222,9 @@ function release(port, blueprintPath) {
   const index = slots.findIndex(s => s.port === port);
   if (index === -1) return;
   console.log('[Playground Pool] Releasing playground', port);
+  // Clear onData so the background reboot's log output doesn't leak into
+  // the just-finished request's SSE stream.
+  slots[index].onData = null;
   bootSlot(index, blueprintPath).catch((err) => {
     console.error('[Playground Pool] Post-recording slot refresh failed (port', port, '):', err.message);
   });

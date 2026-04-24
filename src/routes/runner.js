@@ -38,12 +38,14 @@ const { spawn } = require('child_process');
 const {
   ROOT,
   STEPS_DIR,
+  OUTPUT_DIR,
   DEFAULT_BLUEPRINT,
   GENERATED_BLUEPRINT,
 } = require('../config');
 const pool = require('../playground-server');
 const { processVideo } = require('../video');
 const { nameToFilename } = require('./scripts');
+const { runSteps } = require('../../recordings/run-steps');
 
 /** @type {import('child_process').ChildProcess|null} */
 let currentProc = null;
@@ -131,6 +133,80 @@ function runPlaywright({ grepPattern, port, blueprintPath, videoSize, send, res,
   });
 }
 
+/**
+ * Same behaviour as runPlaywright() but drives the browser via the Playwright
+ * Node.js API instead of spawning a child `npx playwright test` process.
+ *
+ * @param {Object} opts
+ * @param {string} opts.grepPattern         Regex pattern matching the recording name(s) to run.
+ * @param {number} opts.port                Playground port (from pool.acquire).
+ * @param {string} opts.blueprintPath       Blueprint path (passed to pool.release on close).
+ * @param {any}    opts.videoSize           Target size for ffmpeg scaling.
+ * @param {(data: any) => void} opts.send   SSE writer.
+ * @param {Object} [opts.doneExtra]         Extra fields merged into the return value.
+ * @param {boolean} [opts.preview]
+ * @returns {Promise<{code: number, [key: string]: any}>}
+ */
+async function runPlaywrightApi({ scriptData, port, blueprintPath, videoSize, send, doneExtra = {}, preview = false }) {
+  const { chromium } = require('playwright');
+
+  const browser = await chromium.launch({
+    headless: true,
+    slowMo: 500,
+    args: ['--remote-debugging-port=9222'],
+  });
+
+  let code = 0;
+  try {
+    for (const def of [scriptData]) {
+      send({ type: 'stdout', text: `[Playwright] Running: ${def.name}\n` });
+
+      /** @type {import('playwright').BrowserContextOptions} */
+      const contextOpts = {
+        baseURL: `http://127.0.0.1:${port}`,
+        viewport: { width: 1920, height: 1080 },
+      };
+      if (!preview) {
+        contextOpts.recordVideo = { dir: OUTPUT_DIR, size: { width: 1920, height: 1080 } };
+      }
+
+      const context = await browser.newContext(contextOpts);
+      const page = await context.newPage();
+
+      await page.screencast.start({
+        onFrame: ({ data }) => send( { type: 'screencast', data: data.toString('base64') } ),
+        quality: 80,
+        size: { width: 1280, height: 800 },
+      });
+
+      await runSteps(page, def);
+
+      await page.screencast.stop();
+
+      if (!preview) {
+        const videoDir = path.join(OUTPUT_DIR, def.name);
+        fs.mkdirSync(videoDir, { recursive: true });
+        const video = page.video();
+        await page.close();
+        if (video) await video.saveAs(path.join(videoDir, 'video.webm'));
+      } else {
+        await page.close();
+      }
+
+      await context.close();
+    }
+  } catch (err) {
+    send({ type: 'stderr', text: `[Playwright] ${err.message}\n` });
+    code = 1;
+  }
+
+  await browser.close();
+  pool.release(port, blueprintPath);
+
+  if (code === 0 && !preview) await processVideo(videoSize, send);
+  send({ type: 'done', code, ...doneExtra });
+}
+
 function register(app) {
   app.post('/api/stop', (req, res) => {
     if (currentProc) {
@@ -163,13 +239,25 @@ function register(app) {
     try {
       port = await pool.acquire( blueprintPath, send );
     } catch (err) {
-      send({ type: 'stderr', text: `[Playground] Failed to start: ${err.message}\n` });
+      send({ type: 'stderr', text: `[Playground] Failed to acquire instance: ${err.message}\n` });
       send({ type: 'done', code: 1 });
       res.end();
       return;
     }
 
-    const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // @todo fix this to support multiple scripts by name for run/batch
+    return await runPlaywrightApi({
+      scriptData,
+      port,
+      blueprintPath,
+      videoSize,
+      send,
+      doneExtra: preview ? {} : { file: filePath },
+      preview,
+    });
+
+    // @todo cleanup
+    /*const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     runPlaywright({
       grepPattern: `${escapedName}$`,
       port,
@@ -179,7 +267,7 @@ function register(app) {
       res,
       doneExtra: preview ? {} : { file: filePath },
       preview,
-    });
+    });*/
   });
 
   // Batch run: take an array of saved recording names, escape for regex, join

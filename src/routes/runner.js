@@ -103,6 +103,8 @@ function resolveBlueprintPath(blueprint) {
  * @returns {Promise<{code: number, [key: string]: any}>}
  */
 async function runPlaywrightApi({ scripts, port, videoSize, send, doneExtra = {}, preview = false }) {
+  // IMPORTANT: When running multiple scripts, we are running all of them on the same Playground instance - this may or may not be desired.
+  // If we want actions to be executed on the same Playground instance this is fine, but if we want a fresh Playground instance for each script, we need to acquire and release one for each script.
   const { chromium } = require('playwright');
 
   const browser = await chromium.launch({

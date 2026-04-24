@@ -7,7 +7,7 @@
  *   2. Edit, reorder, and persist directions in a live list + JSON textarea
  *   3. Run recordings via `/api/run` (single) or `/api/run/batch` (multi),
  *      streaming stdout/stderr back over SSE
- *   4. Preview the running browser live via the `/api/screencast` SSE stream
+ *   4. Preview the running browser live via screencast frames in the `/api/run` SSE stream
  *   5. Browse and download completed MP4 recordings
  *
  * State is held in module-level variables (`directions`, `blueprint`, etc.)
@@ -124,37 +124,21 @@ sidebarToggle.addEventListener('click', () => {
 });
 
 // ── Preview screencast ────────────────────────────────────────────────────────
-/** @type {EventSource|null} */
-let screencastSource = null;
 
 /**
- * Open an `EventSource` to `/api/screencast` and render each JPEG frame
- * into the preview `<img>`. No-op if a source is already open.
- * Shows "Connecting…" until the first frame arrives.
+ * Prepare the preview panel for an incoming run. Called just before a
+ * `/api/run` request is made; frames arrive inline as SSE events.
  */
 function startScreencast() {
-  if (screencastSource) return;
+  screencastFrames = [];
   previewPlaceholder.textContent = 'Connecting to browser…';
   previewPanel.classList.add('polling');
-
-  screencastSource = new EventSource('/api/screencast');
-  screencastSource.onmessage = (e) => {
-    const msg = JSON.parse(e.data);
-    if (msg.type === 'frame') {
-      previewImg.src = `data:image/jpeg;base64,${msg.data}`;
-      previewPlaceholder.hidden = true;
-      previewImg.hidden = false;
-    }
-  };
-  screencastSource.onerror = () => {};
 }
 
 /**
- * Close the screencast `EventSource` (if open) and reset the preview panel
- * to its "No preview yet." placeholder state.
+ * Reset the preview panel to its idle state after a run completes.
  */
 function stopScreencast() {
-  if (screencastSource) { screencastSource.close(); screencastSource = null; }
   previewPanel.classList.remove('polling');
   previewPlaceholder.textContent = 'No preview yet.';
   previewPlaceholder.hidden = false;
@@ -681,6 +665,12 @@ async function readSSE(res, onDone) {
         if (msg.type === 'stdout' || msg.type === 'stderr') {
           logOutput.textContent += msg.text;
           logOutput.scrollTop = logOutput.scrollHeight;
+        } else if (msg.type === 'screencast') {
+          screencastFrames.push(msg.data);
+          const last = screencastFrames.length - 1;
+          previewImg.src = `data:image/jpeg;base64,${msg.data}`;
+          previewPlaceholder.hidden = true;
+          previewImg.hidden = false;
         } else if (msg.type === 'done') {
           onDone(msg);
         }

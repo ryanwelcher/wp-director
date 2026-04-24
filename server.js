@@ -33,7 +33,6 @@ require('./src/routes/scripts').register(app);
 require('./src/routes/directions').register(app);
 require('./src/routes/runner').register(app);
 require('./src/routes/recordings').register(app);
-require('./src/routes/screencast').register(app);
 
 const PORT = process.env.PORT || DEFAULT_SERVER_PORT;
 app.listen(PORT, () => {

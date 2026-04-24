@@ -153,7 +153,6 @@ async function runPlaywrightApi({ scriptData, port, blueprintPath, videoSize, se
   const browser = await chromium.launch({
     headless: true,
     slowMo: 500,
-    args: ['--remote-debugging-port=9222'],
   });
 
   let code = 0;
@@ -246,7 +245,7 @@ function register(app) {
     }
 
     // @todo fix this to support multiple scripts by name for run/batch
-    return await runPlaywrightApi({
+    await runPlaywrightApi({
       scriptData,
       port,
       blueprintPath,

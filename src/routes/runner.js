@@ -28,6 +28,7 @@
  *   { type: 'stdout',     text: string }          — log line from Playwright/ffmpeg
  *   { type: 'stderr',     text: string }          — error line
  *   { type: 'screencast', data: string }          — base64 JPEG frame for live preview
+ *   { type: 'screencastVideo', uri: string }      — public URI for the saved screencast video
  *   { type: 'done',       code: number, file?: string }  — terminal event; client closes
  */
 
@@ -35,9 +36,9 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const {
-  ROOT,
   STEPS_DIR,
   OUTPUT_DIR,
+  PUBLIC_DIR,
   DEFAULT_BLUEPRINT,
   GENERATED_BLUEPRINT,
 } = require('../config');
@@ -125,7 +126,7 @@ async function runPlaywrightApi({ scripts, port, videoSize, send, doneExtra = {}
   }
 
   const context = await browser.newContext(contextOpts);
-
+  let latestScreencastPath = null;
 
   let code = 0;
   try {
@@ -133,22 +134,25 @@ async function runPlaywrightApi({ scripts, port, videoSize, send, doneExtra = {}
       send({ type: 'stdout', text: `[Playwright] Running: ${def.name}\n` });
 
       const page = await context.newPage();
+      const outputSlug = nameToFilename(def.name).replace(/\.json$/i, '');
+      const videoDir = path.join(OUTPUT_DIR, outputSlug);
+      const screencastPath = path.join(videoDir, 'screencast.webm');
+      fs.mkdirSync(videoDir, { recursive: true });
+      latestScreencastPath = screencastPath;
 
       // Load the site before starting the screencast so the video does not start with a blank screen.
       await page.goto( '/' );
 
-      // When recording, the screencast we're using for the preview will ALSO create a webm file like output/page@{hash}.webm
       await page.screencast.start({
-        onFrame: ({ data }) => send( { type: 'screencast', data: data.toString('base64') } ),
+        path: screencastPath,
+        onFrame: ({ data }) => send({ type: 'screencast', data: data.toString('base64') }),
         quality: 80,
-        size: { width: 1280, height: 800 },
+        size: { width: 1280, height: 720 },
       });
       await runSteps(page, def);
       await page.screencast.stop();
 
       if (!preview) {
-        const videoDir = path.join(OUTPUT_DIR, def.name);
-        fs.mkdirSync(videoDir, { recursive: true });
         const video = page.video();
         await page.close();
         if (video) await video.saveAs(path.join(videoDir, 'video.webm'));
@@ -166,6 +170,15 @@ async function runPlaywrightApi({ scripts, port, videoSize, send, doneExtra = {}
 
   await browser.close();
   currentBrowser = null;
+
+  if (latestScreencastPath && fs.existsSync(latestScreencastPath)) {
+    const publicScreencastsDir = path.join(PUBLIC_DIR, 'screencasts');
+    const publicFilename = 'screencast.webm';
+    const publicPath = path.join(publicScreencastsDir, publicFilename);
+    fs.mkdirSync(publicScreencastsDir, { recursive: true });
+    fs.copyFileSync(latestScreencastPath, publicPath);
+    send({ type: 'screencastVideo', uri: `/screencasts/${publicFilename}` });
+  }
 
   send({ type: 'done', code, ...doneExtra });
 }

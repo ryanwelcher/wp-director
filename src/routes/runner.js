@@ -13,23 +13,22 @@
  *      on the common path where the blueprint has not changed. On blueprint
  *      change the acquire() call boots a slot synchronously (same latency as
  *      before the pool existed).
- *   3. Spawn `npx playwright test recordings/actions-runner.spec.js --grep …`
- *      with WP_DIRECTOR_PLAYGROUND_PORT set so playwright.config.js connects
- *      to the correct slot, and WP_DIRECTOR_SERVER=1 so global-teardown.js
- *      does not kill the pool-owned process.
- *   4. Pipe stdout/stderr back to the client as SSE events.
- *   5. After Playwright exits 0, run the ffmpeg post-process step to produce
+ *   3. Launch a Chromium browser via the Playwright Node.js API, create a
+ *      browser context pointed at the acquired Playground port, and execute
+ *      each script's step definitions in order.
+ *   4. Stream stdout/stderr and live screencast frames back to the client as
+ *      SSE events.
+ *   5. After all scripts finish, run the ffmpeg post-process step to produce
  *      an MP4 (and scale if the user picked a non-1080p size).
  *   6. Call pool.release() so the used slot is rebooted in the background,
  *      ready for the run after next.
  *
  * ## SSE event contract
  *
- *   { type: 'stdout', text: string }  — log line from Playground/Playwright/ffmpeg
- *   { type: 'stderr', text: string }  — error line
- *   { type: 'done',   code: number, file?: string }  — terminal event; client closes
- *
- * The client (public/app.js) treats anything non-`done` as log output.
+ *   { type: 'stdout',     text: string }          — log line from Playwright/ffmpeg
+ *   { type: 'stderr',     text: string }          — error line
+ *   { type: 'screencast', data: string }          — base64 JPEG frame for live preview
+ *   { type: 'done',       code: number, file?: string }  — terminal event; client closes
  */
 
 const fs = require('fs');
@@ -38,15 +37,18 @@ const { spawn } = require('child_process');
 const {
   ROOT,
   STEPS_DIR,
+  OUTPUT_DIR,
   DEFAULT_BLUEPRINT,
   GENERATED_BLUEPRINT,
 } = require('../config');
 const pool = require('../playground-server');
 const { processVideo } = require('../video');
 const { nameToFilename } = require('./scripts');
+const { runSteps } = require('../../recordings/run-steps');
 
 /** @type {import('child_process').ChildProcess|null} */
 let currentProc = null;
+let currentBrowser = null;
 
 /**
  * Set the three headers required to keep an SSE stream open.
@@ -87,48 +89,85 @@ function resolveBlueprintPath(blueprint) {
 }
 
 /**
- * Spawn Playwright for a given grep pattern and pipe its output into the SSE
- * stream. After Playwright exits 0, run the video post-process step.
+ * Launch a Chromium browser via the Playwright Node.js API and run each
+ * script definition in order, streaming screencast frames and log output
+ * back to the caller via `send`. Optionally records a WebM video per script
+ * and post-processes it to MP4.
  *
  * @param {Object} opts
- * @param {string} opts.grepPattern         Regex pattern passed to `playwright --grep`.
- * @param {number} opts.port                Playground port (from pool.acquire).
- * @param {string} opts.blueprintPath       Blueprint path (passed to pool.release on close).
- * @param {any}    opts.videoSize           Target size for ffmpeg scaling.
- * @param {(data: any) => void} opts.send   SSE writer.
- * @param {import('express').Response} opts.res
- * @param {Object} [opts.doneExtra]         Extra fields merged into the final `done` event.
- * @param {boolean} [opts.preview]
+ * @param {object[]} opts.scripts                   Step-definition objects to run, in order.
+ * @param {number}   opts.port                      Playground port (from pool.acquire).
+ * @param {any}      opts.videoSize                 Target size for ffmpeg scaling.
+ * @param {(data: any) => void} opts.send           SSE writer.
+ * @param {Object}   [opts.doneExtra]               Extra fields merged into the `done` event.
+ * @param {boolean}  [opts.preview]                 Skip video recording and ffmpeg when true.
+ * @returns {Promise<void>}
  */
-function runPlaywright({ grepPattern, port, blueprintPath, videoSize, send, res, doneExtra = {}, preview = false }) {
-  const env = {
-    ...process.env,
-    WP_DIRECTOR_SERVER: '1',
-    WP_DIRECTOR_PLAYGROUND_PORT: String(port),
-  };
-  if (preview) env.WP_DIRECTOR_PREVIEW = '1';
+async function runPlaywrightApi({ scripts, port, videoSize, send, doneExtra = {}, preview = false }) {
+  // IMPORTANT: When running multiple scripts, we are running all of them on the same Playground instance - this may or may not be desired.
+  // If we want actions to be executed on the same Playground instance this is fine, but if we want a fresh Playground instance for each script, we need to acquire and release one for each script.
+  const { chromium } = require('playwright');
 
-  const proc = spawn(
-    'npx', ['playwright', 'test', 'recordings/actions-runner.spec.js', '--grep', grepPattern],
-    { cwd: ROOT, env }
-  );
-
-  currentProc = proc;
-
-  proc.stdout.on('data', (d) => send({ type: 'stdout', text: d.toString() }));
-  proc.stderr.on('data', (d) => send({ type: 'stderr', text: d.toString() }));
-  proc.on('close', async (code, signal) => {
-    currentProc = null;
-    // Reboot the used slot in the background regardless of outcome.
-    pool.release(port, blueprintPath);
-    if (signal) {
-      send({ type: 'done', code: 1, stopped: true });
-    } else {
-      if (code === 0 && !preview) await processVideo(videoSize, send);
-      send({ type: 'done', code, ...doneExtra });
-    }
-    res.end();
+  const browser = await chromium.launch({
+    headless: true,
+    slowMo: 500,
   });
+
+  currentBrowser = browser;
+
+  /** @type {import('playwright').BrowserContextOptions} */
+  const contextOpts = {
+    baseURL: `http://127.0.0.1:${port}`,
+    viewport: { width: 1920, height: 1080 },
+  };
+  if (!preview) {
+    contextOpts.recordVideo = { dir: OUTPUT_DIR, size: { width: 1920, height: 1080 } };
+  }
+
+  const context = await browser.newContext(contextOpts);
+
+
+  let code = 0;
+  try {
+    for (const def of scripts) {
+      send({ type: 'stdout', text: `[Playwright] Running: ${def.name}\n` });
+
+      const page = await context.newPage();
+
+      // Load the site before starting the screencast so the video does not start with a blank screen.
+      await page.goto( '/' );
+
+      // When recording, the screencast we're using for the preview will ALSO create a webm file like output/page@{hash}.webm
+      await page.screencast.start({
+        onFrame: ({ data }) => send( { type: 'screencast', data: data.toString('base64') } ),
+        quality: 80,
+        size: { width: 1280, height: 800 },
+      });
+      await runSteps(page, def);
+      await page.screencast.stop();
+
+      if (!preview) {
+        const videoDir = path.join(OUTPUT_DIR, def.name);
+        fs.mkdirSync(videoDir, { recursive: true });
+        const video = page.video();
+        await page.close();
+        if (video) await video.saveAs(path.join(videoDir, 'video.webm'));
+        if (code === 0 && !preview) await processVideo(videoSize, send);
+      } else {
+        await page.close();
+      }
+    }
+
+    await context.close();
+  } catch (err) {
+    send({ type: 'stderr', text: `[Playwright] ${err.message}\n` });
+    code = 1;
+  }
+
+  await browser.close();
+  currentBrowser = null;
+
+  send({ type: 'done', code, ...doneExtra });
 }
 
 function register(app) {
@@ -136,13 +175,15 @@ function register(app) {
     if (currentProc) {
       currentProc.kill('SIGTERM');
       res.json({ ok: true });
+    } else if (currentBrowser) {
+      currentBrowser.close();
+      res.json({ ok: true });
     } else {
       res.json({ ok: false, reason: 'no process running' });
     }
   });
 
-  // Single-recording run: write the posted steps to a file, then grep for
-  // exactly this recording by its `name`.
+  // Single-recording run: write the posted steps to a file and run them directly.
   app.post('/api/run', async (req, res) => {
     const { name = `recording-${Date.now()}`, actions = [], blueprint = null, videoSize = null, preview = false, endPause } = req.body;
     if (!actions.length) return res.status(400).json({ error: 'no actions provided' });
@@ -163,27 +204,24 @@ function register(app) {
     try {
       port = await pool.acquire( blueprintPath, send );
     } catch (err) {
-      send({ type: 'stderr', text: `[Playground] Failed to start: ${err.message}\n` });
+      send({ type: 'stderr', text: `[Playground] Failed to acquire instance: ${err.message}\n` });
       send({ type: 'done', code: 1 });
-      res.end();
       return;
     }
 
-    const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    runPlaywright({
-      grepPattern: `${escapedName}$`,
+    await runPlaywrightApi({
+      scripts: [scriptData],
       port,
-      blueprintPath,
       videoSize,
       send,
-      res,
       doneExtra: preview ? {} : { file: filePath },
       preview,
     });
+
+    pool.release(port, blueprintPath);
   });
 
-  // Batch run: take an array of saved recording names, escape for regex, join
-  // as alternation so Playwright matches any of them.
+  // Batch run: load all saved step files, filter to the requested names, run in order.
   app.post('/api/run/batch', async (req, res) => {
     const { names = [], blueprint = null, videoSize = null } = req.body;
     if (!names.length) return res.status(400).json({ error: 'no scripts selected' });
@@ -199,14 +237,18 @@ function register(app) {
     } catch (err) {
       send({ type: 'stderr', text: `[Playground] Failed to start: ${err.message}\n` });
       send({ type: 'done', code: 1 });
-      res.end();
       return;
     }
 
-    const escaped = names.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-    const grepPattern = `(${escaped.join('|')})`;
+    const nameSet = new Set(names);
+    const scripts = fs.readdirSync(STEPS_DIR)
+      .filter(f => f.endsWith('.json'))
+      .map(f => JSON.parse(fs.readFileSync(path.join(STEPS_DIR, f), 'utf8')))
+      .filter(def => nameSet.has(def.name));
 
-    runPlaywright({ grepPattern, port, blueprintPath, videoSize, send, res });
+    await runPlaywrightApi({ scripts, port, videoSize, send });
+
+    pool.release(port, blueprintPath);
   });
 }
 

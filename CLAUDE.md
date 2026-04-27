@@ -29,11 +29,10 @@ A local Express server that lets you build step definitions by typing plain Engl
 | `GET` | `/api/default-blueprint` | Returns the contents of `blueprint.json` |
 | `GET` | `/api/current-blueprint` | Returns `blueprint.generated.json` if it exists, else `blueprint.json` (last-used blueprint for UI startup) |
 | `POST` | `/api/preview-blueprint` | Starts a second Playground instance (port 9400) with the given blueprint; returns the preview URL |
-| `GET` | `/api/screencast` | SSE stream of live JPEG frames from Chrome via CDP `Page.screencastFrame` |
 
 ### Live preview
 
-The Live Preview panel streams the running browser directly using the Chrome DevTools Protocol. The server connects to Chrome's remote debugging port (9222), calls `Page.startScreencast`, and forwards JPEG frames to the UI over SSE. Chrome is launched with `--remote-debugging-port=9222` via `launchOptions` in `playwright.config.js`.
+The Live Preview panel streams the running browser directly using the Playwright JS API. We then send the JPEG frames that Playwright provides to the UI over SSE.
 
 **API key:** set `ANTHROPIC_API_KEY` in `.env` (gitignored). The server loads it via `dotenv`.
 

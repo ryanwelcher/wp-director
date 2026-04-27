@@ -24,7 +24,6 @@ module.exports = defineConfig({
     screenshot: 'on', // capture screenshots on each step
     launchOptions: {
       slowMo: 500,  // slow down actions so the recording is easier to follow
-      args: ['--remote-debugging-port=9222'],
     },
   },
   projects: [

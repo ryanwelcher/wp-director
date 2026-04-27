@@ -28,13 +28,13 @@ module.exports = {
   PREVIEW_BLUEPRINT:   path.join(ROOT, 'blueprints', 'blueprint.preview.json'),   // for port-9399 sandbox (gitignored)
 
   // Ports
-  RECORDING_PLAYGROUND_1_PORT: 9400, // Recording pool slot 1
-  RECORDING_PLAYGROUND_2_PORT: 9401, // Recording pool slot 2
-  PREVIEW_PLAYGROUND_PORT:     9399, // "Test in Playground" sandbox
-  CHROME_DEBUG_PORT:           9222, // Chrome remote-debugging (launched by playwright.config.js)
-  DEFAULT_SERVER_PORT:         3000, // Express UI port (overridable via PORT env var)
-  CLI_PLAYGROUND_PORT_MIN:     9450, // CLI recording instances use this range (never conflicts with server)
-  CLI_PLAYGROUND_PORT_MAX:     9499,
+  RECORDING_PLAYGROUND_PORT_MIN: 9406, // Server-mode recording pool starts here
+  RECORDING_PLAYGROUND_PORT_MAX: 9410, // Server-mode recording pool grows up to here
+  PREVIEW_PLAYGROUND_PORT:       9399, // "Test in Playground" sandbox
+  CHROME_DEBUG_PORT:             9222, // Chrome remote-debugging (launched by playwright.config.js)
+  DEFAULT_SERVER_PORT:           3000, // Express UI port (overridable via PORT env var)
+  CLI_PLAYGROUND_PORT_MIN:       9450, // CLI recording instances use this range (never conflicts with server)
+  CLI_PLAYGROUND_PORT_MAX:       9499,
 
   // Playground-ready timeout
   PLAYGROUND_READY_TIMEOUT_MS: 120_000,

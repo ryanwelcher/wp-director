@@ -92,7 +92,8 @@ Defaults are set in `src/config.js`:
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `PLAYGROUND_PORT` | 9400 | Main WP instance used for recordings |
+| `RECORDING_PLAYGROUND_PORT_MIN` | 9406 | First port in the server-mode recording pool |
+| `RECORDING_PLAYGROUND_PORT_MAX` | 9410 | Last port in the server-mode recording pool |
 | `PREVIEW_PLAYGROUND_PORT` | 9399 | Sandbox instance for blueprint preview |
 | `CHROME_DEBUG_PORT` | 9222 | Chrome remote debugging (live preview) |
 | `PORT` | 3000 | Express UI server (overridable via `PORT` env var) |
@@ -110,11 +111,11 @@ Playwright configuration lives in `playwright.config.js`:
 ## Troubleshooting
 
 **WP Playground won't start**
-- Make sure the relevant Playground port is not already in use: `lsof -i :9400`
+- Make sure the relevant Playground port is not already in use: `lsof -i :9406-9410`
 - Restart the recording process and retry
 
 **"Connection refused" or blank browser**
-- Playground binds to `127.0.0.1`, not `localhost`. The config already uses `127.0.0.1:9400`, but if you're testing manually make sure to use the IP address.
+- Playground binds to `127.0.0.1`, not `localhost`. If you're testing manually, make sure to use the IP address and the configured recording-pool port.
 
 **Live preview not showing**
 - Chrome must be launched with `--remote-debugging-port=9222`, which `playwright.config.js` already sets. If another Chrome instance is already using that port, close it and retry.

@@ -2,7 +2,7 @@
 
 /**
  * WP Playground process lifecycle — start and stop the local Playground
- * servers used for recording (ports 9400/9401) and preview (port 9399).
+ * servers used for recording (ports 9406-9410) and preview (port 9399).
  *
  * Server mode keeps 2 playground processes alive until it is killed. This is
  * done for performance reasons so that a freshly restarted instance is always

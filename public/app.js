@@ -49,6 +49,7 @@ const logBadge = document.getElementById('log-badge');
 // ── Preview elements ──────────────────────────────────────────────────────────
 const previewPanel       = document.getElementById('preview-panel');
 const previewImg         = document.getElementById('preview-img');
+const previewVideo       = /** @type {HTMLVideoElement} */ (document.getElementById('preview-video'));
 const previewPlaceholder = document.getElementById('preview-placeholder');
 previewImg.addEventListener('error', () => { previewImg.src = ''; });
 
@@ -130,18 +131,53 @@ sidebarToggle.addEventListener('click', () => {
  * `/api/run` request is made; frames arrive inline as SSE events.
  */
 function startScreencast() {
-  screencastFrames = [];
   previewPlaceholder.textContent = 'Connecting to browser…';
+  previewPlaceholder.hidden = false;
+  previewImg.hidden = true;
+  previewImg.src = '';
+  previewVideo.hidden = true;
+  previewVideo.pause();
+  previewVideo.removeAttribute('poster');
+  previewVideo.removeAttribute('src');
+  previewVideo.load();
   previewPanel.classList.add('polling');
+}
+
+/**
+ * Load the final screencast video and reveal it once metadata is ready.
+ * The last live JPEG frame is used as the poster for a smooth handoff.
+ */
+function showFinalScreencastVideo() {
+  if (!lastScreencastVideoUri) return;
+
+  previewVideo.hidden = true;
+  previewVideo.pause();
+  if (previewImg.src) previewVideo.poster = previewImg.src;
+  previewVideo.src = lastScreencastVideoUri;
+  previewVideo.load();
+
+  previewVideo.onloadedmetadata = () => {
+    previewVideo.onloadedmetadata = null;
+    previewPlaceholder.hidden = true;
+    previewVideo.hidden = false;
+  };
 }
 
 /**
  * Reset the preview panel to its idle state after a run completes.
  */
 function stopScreencast() {
+  if (lastScreencastVideoUri) {
+    showFinalScreencastVideo();
+  } else {
+    previewPlaceholder.textContent = 'No preview yet.';
+    previewPlaceholder.hidden = false;
+    previewVideo.hidden = true;
+    previewVideo.removeAttribute('poster');
+    previewVideo.removeAttribute('src');
+    previewVideo.load();
+  }
   previewPanel.classList.remove('polling');
-  previewPlaceholder.textContent = 'No preview yet.';
-  previewPlaceholder.hidden = false;
   previewImg.hidden = true;
   previewImg.src = '';
 }
@@ -157,6 +193,7 @@ let updatingDirectionsFromCode = false;
 let updatingBlueprintFromCode = false;
 /** @type {string[]} */
 let selectedScripts = [];
+let lastScreencastVideoUri = '';
 /** @type {Array<{name: string, filename: string, stepCount: number}>} */
 let savedScripts = [];
 /** @type {Array<{name: string, filename: string, actionCount: number, builtin: boolean}>} */
@@ -666,11 +703,12 @@ async function readSSE(res, onDone) {
           logOutput.textContent += msg.text;
           logOutput.scrollTop = logOutput.scrollHeight;
         } else if (msg.type === 'screencast') {
-          screencastFrames.push(msg.data);
-          const last = screencastFrames.length - 1;
           previewImg.src = `data:image/jpeg;base64,${msg.data}`;
           previewPlaceholder.hidden = true;
+          previewVideo.hidden = true;
           previewImg.hidden = false;
+        } else if (msg.type === 'screencastVideo') {
+          lastScreencastVideoUri = msg.uri;
         } else if (msg.type === 'done') {
           onDone(msg);
         }

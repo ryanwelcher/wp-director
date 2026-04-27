@@ -28,6 +28,7 @@
  *   { type: 'stdout',     text: string }          — log line from Playwright/ffmpeg
  *   { type: 'stderr',     text: string }          — error line
  *   { type: 'screencast', data: string }          — base64 JPEG frame for live preview
+ *   { type: 'screencastVideo', uri: string }      — public URI for the saved screencast video
  *   { type: 'done',       code: number, file?: string }  — terminal event; client closes
  */
 
@@ -35,9 +36,9 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const {
-  ROOT,
   STEPS_DIR,
   OUTPUT_DIR,
+  PUBLIC_DIR,
   DEFAULT_BLUEPRINT,
   GENERATED_BLUEPRINT,
 } = require('../config');
@@ -100,7 +101,7 @@ function resolveBlueprintPath(blueprint) {
  * @param {any}      opts.videoSize                 Target size for ffmpeg scaling.
  * @param {(data: any) => void} opts.send           SSE writer.
  * @param {Object}   [opts.doneExtra]               Extra fields merged into the `done` event.
- * @param {boolean}  [opts.preview]                 Skip video recording and ffmpeg when true.
+ * @param {boolean}  [opts.preview]                 Skip ffmpeg conversion when true.
  * @returns {Promise<void>}
  */
 async function runPlaywrightApi({ scripts, port, videoSize, send, doneExtra = {}, preview = false }) {
@@ -119,13 +120,12 @@ async function runPlaywrightApi({ scripts, port, videoSize, send, doneExtra = {}
   const contextOpts = {
     baseURL: `http://127.0.0.1:${port}`,
     viewport: { width: 1920, height: 1080 },
+    recordVideo: { dir: OUTPUT_DIR, size: { width: 1920, height: 1080 } },
   };
-  if (!preview) {
-    contextOpts.recordVideo = { dir: OUTPUT_DIR, size: { width: 1920, height: 1080 } };
-  }
 
   const context = await browser.newContext(contextOpts);
-
+  let latestPreviewVideoPath = null;
+  let latestPreviewVideoFilename = null;
 
   let code = 0;
   try {
@@ -133,29 +133,28 @@ async function runPlaywrightApi({ scripts, port, videoSize, send, doneExtra = {}
       send({ type: 'stdout', text: `[Playwright] Running: ${def.name}\n` });
 
       const page = await context.newPage();
+      const outputSlug = nameToFilename(def.name).replace(/\.json$/i, '');
+      const videoDir = path.join(OUTPUT_DIR, outputSlug);
+      const recordedVideoPath = path.join(videoDir, 'video.webm');
+      fs.mkdirSync(videoDir, { recursive: true });
+      latestPreviewVideoPath = recordedVideoPath;
+      latestPreviewVideoFilename = `${outputSlug}.webm`;
 
       // Load the site before starting the screencast so the video does not start with a blank screen.
       await page.goto( '/' );
 
-      // When recording, the screencast we're using for the preview will ALSO create a webm file like output/page@{hash}.webm
       await page.screencast.start({
-        onFrame: ({ data }) => send( { type: 'screencast', data: data.toString('base64') } ),
+        onFrame: ({ data }) => send({ type: 'screencast', data: data.toString('base64') }),
         quality: 80,
-        size: { width: 1280, height: 800 },
+        size: { width: 1280, height: 720 },
       });
       await runSteps(page, def);
       await page.screencast.stop();
 
-      if (!preview) {
-        const videoDir = path.join(OUTPUT_DIR, def.name);
-        fs.mkdirSync(videoDir, { recursive: true });
-        const video = page.video();
-        await page.close();
-        if (video) await video.saveAs(path.join(videoDir, 'video.webm'));
-        if (code === 0 && !preview) await processVideo(videoSize, send);
-      } else {
-        await page.close();
-      }
+      const video = page.video();
+      await page.close();
+      if (video) await video.saveAs(recordedVideoPath);
+      if (!preview && code === 0) await processVideo(recordedVideoPath, videoSize, send);
     }
 
     await context.close();
@@ -166,6 +165,14 @@ async function runPlaywrightApi({ scripts, port, videoSize, send, doneExtra = {}
 
   await browser.close();
   currentBrowser = null;
+
+  if (latestPreviewVideoPath && latestPreviewVideoFilename && fs.existsSync(latestPreviewVideoPath)) {
+    const publicScreencastsDir = path.join(PUBLIC_DIR, 'screencasts');
+    const publicPath = path.join(publicScreencastsDir, latestPreviewVideoFilename);
+    fs.mkdirSync(publicScreencastsDir, { recursive: true });
+    fs.copyFileSync(latestPreviewVideoPath, publicPath);
+    send({ type: 'screencastVideo', uri: `/screencasts/${latestPreviewVideoFilename}` });
+  }
 
   send({ type: 'done', code, ...doneExtra });
 }

@@ -71,24 +71,22 @@ function findVideoFile(dirname) {
 }
 
 /**
- * Convert the most recently finished WebM to MP4, optionally scaling.
- * No-op if no `video.webm` exists (e.g. test failed before video flushed).
+ * Convert a specific WebM recording to MP4, optionally scaling.
+ * No-op if the input file does not exist.
  *
  * Resolves regardless of ffmpeg's exit code — we don't want conversion
  * failures to fail the whole run. On failure we delete the partial MP4 and
  * notify the caller via SSE; the WebM stays in place as a fallback.
  *
+ * @param {string} inputPath            Absolute path to the source `video.webm`.
  * @param {VideoSize | null} videoSize  Target size; null or 1920×1080 → no scale.
  * @param {Sender} send                 SSE forwarder for ffmpeg output.
  * @returns {Promise<void>}
  */
-function processVideo(videoSize, send) {
+function processVideo(inputPath, videoSize, send) {
   return new Promise((resolve) => {
-    const dirname = findNewestVideoDir();
-    if (!dirname) return resolve();
-
-    const inputPath  = path.join(OUTPUT_DIR, dirname, 'video.webm');
-    const outputPath = path.join(OUTPUT_DIR, dirname, 'video.mp4');
+    if (!fs.existsSync(inputPath)) return resolve();
+    const outputPath = path.join(path.dirname(inputPath), 'video.mp4');
 
     // Skip the scale filter entirely for 1080p (matches Playwright's native size)
     // to avoid a redundant re-encode pass at identical dimensions.

@@ -41,15 +41,15 @@ The Live Preview panel streams the running browser directly using the Chrome Dev
 
 ## Architecture
 
-- `global-setup.js` — spawns `@wp-playground/cli server`, waits for "Ready!" in stdout, writes PID to `.wp-playground.pid`
-- `global-teardown.js` — kills the PID from `.wp-playground.pid`
+- `global-setup.js` — starts the CLI-mode `@wp-playground/cli server`, waits for "Ready!" in stdout
+- `global-teardown.js` — kills the in-memory child process for CLI mode
 - `blueprint.json` — pre-configures the WP instance (plugins, theme, sample content)
 - `blueprint.generated.json` / `blueprint.preview.json` — runtime-generated files, gitignored
 - `recordings/` — test specs; output lands in `output/`
 
 ## Critical gotchas
 
-**Do NOT use `webServer` config for Playground.** WP Playground returns 302 on all routes, so Playwright's URL polling never resolves. Use `globalSetup`/`globalTeardown` with a PID file instead.
+**Do NOT use `webServer` config for Playground.** WP Playground returns 302 on all routes, so Playwright's URL polling never resolves. Use `globalSetup`/`globalTeardown` with a directly managed child process instead.
 
 **Use `127.0.0.1`, not `localhost`.** Playground binds to `127.0.0.1:9400`. `localhost` does not reliably resolve to the same address and will cause connection failures.
 

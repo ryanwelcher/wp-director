@@ -29,17 +29,15 @@ const fs = require('fs');
 const {
   RECORDING_PLAYGROUND_1_PORT,
   RECORDING_PLAYGROUND_2_PORT,
-  RECORDING_1_PID_FILE,
-  RECORDING_2_PID_FILE,
 } = require('./config');
-const { killPid, startPlayground } = require('./playground');
+const { killProcess, startPlayground } = require('./playground');
 
 /**
  * @typedef {'idle'|'booting'|'warm'|'active'} SlotStatus
  *
  * @typedef {Object} Slot
  * @property {number}             port
- * @property {string}             pidFile
+ * @property {import('child_process').ChildProcess|null} proc
  * @property {SlotStatus}         status
  * @property {string|null}        blueprintHash  Hash of the blueprint the slot is warm with.
  * @property {string|null}        pendingHash    Hash of the blueprint currently being booted.
@@ -54,7 +52,7 @@ const { killPid, startPlayground } = require('./playground');
 const slots = [
   {
     port: RECORDING_PLAYGROUND_1_PORT,
-    pidFile: RECORDING_1_PID_FILE,
+    proc: null,
     status: 'idle',
     blueprintHash: null,
     pendingHash: null,
@@ -63,7 +61,7 @@ const slots = [
   },
   {
     port: RECORDING_PLAYGROUND_2_PORT,
-    pidFile: RECORDING_2_PID_FILE,
+    proc: null,
     status: 'idle',
     blueprintHash: null,
     pendingHash: null,
@@ -99,7 +97,8 @@ function hashBlueprint(blueprintPath) {
  */
 function bootSlot(index, blueprintPath) {
   const slot = slots[index];
-  killPid(slot.pidFile);
+  killProcess(slot.proc);
+  slot.proc = null;
   slot.status = 'booting';
   slot.blueprintHash = null;
   slot.pendingHash = hashBlueprint(blueprintPath);
@@ -107,14 +106,24 @@ function bootSlot(index, blueprintPath) {
 
   // Pass a dynamic wrapper so the process's stdout/stderr listeners always
   // delegate to slot.onData — even after acquire() swaps in a new callback.
-  const promise = startPlayground({ port: slot.port, blueprintPath, pidFile: slot.pidFile, onData: (e) => slots[index]?.onData?.(e) })
-    .then(() => {
+  const promise = startPlayground({ port: slot.port, blueprintPath, onData: (e) => slots[index]?.onData?.(e) })
+    .then((proc) => {
+      slot.proc = proc;
+      proc.on('close', () => {
+        if (slot.proc !== proc) return;
+        slot.proc = null;
+        slot.bootPromise = null;
+        slot.pendingHash = null;
+        slot.blueprintHash = null;
+        if (slot.status !== 'booting') slot.status = 'idle';
+      });
       slot.status = 'warm';
       slot.blueprintHash = slot.pendingHash;
       slot.pendingHash = null;
       slot.bootPromise = null;
     })
     .catch((err) => {
+      slot.proc = null;
       slot.status = 'idle';
       slot.pendingHash = null;
       slot.bootPromise = null;

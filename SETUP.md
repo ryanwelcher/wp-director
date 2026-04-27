@@ -110,8 +110,8 @@ Playwright configuration lives in `playwright.config.js`:
 ## Troubleshooting
 
 **WP Playground won't start**
-- Make sure port 9400 is not already in use: `lsof -i :9400`
-- Delete any stale `.wp-playground.pid` file at the project root and retry
+- Make sure the relevant Playground port is not already in use: `lsof -i :9400`
+- Restart the recording process and retry
 
 **"Connection refused" or blank browser**
 - Playground binds to `127.0.0.1`, not `localhost`. The config already uses `127.0.0.1:9400`, but if you're testing manually make sure to use the IP address.

@@ -6,15 +6,6 @@
  * All paths are absolute and computed relative to the project root (one level
  * up from src/). Modules should import from here rather than recomputing paths,
  * so there's a single source of truth for filesystem layout.
- *
- * Three PID files coordinate WP Playground lifecycles between this server and
- * Playwright's global-setup.js:
- *   - .wp-playground-recording-1.pid  — pool slot 1 (port 9400)
- *   - .wp-playground-recording-2.pid  — pool slot 2 (port 9401)
- *   - .wp-playground-preview.pid      — "Test in Playground" sandbox (port 9410)
- *
- * global-setup.js reads RECORDING_1_PID_FILE (slot 1) and reuses the running Playground
- * if alive, which is how a UI-triggered run survives being re-entered by Playwright.
  */
 
 const path = require('path');
@@ -30,11 +21,6 @@ module.exports = {
   OUTPUT_DIR:              path.join(ROOT, 'output'),
   DIRECTIONS_DIR:          path.join(ROOT, 'directions'),
   BUILTIN_DIRECTIONS_DIR:  path.join(__dirname, 'directions'),
-
-  // PID files (coordinated with global-setup.js / global-teardown.js)
-  RECORDING_1_PID_FILE: path.join(ROOT, '.wp-playground-recording-1.pid'),
-  RECORDING_2_PID_FILE: path.join(ROOT, '.wp-playground-recording-2.pid'),
-  PREVIEW_PID_FILE:     path.join(ROOT, '.wp-playground-preview.pid'),
 
   // Blueprint files
   DEFAULT_BLUEPRINT:   path.join(ROOT, 'blueprints', 'blueprint.json'),           // checked-in default

@@ -28,7 +28,7 @@ A local Express server that lets you build step definitions by typing plain Engl
 | `DELETE` | `/api/scripts/:filename` | Deletes a saved step file |
 | `GET` | `/api/default-blueprint` | Returns the contents of `blueprint.json` |
 | `GET` | `/api/current-blueprint` | Returns `blueprint.generated.json` if it exists, else `blueprint.json` (last-used blueprint for UI startup) |
-| `POST` | `/api/preview-blueprint` | Starts a second Playground instance (port 9401) with the given blueprint; returns the preview URL |
+| `POST` | `/api/preview-blueprint` | Starts a second Playground instance (port 9400) with the given blueprint; returns the preview URL |
 | `GET` | `/api/screencast` | SSE stream of live JPEG frames from Chrome via CDP `Page.screencastFrame` |
 
 ### Live preview
@@ -41,17 +41,17 @@ The Live Preview panel streams the running browser directly using the Chrome Dev
 
 ## Architecture
 
-- `global-setup.js` — spawns `@wp-playground/cli server`, waits for "Ready!" in stdout, writes PID to `.wp-playground.pid`
-- `global-teardown.js` — kills the PID from `.wp-playground.pid`
+- `global-setup.js` — starts the CLI-mode `@wp-playground/cli server`, waits for "Ready!" in stdout
+- `global-teardown.js` — kills the in-memory child process for CLI mode
 - `blueprint.json` — pre-configures the WP instance (plugins, theme, sample content)
 - `blueprint.generated.json` / `blueprint.preview.json` — runtime-generated files, gitignored
 - `recordings/` — test specs; output lands in `output/`
 
 ## Critical gotchas
 
-**Do NOT use `webServer` config for Playground.** WP Playground returns 302 on all routes, so Playwright's URL polling never resolves. Use `globalSetup`/`globalTeardown` with a PID file instead.
+**Do NOT use `webServer` config for Playground.** WP Playground returns 302 on all routes, so Playwright's URL polling never resolves. Use `globalSetup`/`globalTeardown` with a directly managed child process instead.
 
-**Use `127.0.0.1`, not `localhost`.** Playground binds to `127.0.0.1:9400`. `localhost` does not reliably resolve to the same address and will cause connection failures.
+**Use `127.0.0.1`, not `localhost`.** Playground binds to `127.0.0.1` on the configured port. `localhost` does not reliably resolve to the same address and will cause connection failures.
 
 **Gutenberg editor canvas is inside an iframe.** Since WP 6.x, the block editor canvas renders in `iframe[name="editor-canvas"]`. Always use `page.frameLocator('iframe[name="editor-canvas"]')` to interact with blocks, the title field, etc. Regular `page.locator()` will silently time out.
 

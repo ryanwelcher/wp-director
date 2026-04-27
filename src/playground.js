@@ -2,41 +2,30 @@
 
 /**
  * WP Playground process lifecycle — start and stop the local Playground
- * servers used for recording (port 9400) and preview (port 9401).
+ * servers used for recording (ports 9406-9410) and preview (port 9400).
  *
- * ## PID coordination with Playwright
- *
- * There are two paths that can start Playground:
- *   1. This server, when a recording run needs a (possibly custom) blueprint.
- *   2. Playwright's `global-setup.js`, when a recording is launched from the
- *      CLI with no server involvement.
- *
- * Both write the child PID to `.wp-playground.pid` once the process prints
- * "Ready!". When Playwright's global-setup runs AFTER the server has already
- * started Playground, it sees the PID file, checks the process is alive with
- * `process.kill(pid, 0)`, and reuses it instead of starting a second one.
+ * Server mode keeps 2 playground processes alive until it is killed. This is
+ * done for performance reasons so that a freshly restarted instance is always
+ * available for a new recording or preview. CLI mode runs its own separate
+ * playground process until it finishes.
  *
  * ## Gotchas
  *
  * - `--login` is passed to the CLI regardless of blueprint contents so the
  *   admin session is pre-authenticated for recordings.
- * - Killing Playground deletes the PID file; startPlayground writes it only
- *   *after* "Ready!" is observed, so the window where a stale PID could be
- *   read by a concurrent global-setup is minimized.
  * - The CLI binds to `127.0.0.1`, not `localhost`. Anything connecting must
  *   use the literal IP (the Playwright config does).
  */
 
-const fs = require('fs');
 const { spawn } = require('child_process');
 const {
   ROOT,
-  PID_FILE,
-  PREVIEW_PID_FILE,
-  PLAYGROUND_PORT,
   PREVIEW_PLAYGROUND_PORT,
   PLAYGROUND_READY_TIMEOUT_MS,
 } = require('./config');
+
+/** @type {import('child_process').ChildProcess | null} */
+let previewProc = null;
 
 /**
  * @typedef {Object} SseEvent
@@ -45,22 +34,18 @@ const {
  */
 
 /**
- * SIGTERM whatever process the PID file points at, then delete the file.
- * No-op if the file doesn't exist or the process is already dead.
+ * SIGTERM a child process if it is still running.
  *
- * @param {string} pidFile  Path to the PID file for the target instance.
+ * @param {import('child_process').ChildProcess | null | undefined} proc
  */
-function killPid(pidFile) {
-  if (!fs.existsSync(pidFile)) return;
-  const pid = parseInt(fs.readFileSync(pidFile, 'utf8'));
-  try { process.kill(pid, 'SIGTERM'); } catch {}
-  fs.unlinkSync(pidFile);
+function killProcess(proc) {
+  if (!proc) return;
+  try { proc.kill('SIGTERM'); } catch {}
 }
 
 /**
  * Spawn a `@wp-playground/cli server` process on the given port, waiting for
- * "Ready!" on stdout before resolving. On resolution, the child's PID is
- * written to `pidFile` so global-setup can reuse it.
+ * "Ready!" on stdout before resolving.
  *
  * Stdout/stderr are optionally streamed to the caller via `onData` — used by
  * SSE route handlers to forward Playground logs to the UI.
@@ -68,16 +53,15 @@ function killPid(pidFile) {
  * @param {Object} opts
  * @param {number} opts.port                                 Port to bind.
  * @param {string} opts.blueprintPath                        Absolute path to the blueprint JSON to load.
- * @param {string} opts.pidFile                              Where to write the child PID once Ready.
  * @param {((event: SseEvent) => void) | null} [opts.onData] Optional callback for log forwarding.
- * @returns {Promise<void>}
+ * @returns {Promise<import('child_process').ChildProcess>}
  */
-function startPlayground({ port, blueprintPath, pidFile, onData = null }) {
+function startPlayground({ port, blueprintPath, onData = null }) {
   return new Promise((resolve, reject) => {
     const server = spawn(
       'npx',
       ['@wp-playground/cli', 'server', `--port=${port}`, '--login', `--blueprint=${blueprintPath}`],
-      { stdio: ['ignore', 'pipe', 'pipe'], detached: true, cwd: ROOT }
+      { stdio: ['ignore', 'pipe', 'pipe'], cwd: ROOT }
     );
 
     const timeout = setTimeout(
@@ -90,11 +74,7 @@ function startPlayground({ port, blueprintPath, pidFile, onData = null }) {
       onData?.({ type: 'stdout', text: `[WP Playground] ${text}` });
       if (text.includes('Ready!')) {
         clearTimeout(timeout);
-        fs.writeFileSync(pidFile, server.pid.toString());
-        // Detach so the child survives parent exit (it'll be cleaned up by
-        // killPid on next start, or by global-teardown.js for CLI runs).
-        server.unref();
-        resolve();
+        resolve(server);
       }
     });
 
@@ -107,38 +87,15 @@ function startPlayground({ port, blueprintPath, pidFile, onData = null }) {
 }
 
 /**
- * Stop the main recording Playground (port 9400), if running.
- */
-function killPlayground() {
-  killPid(PID_FILE);
-}
-
-/**
- * Start the main recording Playground on port 9400, loading the given
- * blueprint. Resolves when the child prints "Ready!".
- *
- * @param {string} blueprintPath                             Absolute blueprint path.
- * @param {((event: SseEvent) => void) | null} [onData]      Optional log forwarder.
- * @returns {Promise<void>}
- */
-function startMainPlayground(blueprintPath, onData = null) {
-  return startPlayground({
-    port: PLAYGROUND_PORT,
-    blueprintPath,
-    pidFile: PID_FILE,
-    onData,
-  });
-}
-
-/**
- * Stop the preview Playground (port 9401), if running.
+ * Stop the preview Playground (port 9400), if running.
  */
 function killPreviewPlayground() {
-  killPid(PREVIEW_PID_FILE);
+  killProcess(previewProc);
+  previewProc = null;
 }
 
 /**
- * Start the preview Playground on port 9401 (the "Test in Playground"
+ * Start the preview Playground on port 9400 (the "Test in Playground"
  * sandbox). Intentionally does NOT stream logs — preview is a throwaway
  * instance opened in a new tab; its output isn't surfaced in the UI.
  *
@@ -149,13 +106,17 @@ function startPreviewPlayground(blueprintPath) {
   return startPlayground({
     port: PREVIEW_PLAYGROUND_PORT,
     blueprintPath,
-    pidFile: PREVIEW_PID_FILE,
+  }).then((proc) => {
+    previewProc = proc;
+    proc.on('close', () => {
+      if (previewProc === proc) previewProc = null;
+    });
   });
 }
 
 module.exports = {
-  killPlayground,
-  startMainPlayground,
   killPreviewPlayground,
   startPreviewPlayground,
+  killProcess,
+  startPlayground,
 };

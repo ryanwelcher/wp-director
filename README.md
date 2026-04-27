@@ -56,11 +56,11 @@ Recorded videos and screenshots land in `output/`. Use `npm run show-trace` to i
 
 ## How it works
 
-1. `global-setup.js` spawns `@wp-playground/cli server` on port `127.0.0.1:9400` and writes its PID to `.wp-playground.pid`
+1. `global-setup.js` starts a non-detached `@wp-playground/cli server` on an available CLI port and waits for it to become ready
 2. `recordings/actions-runner.spec.js` reads all `*.json` files from `scripts/` and registers one Playwright test per file
 3. Each test interprets the action list — generic Playwright actions plus WordPress-specific shortcuts — to drive the browser
 4. Playwright captures video (1920×1080), screenshots, and a trace zip per run
-5. `global-teardown.js` kills the Playground process when the run finishes
+5. `global-teardown.js` kills the in-memory Playground child process when the run finishes
 
 ## Project structure
 

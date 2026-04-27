@@ -17,8 +17,9 @@
  */
 
 require('dotenv').config();
+const fs = require('fs');
 const express = require('express');
-const { PUBLIC_DIR, DEFAULT_SERVER_PORT } = require('./src/config');
+const { PUBLIC_DIR, DEFAULT_SERVER_PORT, DEFAULT_BLUEPRINT, GENERATED_BLUEPRINT } = require('./src/config');
 
 const app = express();
 
@@ -35,4 +36,13 @@ require('./src/routes/recordings').register(app);
 require('./src/routes/screencast').register(app);
 
 const PORT = process.env.PORT || DEFAULT_SERVER_PORT;
-app.listen(PORT, () => console.log(`WP Director at http://localhost:${PORT}`));
+app.listen(PORT, () => {
+  console.log(`WP Director at http://localhost:${PORT}`);
+
+  // Pre-warm both Playground slots so the first recording starts immediately
+  // without waiting for a cold boot.
+  const blueprintPath = fs.existsSync(GENERATED_BLUEPRINT) ? GENERATED_BLUEPRINT : DEFAULT_BLUEPRINT;
+  require('./src/playground-server').init(blueprintPath).catch((err) => {
+    console.error('[Playground Pool] Failed to initialise:', err.message);
+  });
+});

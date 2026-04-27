@@ -93,7 +93,7 @@ Defaults are set in `src/config.js`:
 | Variable | Default | Purpose |
 |---|---|---|
 | `PLAYGROUND_PORT` | 9400 | Main WP instance used for recordings |
-| `PREVIEW_PLAYGROUND_PORT` | 9401 | Sandbox instance for blueprint preview |
+| `PREVIEW_PLAYGROUND_PORT` | 9399 | Sandbox instance for blueprint preview |
 | `CHROME_DEBUG_PORT` | 9222 | Chrome remote debugging (live preview) |
 | `PORT` | 3000 | Express UI server (overridable via `PORT` env var) |
 

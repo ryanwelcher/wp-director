@@ -134,6 +134,9 @@ async function runPlaywrightApi({ scripts, port, videoSize, send, doneExtra = {}
 
       const page = await context.newPage();
 
+      // Load the site before starting the screencast so the video does not start with a blank screen.
+      await page.goto( '/' );
+
       // When recording, the screencast we're using for the preview will ALSO create a webm file like output/page@{hash}.webm
       await page.screencast.start({
         onFrame: ({ data }) => send( { type: 'screencast', data: data.toString('base64') } ),

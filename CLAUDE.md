@@ -28,7 +28,7 @@ A local Express server that lets you build step definitions by typing plain Engl
 | `DELETE` | `/api/scripts/:filename` | Deletes a saved step file |
 | `GET` | `/api/default-blueprint` | Returns the contents of `blueprint.json` |
 | `GET` | `/api/current-blueprint` | Returns `blueprint.generated.json` if it exists, else `blueprint.json` (last-used blueprint for UI startup) |
-| `POST` | `/api/preview-blueprint` | Starts a second Playground instance (port 9399) with the given blueprint; returns the preview URL |
+| `POST` | `/api/preview-blueprint` | Starts a second Playground instance (port 9400) with the given blueprint; returns the preview URL |
 | `GET` | `/api/screencast` | SSE stream of live JPEG frames from Chrome via CDP `Page.screencastFrame` |
 
 ### Live preview

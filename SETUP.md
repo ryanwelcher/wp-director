@@ -94,7 +94,7 @@ Defaults are set in `src/config.js`:
 |---|---|---|
 | `RECORDING_PLAYGROUND_PORT_MIN` | 9406 | First port in the server-mode recording pool |
 | `RECORDING_PLAYGROUND_PORT_MAX` | 9410 | Last port in the server-mode recording pool |
-| `PREVIEW_PLAYGROUND_PORT` | 9399 | Sandbox instance for blueprint preview |
+| `PREVIEW_PLAYGROUND_PORT` | 9400 | Sandbox instance for blueprint preview |
 | `CHROME_DEBUG_PORT` | 9222 | Chrome remote debugging (live preview) |
 | `PORT` | 3000 | Express UI server (overridable via `PORT` env var) |
 

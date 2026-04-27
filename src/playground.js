@@ -2,7 +2,7 @@
 
 /**
  * WP Playground process lifecycle — start and stop the local Playground
- * servers used for recording (ports 9406-9410) and preview (port 9399).
+ * servers used for recording (ports 9406-9410) and preview (port 9400).
  *
  * Server mode keeps 2 playground processes alive until it is killed. This is
  * done for performance reasons so that a freshly restarted instance is always
@@ -87,7 +87,7 @@ function startPlayground({ port, blueprintPath, onData = null }) {
 }
 
 /**
- * Stop the preview Playground (port 9399), if running.
+ * Stop the preview Playground (port 9400), if running.
  */
 function killPreviewPlayground() {
   killProcess(previewProc);
@@ -95,7 +95,7 @@ function killPreviewPlayground() {
 }
 
 /**
- * Start the preview Playground on port 9399 (the "Test in Playground"
+ * Start the preview Playground on port 9400 (the "Test in Playground"
  * sandbox). Intentionally does NOT stream logs — preview is a throwaway
  * instance opened in a new tab; its output isn't surfaced in the UI.
  *

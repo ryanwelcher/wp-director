@@ -109,11 +109,30 @@ After navigating to new-post or new-page, always emit \`tryClick\` with selector
 
   All sidebar controls live inside \`[aria-label="Editor settings"]\`. Always scope selectors to this region.
 
-  **Opening a panel's options (⋮) menu** — formula: \`button[aria-label="<Panel> options"]\`
+  **Opening a panel's options (⋮) menu** — use \`wpOpenOptionsMenu\` (NOT \`highlightClick\`):
+  \`{ "action": "wpOpenOptionsMenu", "selector": "button[aria-label=\"<Panel> options\"]" }\`
   Examples: \`button[aria-label="Color options"]\`, \`button[aria-label="Typography options"]\`, \`button[aria-label="Dimensions options"]\`
+  \`wpOpenOptionsMenu\` checks whether the menu is already open and skips the click if it is, preventing the toggle-close problem that occurs when a prior direction left the menu open.
 
   **Enabling a hidden control via the options menu** — formula: \`[role="menuitemcheckbox"][aria-label="Show <Control name>"]\`
-  Most panels use the "Show" prefix. Exception: Color panel uses \`"Text"\` and \`"Background"\` (no "Show") but \`"Show Link"\` for the Link option.
+  Most panels use the "Show" prefix. The Color options menu only has \`"Show Link"\` as a toggleable checkbox — Text and Background color controls are always visible and cannot be hidden via the options menu.
+
+  **Resetting all controls in a panel** — every panel's options menu has a "Reset all" action: \`[role="menuitem"]:has-text("Reset all")\`. This is a \`menuitem\` (not \`menuitemcheckbox\`) — it is a one-shot action, not a toggle. Use \`:has-text()\` not \`[aria-label]\` because the accessible name comes from visible text content, not an aria-label attribute.
+
+  **Enabling multiple controls in the same panel** — the options menu stays open after clicking a \`menuitemcheckbox\` item. When enabling more than one control in the same panel: open the options button ONCE, then click each checkbox in sequence. Do NOT click the options button again between items. Group all of them into a single direction — never split enabling controls from the same panel across multiple directions.
+
+
+  **Color options menu — exact item names** (use these verbatim):
+  - Link color: \`"Show Link"\` (menuitemcheckbox)
+  - There are NO "Text" or "Background" menuitemcheckbox items — those labels belong to the color picker buttons inside the panel itself, not the options menu.
+
+  **Border options menu — exact item names** (use these verbatim):
+  - Border: \`"Show Border"\`
+  - Radius: \`"Show Radius"\` (NOT "Show Border radius" or "Show Border Radius")
+
+  **Dimensions options menu — exact item names** (use these verbatim):
+  - Padding: \`"Show Padding"\`
+  - Margin: \`"Show Margin"\`
 
   **Typography options menu — exact item names** (use these verbatim):
   - Size: always visible, cannot be toggled
@@ -145,6 +164,7 @@ After navigating to new-post or new-page, always emit \`tryClick\` with selector
 
 ### WordPress-specific (prefer these when intent is WordPress-related)
 - tryClick: { "action": "tryClick", "selector": "string", "timeout"?: number } — clicks an element only if it appears within timeout; silently skips if absent. Use for optional UI like welcome dialogs.
+- wpOpenOptionsMenu: { "action": "wpOpenOptionsMenu", "selector": "button[aria-label=\"<Panel> options\"]" } — opens a sidebar panel's options (⋮) menu; skips the click if the menu is already open. ALWAYS use this instead of highlightClick when opening an options menu.
 - wpInstallPlugin: { "action": "wpInstallPlugin", "slug": "plugin-slug", "activate"?: boolean }
 - wpSelectBlock: { "action": "wpSelectBlock", "blockType": "paragraph"|"heading"|"image"|etc, "index"?: number }
 - wpInsertBlock: { "action": "wpInsertBlock", "blockType": "paragraph"|"heading"|"image"|etc, "afterIndex"?: number } — use when user says "type", "insert", "add", "write", or implies a visible on-screen action; types the slash command so it appears in the recording
@@ -179,6 +199,8 @@ After navigating to new-post or new-page, always emit \`tryClick\` with selector
 - To open a registerPlugin sidebar, click button[aria-label="{Sidebar Title}"] directly — do NOT use enableComplementaryArea, which opens the Document tab instead
 - For all inspector sidebar controls (Color, Typography, Dimensions, Spacing, Border, Layout, etc.), always scope selectors to \`[aria-label="Editor settings"]\` and follow the general pattern in the Inspector sidebar section above — do NOT guess CSS class names or data attributes
 - Assume all sidebar controls are already visible — do NOT open a panel's options (⋮) menu as a precaution; only open it when the recording explicitly needs to enable a control that is hidden by default
+- To open any panel's options (⋮) menu, ALWAYS use wpOpenOptionsMenu — never use highlightClick on an options button; highlightClick is a toggle and will close the menu if it is already open
+- When enabling multiple controls from the same panel's options menu, open the options button ONCE and click all menuitemcheckbox items in sequence — never click the options button again between items (it toggles the menu closed); group all of them in one direction
 - Never invent action types — only use the actions listed above
 - Each direction should contain ONLY the actions required to accomplish its stated intent — do NOT add setup steps (opening the sidebar, selecting a block, switching tabs, etc.) that a prior direction may have already handled. Assume the UI is in the state the prior directions left it in. For example, if the user just selected a block, the sidebar is already open on the Block tab — do not emit steps to open Settings or click the Block tab again`;
 

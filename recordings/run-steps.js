@@ -333,6 +333,16 @@ async function runStep(step, page, frameStack, ctx, sidebar) {
       break;
     }
 
+    case 'wpOpenOptionsMenu': {
+      const btn = ctx().locator(step.selector);
+      const expanded = await btn.getAttribute('aria-expanded');
+      if (expanded !== 'true') {
+        await highlightAndClick(page, btn);
+        await page.locator('.components-dropdown-menu__menu[role="menu"]').waitFor({ state: 'visible', timeout: 5_000 });
+      }
+      break;
+    }
+
     default:
       throw new Error(`Unknown action: "${step.action}"`);
   }

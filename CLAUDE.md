@@ -97,8 +97,8 @@ Step definitions live in `steps/*.json`. Each file is one recording:
 | `wpInsertBlockProgrammatic` | `blockType`, `attributes?` | Inserts via `wp.blocks.createBlock` + `wp.data.dispatch`. Invisible but reliable; use for setup steps that don't need to appear on screen. Short names auto-prefixed with `core/`. |
 | `wpDeleteBlock` | `blockType`, `index?` | Selects block, presses Escape to enter block-selection mode, then Backspace to remove |
 | `wpCommandPalette` | `command?` | Opens with `Meta+K`; if `command` is given, types it and presses Enter |
-| `wpSetPostTitle` | `title` | Waits for and fills the post/page title inside the editor iframe — handles frame context internally |
-| `wpSetPostContent` | `content`, `blockType?`, `index?`, `delay?` | Sets content in a block using `fill()`. When `blockType`/`index` are given, targets that block directly (0-based index); otherwise targets the last non-title block. Always replaces existing content. |
+| `wpSetPostTitle` | `title`, `programmatic?`, `delay?` | Slow-types the post/page title inside the editor iframe by default; set `programmatic: true` for instant silent fill. |
+| `wpSetBlockContent` | `content`, `blockType?`, `index?`, `replace?`, `delay?` | Slow-types text into a block. Triple-clicks to replace existing content first (`replace` defaults to `true`); set `replace: false` to append. Targets block by `blockType`/`index` or the last non-title block if omitted. |
 | `wpSiteEditorSave` | — | Clicks Save in the site editor top bar then confirms in the publish panel. |
 | `wpOpenBlockInserter` | — | Toggles the Block Inserter panel open. |
 | `wpInsertBlockFromPanel` | `blockType` | Opens the block inserter, searches by block name, and clicks the matching result. |

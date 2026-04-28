@@ -248,7 +248,7 @@ function describePlain(step) {
     case 'wpDeleteBlock':   return `Delete the ${step.blockType} block`;
     case 'wpCommandPalette':return step.command != null ? `Run command "${step.command}"` : 'Open the command palette';
     case 'wpSetPostTitle':  return `Set the post title to "${step.title}"`;
-    case 'wpSetPostContent':return `Set ${step.blockType ? step.blockType + ' block' : 'block'} content to "${step.content}"`;
+    case 'wpSetBlockContent':return `Set ${step.blockType ? step.blockType + ' block' : 'block'} content to "${step.content}"`;
     default:                return step.action;
   }
 }

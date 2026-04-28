@@ -176,6 +176,27 @@ async function runStep(step, page, frameStack, ctx, sidebar) {
       break;
     }
 
+    case 'wpInstallTheme': {
+      const displayName = step.name ??
+        step.slug.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+      await page.goto('/wp-admin/theme-install.php', { waitUntil: 'domcontentloaded' });
+      const searchInput = page.locator('#wp-filter-search-input');
+      await searchInput.waitFor({ state: 'visible' });
+      await typeSlow(searchInput, step.slug);
+      await page.waitForLoadState('networkidle');
+      const themeInstallBtn = page.locator(`[aria-label="Install ${displayName}"]`);
+      await themeInstallBtn.waitFor({ timeout: 15_000 });
+      await themeInstallBtn.hover();
+      await highlightAndClick(page, themeInstallBtn);
+      const themeActivateBtn = page.locator(`[aria-label="Activate ${displayName}"]`);
+      await themeActivateBtn.waitFor({ timeout: 30_000 });
+      if (step.activate) {
+        await highlightAndClick(page, themeActivateBtn);
+        await page.waitForLoadState('networkidle');
+      }
+      break;
+    }
+
     case 'wpSetPostTitle': {
       const editorFrame = page.frameLocator('iframe[name="editor-canvas"]');
       await editorFrame.locator('.wp-block-post-title').waitFor({ state: 'visible', timeout: 30_000 });

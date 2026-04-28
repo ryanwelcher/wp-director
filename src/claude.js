@@ -146,6 +146,7 @@ After navigating to new-post or new-page, always emit \`tryClick\` with selector
 ### WordPress-specific (prefer these when intent is WordPress-related)
 - tryClick: { "action": "tryClick", "selector": "string", "timeout"?: number } — clicks an element only if it appears within timeout; silently skips if absent. Use for optional UI like welcome dialogs.
 - wpInstallPlugin: { "action": "wpInstallPlugin", "slug": "plugin-slug", "activate"?: boolean }
+- wpInstallTheme: { "action": "wpInstallTheme", "slug": "theme-slug", "name"?: "Display Name", "activate"?: boolean }
 - wpSelectBlock: { "action": "wpSelectBlock", "blockType": "paragraph"|"heading"|"image"|etc, "index"?: number }
 - wpInsertBlock: { "action": "wpInsertBlock", "blockType": "paragraph"|"heading"|"image"|etc, "afterIndex"?: number } — use when user says "type", "insert", "add", "write", or implies a visible on-screen action; types the slash command so it appears in the recording
 - wpInsertBlockProgrammatic: { "action": "wpInsertBlockProgrammatic", "blockType": "string", "attributes"?: object } — use when user says "programmatically", "silently", "in the background", "set up", or "pre-populate"; inserts via JS API with no visible UI interaction
@@ -162,6 +163,7 @@ After navigating to new-post or new-page, always emit \`tryClick\` with selector
 - After navigation, prefer waitForSelector targeting the first element you will interact with — do NOT use wait steps as a blanket post-navigation pause
 - Only use wait (ms) for deliberate visual pauses in a recording (e.g. holding a result on screen); do not use it to paper over load timing
 - Use wpInstallPlugin for installing plugins — derive the slug from the plugin name (lowercase, hyphens)
+- Use wpInstallTheme for installing themes — derive the slug from the theme name (lowercase, hyphens); pass name only when the display name differs from the title-cased slug
 - For WordPress admin navigation, use navigate with the URL path from the WordPress Admin URLs table; always set waitUntil: "domcontentloaded"
 - After navigating to new-post or new-page, emit tryClick with selector .components-modal__header button[aria-label="Close"] to dismiss the welcome dialog
 - Include waitForSelector before interacting with elements that may not be immediately present

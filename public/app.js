@@ -532,11 +532,11 @@ function renderBlueprint() {
  * @param {string} msg
  * @param {boolean} [isError]
  */
-function setStatus(el, msg, isError = false) {
+function setStatus(el, msg, isError = false, persist = false) {
   el.textContent = msg;
   el.className = 'status' + (isError ? ' error' : '');
   el.classList.remove('hidden');
-  if (!isError) setTimeout(() => el.classList.add('hidden'), 3000);
+  if (!isError && !persist) setTimeout(() => el.classList.add('hidden'), 3000);
 }
 
 // ── JSON edit handlers ────────────────────────────────────────────────────────
@@ -604,7 +604,7 @@ async function addCommand() {
 
   addBtn.disabled = true;
   commandInput.disabled = true;
-  setStatus(statusEl, 'Translating…');
+  setStatus(statusEl, 'Translating…', false, true);
 
   try {
     const flatHistory = directions.flatMap(g => g.actions ?? []);

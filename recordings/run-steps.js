@@ -178,14 +178,18 @@ async function runStep(step, page, frameStack, ctx, sidebar) {
 
     case 'wpSetPostTitle': {
       const editorFrame = page.frameLocator('iframe[name="editor-canvas"]');
-      await editorFrame.locator('.wp-block-post-title').waitFor({ state: 'visible', timeout: 30_000 });
-      await editorFrame.locator('.wp-block-post-title').click();
-      await editorFrame.locator('.wp-block-post-title').fill(step.title);
+      const titleLocator = editorFrame.locator('.wp-block-post-title');
+      await titleLocator.waitFor({ state: 'visible', timeout: 30_000 });
+      if (step.programmatic) {
+        await titleLocator.fill(step.title);
+      } else {
+        await typeSlow(titleLocator, step.title, step.delay ?? 100);
+      }
       await page.waitForTimeout(300);
       break;
     }
 
-    case 'wpSetPostContent': {
+    case 'wpSetBlockContent': {
       const editorFrame = page.frameLocator('iframe[name="editor-canvas"]');
       await editorFrame.locator('.wp-block-post-title').waitFor({ state: 'visible', timeout: 30_000 });
       let targetLocator;
@@ -198,7 +202,11 @@ async function runStep(step, page, frameStack, ctx, sidebar) {
         targetLocator = editorFrame.locator('[contenteditable="true"]:not(.wp-block-post-title)').last();
       }
       await targetLocator.waitFor({ state: 'visible', timeout: 10_000 });
-      await targetLocator.fill(step.content);
+      const replace = step.replace !== false;
+      const delay = step.delay ?? 100;
+      await targetLocator.scrollIntoViewIfNeeded();
+      await targetLocator.click({ clickCount: replace ? 3 : 1 });
+      await targetLocator.pressSequentially(step.content, { delay });
       await page.waitForTimeout(300);
       break;
     }

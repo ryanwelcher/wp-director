@@ -150,8 +150,8 @@ After navigating to new-post or new-page, always emit \`tryClick\` with selector
 - wpInsertBlock: { "action": "wpInsertBlock", "blockType": "paragraph"|"heading"|"image"|etc, "afterIndex"?: number } — use when user says "type", "insert", "add", "write", or implies a visible on-screen action; types the slash command so it appears in the recording
 - wpInsertBlockProgrammatic: { "action": "wpInsertBlockProgrammatic", "blockType": "string", "attributes"?: object } — use when user says "programmatically", "silently", "in the background", "set up", or "pre-populate"; inserts via JS API with no visible UI interaction
 - wpDeleteBlock: { "action": "wpDeleteBlock", "blockType": "paragraph"|"heading"|"image"|etc, "index"?: number }
-- wpSetPostTitle: { "action": "wpSetPostTitle", "title": "string" }
-- wpSetPostContent: { "action": "wpSetPostContent", "content": "string", "blockType"?: "heading"|"paragraph"|etc, "index"?: number, "replace"?: boolean, "delay"?: number } — types into a block; when blockType is given, targets that specific block by index (0-based); replace defaults to true (triple-click to select all existing text first); set replace:false to append
+- wpSetPostTitle: { "action": "wpSetPostTitle", "title": "string", "programmatic"?: boolean, "delay"?: number } — default slow-types the title; add programmatic:true to set it instantly with no visible typing
+- wpSetBlockContent: { "action": "wpSetBlockContent", "content": "string", "blockType"?: "heading"|"paragraph"|etc, "index"?: number, "replace"?: boolean, "delay"?: number } — types into a block; when blockType is given, targets that specific block by index (0-based); replace defaults to true (triple-click to select all existing text first); set replace:false to append
 - wpSiteEditorSave: { "action": "wpSiteEditorSave" } — clicks Save in the site editor top bar, then confirms in the publish panel
 - wpInsertBlockFromPanel: { "action": "wpInsertBlockFromPanel", "blockType": "string" } — opens the inserter, searches by name, and clicks the matching block option
 - wpInspectorPanel: { "action": "wpInspectorPanel", "panel": "string" } — opens a collapsible panel in the inspector sidebar by name (e.g. "Categories", "Tags", "Featured image", "Permalink", "Excerpt", "Status and Visibility"); opens the sidebar automatically if needed
@@ -167,9 +167,9 @@ After navigating to new-post or new-page, always emit \`tryClick\` with selector
 - Include waitForSelector before interacting with elements that may not be immediately present
 - When entering the block editor, frameLocator to 'iframe[name="editor-canvas"]' MUST come first — before any waitForSelector, click, fill, or type that targets editor content. exitFrame after.
 - To insert a block, choose based on user intent: use wpInsertBlock (slash-command UI) when the user says "type", "insert", "add", "write", or implies a visible on-screen action; use wpInsertBlockProgrammatic when the user says "programmatically", "silently", "in the background", "set up", or "pre-populate" — invisible, no UI interaction shown in the recording
-- To set the post/page title, always use wpSetPostTitle — never manually frameLocator + click/fill the title field
-- To update/replace content of a specific block, use wpSetPostContent with blockType and index — do NOT use wpSelectBlock followed by wpSetPostContent
-- To set/replace/update block content, use wpSetPostContent — it triple-clicks to select all existing text first (replace:true by default); only pass replace:false when the intent is to append
+- To set the post/page title, always use wpSetPostTitle — never manually frameLocator + click/fill the title field; default to slow-type (visible); add programmatic:true when the user says "programmatically", "silently", "in the background", "set up", or "pre-populate"
+- To update/replace content of a specific block, use wpSetBlockContent with blockType and index — do NOT use wpSelectBlock followed by wpSetBlockContent
+- To set/replace/update block content, use wpSetBlockContent — it triple-clicks to select all existing text first (replace:true by default); only pass replace:false when the intent is to append
 - To save changes in the site editor, use wpSiteEditorSave — do NOT use generic click on the Save button
 - To click admin sidebar items by label, use highlightClick with selector #adminmenu a:has-text("<Label>"); follow with waitForSelector on a landmark element of the destination page
 - To interact with block formatting toolbar (Bold, Italic, alignment, etc.), use highlightClick with selector [role="toolbar"][aria-label="Block tools"] button[aria-label="<ButtonName>"]

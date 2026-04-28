@@ -158,18 +158,19 @@ async function runStep(step, page, frameStack, ctx, sidebar) {
 
     case 'wpInstallPlugin': {
       await page.goto('/wp-admin/plugin-install.php', { waitUntil: 'domcontentloaded' });
-      await page.waitForTimeout(500);
-      await page.locator('#search-plugins').fill(step.slug);
-      await page.keyboard.press('Enter');
+      const pluginSearchInput = page.locator('#search-plugins');
+      await pluginSearchInput.waitFor({ state: 'visible' });
+      await typeSlow(pluginSearchInput, step.slug);
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(800);
       const installBtn = page.locator(`.plugin-card-${step.slug} .install-now`);
       await installBtn.waitFor({ timeout: 15_000 });
-      await installBtn.click();
-      await page.locator(`.plugin-card-${step.slug} .activate-now`).waitFor({ timeout: 30_000 });
+      await highlightAndClick(page, installBtn);
+      const activateBtn = page.locator(`.plugin-card-${step.slug} .activate-now`);
+      await activateBtn.waitFor({ timeout: 30_000 });
       await page.waitForTimeout(600);
       if (step.activate) {
-        await page.locator(`.plugin-card-${step.slug} .activate-now`).click();
+        await highlightAndClick(page, activateBtn);
         await page.waitForLoadState('networkidle');
         await page.waitForTimeout(800);
       }

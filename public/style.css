@@ -265,6 +265,30 @@ header p {
 #step-list li.direction-group.always-run { border-left: 3px solid #f59e0b; }
 #step-list li.direction-group.always-run .direction-pin-btn { color: #f59e0b; }
 #step-list li.direction-group.skipped.always-run { opacity: 1; }
+#step-list li.direction-group.active-step {
+  border-color: #6366f1;
+  background: #1e1f3b;
+  box-shadow: 0 0 0 2px rgba(99,102,241,0.35);
+}
+#step-list li.direction-group.active-step .index {
+  position: relative;
+  color: transparent;
+}
+#step-list li.direction-group.active-step .index::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 6px;
+  height: 6px;
+  background: #818cf8;
+  border-radius: 50%;
+  animation: step-pulse 1s ease-in-out infinite;
+}
+@keyframes step-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.7); }
+}
 
 .direction-start-btn,
 .direction-pin-btn,

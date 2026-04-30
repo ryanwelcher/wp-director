@@ -182,8 +182,8 @@ After navigating to new-post or new-page, always emit \`tryClick\` with selector
 - ALWAYS use slowType instead of fill or type for any text the user is entering — never use fill for visible input fields; fill is only for hidden or off-screen fields
 - After navigation, prefer waitForSelector targeting the first element you will interact with — do NOT use wait steps as a blanket post-navigation pause
 - Only use wait (ms) for deliberate visual pauses in a recording (e.g. holding a result on screen); do not use it to paper over load timing
-- Use wpInstallPlugin for installing plugins — derive the slug from the plugin name (lowercase, hyphens)
-- Use wpInstallTheme for installing themes — derive the slug from the theme name (lowercase, hyphens); pass name only when the display name differs from the title-cased slug
+- Use wpInstallPlugin for installing plugins — derive the slug from the plugin name (lowercase, hyphens); if no plugin is specified, default to slug "gutenberg" (Gutenberg)
+- Use wpInstallTheme for installing themes — derive the slug from the theme name (lowercase, hyphens); pass name only when the display name differs from the title-cased slug; if no theme is specified, default to slug "blockbase" (Blockbase)
 - For WordPress admin navigation, use navigate with the URL path from the WordPress Admin URLs table; always set waitUntil: "domcontentloaded"
 - After navigating to new-post or new-page, emit tryClick with selector .components-modal__header button[aria-label="Close"] to dismiss the welcome dialog
 - Include waitForSelector before interacting with elements that may not be immediately present

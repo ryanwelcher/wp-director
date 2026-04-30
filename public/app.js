@@ -200,6 +200,8 @@ let savedScripts = [];
 let libraryEntries = [];
 /** @type {number|null} Index into directions[] from which Preview will start; null = run all */
 let startFromIndex = null;
+/** @type {Set<number>} Indices of steps that always run even when earlier steps are skipped (session-only, not persisted) */
+let alwaysRunIndices = new Set();
 
 // ── Step descriptions ─────────────────────────────────────────────────────────
 const WP_SCREENS = {
@@ -448,7 +450,7 @@ function renderDirectionList() {
     li.draggable = true;
 
     const isStartFrom = startFromIndex === i;
-    const isAlwaysRun = !!group.alwaysRun;
+    const isAlwaysRun = alwaysRunIndices.has(i);
     const isSkipped   = startFromIndex !== null && i < startFromIndex && !isAlwaysRun;
     if (isStartFrom)  li.classList.add('start-from');
     if (isSkipped)    li.classList.add('skipped');
@@ -478,7 +480,8 @@ function renderDirectionList() {
 
     li.querySelector('.direction-pin-btn').addEventListener('click', (e) => {
       e.stopPropagation();
-      directions[i].alwaysRun = !directions[i].alwaysRun;
+      if (alwaysRunIndices.has(i)) alwaysRunIndices.delete(i);
+      else alwaysRunIndices.add(i);
       renderDirectionList();
     });
 
@@ -541,7 +544,14 @@ function renderDirectionList() {
  */
 function directionsForJSON() {
   // eslint-disable-next-line no-unused-vars
-  return directions.map(({ _open, _fromDirection, ...rest }) => rest);
+  return directions.map(({ _open, _fromDirection, alwaysRun: _alwaysRun, ...rest }) => rest);
+}
+
+/** Like directionsForJSON but re-injects alwaysRun from session state for run/preview calls. */
+function directionsForRun() {
+  return directionsForJSON().map((d, i) =>
+    alwaysRunIndices.has(i) ? { ...d, alwaysRun: true } : d
+  );
 }
 
 /**
@@ -852,7 +862,7 @@ async function runActions() {
     fetch('/api/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, actions: directionsForJSON(), blueprint, videoSize: getVideoSize(), endPause: getEndPause() }),
+      body: JSON.stringify({ name, actions: directionsForRun(), blueprint, videoSize: getVideoSize(), endPause: getEndPause() }),
     }),
     { onDone: (msg) => { if (!msg.stopped) loadRecordings(); } }
   );
@@ -864,7 +874,7 @@ async function runActions() {
  */
 async function runPreview() {
   const name = nameInput.value.trim() || `preview-${Date.now()}`;
-  const body = { name, actions: directionsForJSON(), blueprint, videoSize: null, preview: true };
+  const body = { name, actions: directionsForRun(), blueprint, videoSize: null, preview: true };
   if (startFromIndex !== null && startFromIndex > 0) body.startFrom = startFromIndex;
   await streamRun(
     fetch('/api/run', {
@@ -942,6 +952,8 @@ function renderSavedScripts(recordings) {
       const recording = savedScripts.find(s => s.name === name);
       if (!recording) return;
       directions = normalizeActions(recording.directions ?? recording.actions ?? recording.steps ?? []);
+      startFromIndex = null;
+      alwaysRunIndices = new Set();
       nameInput.value = recording.name;
       const secs = ((recording.endPause ?? 2000) / 1000).toString();
       endPauseInput.value = secs;

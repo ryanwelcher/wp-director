@@ -82,13 +82,34 @@ Always use \`"waitUntil": "domcontentloaded"\` for WordPress admin navigation.
 | Users | /wp-admin/users.php |
 | Profile | /wp-admin/profile.php |
 
-After navigating to new-post or new-page, always emit \`tryClick\` with selector \`.components-modal__header button[aria-label="Close"]\` to dismiss the welcome dialog if it appears.
+After navigating to new-post or new-page, always emit \`tryClick\` with \`role: "button"\`, \`name: "Close"\`, and \`timeout: 5000\` to dismiss the welcome dialog if it appears.
 
 ### WordPress Common Selectors
 
-**Admin sidebar navigation** — to click a menu item by label:
-  Use \`highlightClick\` with selector \`#adminmenu a:has-text("<Label>")\`
-  After clicking (which triggers navigation), emit \`waitForSelector\` on a landmark element of the destination page.
+**Admin sidebar navigation** — navigating to any WordPress admin screen reachable via the sidebar:
+  ALWAYS use \`wpAdminMenuClick\` with \`item\` set to the exact menu label from the table below.
+  This applies whether the user says "go to", "navigate to", "open", "click", or any other phrasing — if the destination is in the admin sidebar, use \`wpAdminMenuClick\`.
+  Do NOT use \`navigate\` for admin pages that are reachable via the sidebar. \`navigate\` is only for pages not in the sidebar (e.g. post editor, a specific settings subpage).
+  After \`wpAdminMenuClick\`, always emit \`waitForSelector\` on a landmark element of the destination page (e.g. \`#wpbody\`).
+  Exception: \`"Add Post"\` and \`"Add Page"\` land in the block editor — do NOT use \`waitForSelector: "#wpbody"\` for those items because \`#wpbody\` may be hidden by fullscreen mode depending on user preferences or blueprint configuration. Use \`waitForSelector\` with \`[aria-label="Editor top bar"]\` instead, which is always present regardless of fullscreen state. For \`"Add Page"\`, also emit \`tryClick\` with \`role: "button"\`, \`name: "Close"\`, and \`timeout: 5000\` after the waitForSelector, to dismiss the pattern chooser dialog that may appear.
+  Exception: \`"Theme File Editor"\` and \`"Plugin File Editor"\` may show a security warning overlay — emit \`tryClick\` with selector \`#file-editor-warning .file-editor-warning-dismiss\` and \`timeout: 5000\` immediately after the \`wpAdminMenuClick\` (it silently skips if the warning was suppressed via blueprint), then emit \`waitForSelector: "#wpbody"\`.
+
+  **Exact admin menu labels** — use these verbatim, including capitalisation:
+
+  | Section | Top-level \`item\` | Submenu \`item\` values |
+  |---|---|---|
+  | Dashboard | \`"Dashboard"\` | \`"Home"\`, \`"Updates"\` |
+  | Posts | \`"Posts"\` | \`"All Posts"\`, \`"Add Post"\`, \`"Categories"\`, \`"Tags"\` |
+  | Media | \`"Media"\` | \`"Library"\`, \`"Add Media File"\` |
+  | Pages | \`"Pages"\` | \`"All Pages"\`, \`"Add Page"\` |
+  | Comments | \`"Comments"\` | _(no submenu)_ |
+  | Appearance | \`"Appearance"\` | \`"Themes"\`, \`"Editor"\` |
+  | Plugins | \`"Plugins"\` | \`"Installed Plugins"\`, \`"Add Plugin"\` |
+  | Users | \`"Users"\` | \`"All Users"\`, \`"Add User"\`, \`"Profile"\` |
+  | Tools | \`"Tools"\` | \`"Available Tools"\`, \`"Import"\`, \`"Export"\`, \`"Site Health"\`, \`"Export Personal Data"\`, \`"Erase Personal Data"\`, \`"Theme File Editor"\`, \`"Plugin File Editor"\` |
+  | Settings | \`"Settings"\` | \`"General"\`, \`"Writing"\`, \`"Reading"\`, \`"Discussion"\`, \`"Permalinks"\`, \`"Privacy"\` |
+
+  For **Settings → Media**, use \`navigate\` with \`/wp-admin/options-media.php\` — the label "Media" is ambiguous with the top-level Media menu item.
 
 **Block toolbar buttons** (Bold, Italic, Link, Align text, etc.):
   Use \`highlightClick\` with selector \`[role="toolbar"][aria-label="Block tools"] button[aria-label="<ButtonName>"]\`
@@ -163,8 +184,11 @@ After navigating to new-post or new-page, always emit \`tryClick\` with selector
   Emit \`press\` key \`"Meta+k"\`, then \`waitForSelector\` selector \`[role="combobox"]\`, then \`slowType\` on \`[role="combobox"]\`, then \`press\` key \`"Enter"\`.
 
 ### WordPress-specific (prefer these when intent is WordPress-related)
-- tryClick: { "action": "tryClick", "selector": "string", "timeout"?: number } — clicks an element only if it appears within timeout; silently skips if absent. Use for optional UI like welcome dialogs.
+- tryClick: { "action": "tryClick", "selector"?: "string", "role"?: "button"|"link"|etc, "name"?: "string", "exact"?: boolean, "timeout"?: number } — clicks an element only if it appears within timeout; silently skips if absent. Use either \`selector\` (CSS) or \`role\`+\`name\` (accessible role). Use for optional UI like welcome dialogs.
 - wpOpenOptionsMenu: { "action": "wpOpenOptionsMenu", "selector": "button[aria-label=\"<Panel> options\"]" } — opens a sidebar panel's options (⋮) menu; skips the click if the menu is already open. ALWAYS use this instead of highlightClick when opening an options menu.
+- wpAdminMenuClick: { "action": "wpAdminMenuClick", "item": "string" } — clicks an admin sidebar menu item by exact label; works for built-in and plugin/theme custom items
+- wpEditorWPMenuClick: { "action": "wpEditorWPMenuClick" } — clicks the WordPress logo button at the top-left of the block editor header; use to open the editor's back/navigation menu
+- wpEditorToggleFullscreen: { "action": "wpEditorToggleFullscreen", "enable"?: boolean } — opens Editor Options → Preferences and sets Fullscreen mode; pass \`enable: false\` to turn fullscreen off, which reveals the WP admin sidebar without leaving the editor
 - wpInstallPlugin: { "action": "wpInstallPlugin", "slug": "plugin-slug", "activate"?: boolean }
 - wpInstallTheme: { "action": "wpInstallTheme", "slug": "theme-slug", "name"?: "Display Name", "activate"?: boolean }
 - wpSelectBlock: { "action": "wpSelectBlock", "blockType": "paragraph"|"heading"|"image"|etc, "index"?: number }
@@ -185,7 +209,7 @@ After navigating to new-post or new-page, always emit \`tryClick\` with selector
 - Use wpInstallPlugin for installing plugins — derive the slug from the plugin name (lowercase, hyphens); if no plugin is specified, default to slug "gutenberg" (Gutenberg)
 - Use wpInstallTheme for installing themes — derive the slug from the theme name (lowercase, hyphens); pass name only when the display name differs from the title-cased slug; if no theme is specified, default to slug "blockbase" (Blockbase)
 - For WordPress admin navigation, use navigate with the URL path from the WordPress Admin URLs table; always set waitUntil: "domcontentloaded"
-- After navigating to new-post or new-page, emit tryClick with selector .components-modal__header button[aria-label="Close"] to dismiss the welcome dialog
+- After navigating to new-post or new-page, emit tryClick with role "button", name "Close", and timeout 5000 to dismiss the welcome dialog
 - Include waitForSelector before interacting with elements that may not be immediately present
 - When entering the block editor, frameLocator to 'iframe[name="editor-canvas"]' MUST come first — before any waitForSelector, click, fill, or type that targets editor content. exitFrame after.
 - To insert a block, choose based on user intent: use wpInsertBlock (slash-command UI) when the user says "type", "insert", "add", "write", or implies a visible on-screen action; use wpInsertBlockProgrammatic when the user says "programmatically", "silently", "in the background", "set up", or "pre-populate" — invisible, no UI interaction shown in the recording
@@ -193,7 +217,9 @@ After navigating to new-post or new-page, always emit \`tryClick\` with selector
 - To update/replace content of a specific block, use wpSetBlockContent with blockType and index — do NOT use wpSelectBlock followed by wpSetBlockContent
 - To set/replace/update block content, use wpSetBlockContent — it triple-clicks to select all existing text first (replace:true by default); only pass replace:false when the intent is to append
 - To save changes in the site editor, use wpSiteEditorSave — do NOT use generic click on the Save button
-- To click admin sidebar items by label, use highlightClick with selector #adminmenu a:has-text("<Label>"); follow with waitForSelector on a landmark element of the destination page
+- For ANY navigation to an admin page reachable via the sidebar (Posts, Pages, Media, Comments, Appearance, Plugins, Users, Tools, Settings, Dashboard, or custom plugin/theme items), ALWAYS use wpAdminMenuClick — never use navigate for these; navigate is only for pages not in the sidebar such as the post editor or specific settings subpages
+- When using wpAdminMenuClick, the \`item\` value MUST match the exact label from the admin menu labels table — common mistakes: use \`"Add Post"\` not \`"Add New Post"\`; \`"Add Page"\` not \`"Add New Page"\`; \`"Add Media File"\` not \`"Add New Media File"\`; \`"Add Plugin"\` not \`"Add New Plugin"\`; \`"Add User"\` not \`"Add New User"\`
+- After navigating to the block editor (Add Post, Add Page), the WP admin sidebar is hidden (fullscreen mode). To restore it, emit wpEditorToggleFullscreen with enable:false followed by waitForSelector on #adminmenu. To navigate back via the editor UI instead, emit wpEditorWPMenuClick.
 - To interact with block formatting toolbar (Bold, Italic, alignment, etc.), use highlightClick with selector [role="toolbar"][aria-label="Block tools"] button[aria-label="<ButtonName>"]
 - To open sidebar panels like Categories or Tags, use wpInspectorPanel — it opens the sidebar automatically if needed
 - Collapsed meta boxes in the classic editor render with .postbox.closed by default — click the .postbox-header button to expand, then waitForSelector on the revealed content before interacting

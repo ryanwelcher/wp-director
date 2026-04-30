@@ -363,6 +363,18 @@ async function runStep(step, page, frameStack, ctx, sidebar) {
       break;
     }
 
+    case 'wpAdminMenuClick': {
+      // Target .wp-menu-name span to match only the label text, ignoring update
+      // count badges (e.g. "Plugins 2") that would break an exact accessible-name match.
+      const menuLink = page
+        .locator('#adminmenu > li')
+        .filter({ has: page.locator(`.wp-menu-name:text-is("${step.item}")`) })
+        .locator('> a')
+        .first();
+      await highlightAndClick(page, menuLink);
+      break;
+    }
+
     case 'wpOpenOptionsMenu': {
       const btn = ctx().locator(step.selector);
       const expanded = await btn.getAttribute('aria-expanded');

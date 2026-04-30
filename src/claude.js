@@ -86,9 +86,11 @@ After navigating to new-post or new-page, always emit \`tryClick\` with selector
 
 ### WordPress Common Selectors
 
-**Admin sidebar navigation** — to click a menu item by label:
-  Use \`highlightClick\` with selector \`#adminmenu a:has-text("<Label>")\`
-  After clicking (which triggers navigation), emit \`waitForSelector\` on a landmark element of the destination page.
+**Admin sidebar navigation** — navigating to any WordPress admin screen reachable via the sidebar:
+  ALWAYS use \`wpAdminMenuClick\` with \`item\` set to the exact menu label (e.g. \`"Posts"\`, \`"Appearance"\`, \`"Settings"\`, \`"Plugins"\`, \`"Users"\`, \`"Tools"\`, \`"Dashboard"\`, \`"Media"\`, \`"Pages"\`, \`"Comments"\`).
+  This applies whether the user says "go to", "navigate to", "open", "click", or any other phrasing — if the destination is in the admin sidebar, use \`wpAdminMenuClick\`.
+  Do NOT use \`navigate\` for admin pages that are reachable via the sidebar. \`navigate\` is only for pages not in the sidebar (e.g. post editor, a specific settings subpage).
+  After \`wpAdminMenuClick\`, always emit \`waitForSelector\` on a landmark element of the destination page (e.g. \`#wpbody\`).
 
 **Block toolbar buttons** (Bold, Italic, Link, Align text, etc.):
   Use \`highlightClick\` with selector \`[role="toolbar"][aria-label="Block tools"] button[aria-label="<ButtonName>"]\`
@@ -165,6 +167,7 @@ After navigating to new-post or new-page, always emit \`tryClick\` with selector
 ### WordPress-specific (prefer these when intent is WordPress-related)
 - tryClick: { "action": "tryClick", "selector": "string", "timeout"?: number } — clicks an element only if it appears within timeout; silently skips if absent. Use for optional UI like welcome dialogs.
 - wpOpenOptionsMenu: { "action": "wpOpenOptionsMenu", "selector": "button[aria-label=\"<Panel> options\"]" } — opens a sidebar panel's options (⋮) menu; skips the click if the menu is already open. ALWAYS use this instead of highlightClick when opening an options menu.
+- wpAdminMenuClick: { "action": "wpAdminMenuClick", "item": "string" } — clicks an admin sidebar menu item by exact label; works for built-in and plugin/theme custom items
 - wpInstallPlugin: { "action": "wpInstallPlugin", "slug": "plugin-slug", "activate"?: boolean }
 - wpInstallTheme: { "action": "wpInstallTheme", "slug": "theme-slug", "name"?: "Display Name", "activate"?: boolean }
 - wpSelectBlock: { "action": "wpSelectBlock", "blockType": "paragraph"|"heading"|"image"|etc, "index"?: number }
@@ -193,7 +196,7 @@ After navigating to new-post or new-page, always emit \`tryClick\` with selector
 - To update/replace content of a specific block, use wpSetBlockContent with blockType and index — do NOT use wpSelectBlock followed by wpSetBlockContent
 - To set/replace/update block content, use wpSetBlockContent — it triple-clicks to select all existing text first (replace:true by default); only pass replace:false when the intent is to append
 - To save changes in the site editor, use wpSiteEditorSave — do NOT use generic click on the Save button
-- To click admin sidebar items by label, use highlightClick with selector #adminmenu a:has-text("<Label>"); follow with waitForSelector on a landmark element of the destination page
+- For ANY navigation to an admin page reachable via the sidebar (Posts, Pages, Media, Comments, Appearance, Plugins, Users, Tools, Settings, Dashboard, or custom plugin/theme items), ALWAYS use wpAdminMenuClick — never use navigate for these; navigate is only for pages not in the sidebar such as the post editor or specific settings subpages
 - To interact with block formatting toolbar (Bold, Italic, alignment, etc.), use highlightClick with selector [role="toolbar"][aria-label="Block tools"] button[aria-label="<ButtonName>"]
 - To open sidebar panels like Categories or Tags, use wpInspectorPanel — it opens the sidebar automatically if needed
 - Collapsed meta boxes in the classic editor render with .postbox.closed by default — click the .postbox-header button to expand, then waitForSelector on the revealed content before interacting

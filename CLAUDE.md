@@ -102,7 +102,7 @@ Step definitions live in `steps/*.json`. Each file is one recording:
 | `wpSiteEditorSave` | — | Clicks Save in the site editor top bar then confirms in the publish panel. |
 | `wpOpenBlockInserter` | — | Toggles the Block Inserter panel open. |
 | `wpInsertBlockFromPanel` | `blockType` | Opens the block inserter, searches by block name, and clicks the matching result. |
-| `wpAdminMenuClick` | `item` | Clicks an admin sidebar link whose text matches `item` (e.g. `"Appearance"`, `"Plugins"`). |
+| `wpAdminMenuClick` | `item` | Clicks an admin sidebar menu item by exact label (e.g. `"Posts"`, `"Appearance"`, `"Settings"`). Uses `getByRole('link', { name: item, exact: true })` scoped to `#adminmenu` — works for built-in and custom plugin/theme items. |
 | `wpBlockToolbar` | `button` | Clicks a button in the block tools toolbar by accessible name (e.g. `"Bold"`, `"Italic"`, `"Align text"`). |
 | `wpToggleInspector` | — | Toggles the Settings/Inspector sidebar open or closed. |
 | `wpInspectorTab` | `tab` | Switches the inspector sidebar tab: `"Post"`, `"Block"`, or `"Styles"`. |

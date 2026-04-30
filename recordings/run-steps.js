@@ -402,7 +402,12 @@ async function runSteps(page, def, runner = null) {
   const sidebar = page.getByRole('region', { name: 'Editor settings' });
 
   // Support both grouped format ({ label, actions[] }) and legacy flat/steps format
-  const rawActions = def.actions ?? def.steps ?? [];
+  let rawActions = def.actions ?? def.steps ?? [];
+  if (def.startFrom != null && def.startFrom > 0) {
+    const pinned   = rawActions.slice(0, def.startFrom).filter(g => g.alwaysRun);
+    const fromHere = rawActions.slice(def.startFrom);
+    rawActions = [...pinned, ...fromHere];
+  }
   const flatActions = rawActions.flatMap(s => s.actions ?? s.steps ?? [s]);
 
   for (const step of flatActions) {

@@ -198,6 +198,8 @@ let lastScreencastVideoUri = '';
 let savedScripts = [];
 /** @type {Array<{name: string, filename: string, actionCount: number, builtin: boolean}>} */
 let libraryEntries = [];
+/** @type {number|null} Index into directions[] from which Preview will start; null = run all */
+let startFromIndex = null;
 
 // ── Step descriptions ─────────────────────────────────────────────────────────
 const WP_SCREENS = {
@@ -274,6 +276,76 @@ let activePicker = null;
 /** Remove the floating direction picker from the DOM and clear `activePicker`. */
 function closeDirectionPicker() {
   if (activePicker) { activePicker.remove(); activePicker = null; }
+}
+
+// ── Step overflow menu ────────────────────────────────────────────────────────
+/** @type {HTMLElement|null} */
+let activeStepMenu = null;
+
+function closeStepMenu() {
+  if (activeStepMenu) { activeStepMenu.remove(); activeStepMenu = null; }
+}
+
+/**
+ * Show the floating overflow menu for a direction group.
+ * Contains: expand/collapse, insert direction, save as direction, delete.
+ */
+function showStepMenu(groupIndex, anchorEl) {
+  closeStepMenu();
+  closeDirectionPicker();
+
+  const group = directions[groupIndex];
+  const isOpen = !!group._open;
+
+  const menu = document.createElement('div');
+  menu.className = 'direction-menu';
+  menu.innerHTML = `
+    <button class="direction-menu-item direction-menu-toggle">
+      ${isOpen ? '&#9650; Hide steps' : '&#9660; Show steps'}
+    </button>
+    <button class="direction-menu-item direction-menu-insert">&#43; Insert direction</button>
+    ${!group._fromDirection ? '<button class="direction-menu-item direction-menu-save">&#128190; Save direction</button>' : ''}
+    <div class="direction-menu-divider"></div>
+    <button class="direction-menu-item direction-menu-item--danger direction-menu-delete">&#10005; Delete step</button>
+  `;
+
+  menu.querySelector('.direction-menu-toggle').addEventListener('click', (e) => {
+    e.stopPropagation();
+    directions[groupIndex]._open = !directions[groupIndex]._open;
+    closeStepMenu();
+    renderDirectionList();
+  });
+
+  menu.querySelector('.direction-menu-insert').addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeStepMenu();
+    showDirectionPicker(groupIndex, anchorEl);
+  });
+
+  menu.querySelector('.direction-menu-save')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    saveDirection(groupIndex);
+    closeStepMenu();
+  });
+
+  menu.querySelector('.direction-menu-delete').addEventListener('click', (e) => {
+    e.stopPropagation();
+    directions.splice(groupIndex, 1);
+    closeStepMenu();
+    renderDirections();
+  });
+
+  document.body.appendChild(menu);
+
+  const rect = anchorEl.getBoundingClientRect();
+  const menuW = 200;
+  let left = rect.right + window.scrollX - menuW;
+  if (left < 8) left = 8;
+  menu.style.top = `${rect.bottom + window.scrollY + 4}px`;
+  menu.style.left = `${left}px`;
+
+  activeStepMenu = menu;
+  setTimeout(() => document.addEventListener('click', closeStepMenu, { once: true }), 0);
 }
 
 /**
@@ -361,6 +433,7 @@ function renderDirectionList() {
   stepList.innerHTML = '';
   emptyHint.style.display = directions.length ? 'none' : '';
   recordBtn.disabled = directions.length === 0;
+  recordBtn.title = startFromIndex !== null ? 'Record full script (preview start point ignored)' : 'Record';
   previewBtn.disabled = directions.length === 0;
   saveBtn.disabled = directions.length === 0;
   exportTxtBtn.disabled = directions.length === 0;
@@ -374,6 +447,13 @@ function renderDirectionList() {
     li.className = 'direction-group';
     li.draggable = true;
 
+    const isStartFrom = startFromIndex === i;
+    const isAlwaysRun = !!group.alwaysRun;
+    const isSkipped   = startFromIndex !== null && i < startFromIndex && !isAlwaysRun;
+    if (isStartFrom)  li.classList.add('start-from');
+    if (isSkipped)    li.classList.add('skipped');
+    if (isAlwaysRun)  li.classList.add('always-run');
+
     const innerHTML = isOpen && innerActions.length > 0
       ? `<ul class="direction-inner-list">${innerActions.map(s => `<li class="direction-inner-item">${ea(describePlain(s))}</li>`).join('')}</ul>`
       : '';
@@ -383,34 +463,28 @@ function renderDirectionList() {
         <span class="drag-handle" title="Drag to reorder">⠿</span>
         <span class="index">${i + 1}</span>
         <input class="direction-label-input" data-group="${i}" value="${ea(group.label)}" title="Edit label">
-        <button class="direction-toggle" aria-expanded="${isOpen}" title="${isOpen ? 'Collapse' : 'Expand'} Playwright steps">${isOpen ? '▼' : '▶'}</button>
-        <button class="direction-insert" title="Insert direction">+</button>
-        ${!group._fromDirection ? '<button class="direction-save" title="Save as direction">&#128204;</button>' : ''}
-        <button class="direction-delete" title="Delete step">✕</button>
+        <button class="direction-start-btn" title="${isStartFrom ? 'Clear preview start point' : 'Preview from this step'}">▷</button>
+        <button class="direction-pin-btn" title="${isAlwaysRun ? 'Remove always-run' : 'Always run (even when skipping earlier steps)'}">📌</button>
+        <button class="direction-menu-btn" title="More actions">⋯</button>
       </div>
       ${innerHTML}
     `;
 
-    li.querySelector('.direction-toggle').addEventListener('click', (e) => {
+    li.querySelector('.direction-start-btn').addEventListener('click', (e) => {
       e.stopPropagation();
-      directions[i]._open = !directions[i]._open;
+      startFromIndex = (startFromIndex === i) ? null : i;
       renderDirectionList();
     });
 
-    li.querySelector('.direction-delete').addEventListener('click', (e) => {
+    li.querySelector('.direction-pin-btn').addEventListener('click', (e) => {
       e.stopPropagation();
-      directions.splice(i, 1);
-      renderDirections();
+      directions[i].alwaysRun = !directions[i].alwaysRun;
+      renderDirectionList();
     });
 
-    li.querySelector('.direction-insert').addEventListener('click', (e) => {
+    li.querySelector('.direction-menu-btn').addEventListener('click', (e) => {
       e.stopPropagation();
-      showDirectionPicker(i, /** @type {HTMLElement} */(e.currentTarget));
-    });
-
-    li.querySelector('.direction-save')?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      saveDirection(i);
+      showStepMenu(i, /** @type {HTMLElement} */(e.currentTarget));
     });
 
     li.querySelector('.direction-label-input').addEventListener('change', (e) => {
@@ -785,11 +859,13 @@ async function runActions() {
  */
 async function runPreview() {
   const name = nameInput.value.trim() || `preview-${Date.now()}`;
+  const body = { name, actions: directionsForJSON(), blueprint, videoSize: null, preview: true };
+  if (startFromIndex !== null && startFromIndex > 0) body.startFrom = startFromIndex;
   await streamRun(
     fetch('/api/run', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, actions: directionsForJSON(), blueprint, videoSize: null, preview: true }),
+      body: JSON.stringify(body),
     }),
     { onDone: () => {} }
   );

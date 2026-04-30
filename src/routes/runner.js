@@ -192,7 +192,7 @@ function register(app) {
 
   // Single-recording run: write the posted steps to a file and run them directly.
   app.post('/api/run', async (req, res) => {
-    const { name = `recording-${Date.now()}`, actions = [], blueprint = null, videoSize = null, preview = false, endPause } = req.body;
+    const { name = `recording-${Date.now()}`, actions = [], blueprint = null, videoSize = null, preview = false, endPause, startFrom } = req.body;
     if (!actions.length) return res.status(400).json({ error: 'no actions provided' });
 
     if (!fs.existsSync(STEPS_DIR)) fs.mkdirSync(STEPS_DIR);
@@ -216,8 +216,11 @@ function register(app) {
       return;
     }
 
+    const runDef = { ...scriptData };
+    if (startFrom != null && startFrom > 0) runDef.startFrom = startFrom;
+
     await runPlaywrightApi({
-      scripts: [scriptData],
+      scripts: [runDef],
       port,
       videoSize,
       send,

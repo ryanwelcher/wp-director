@@ -7,7 +7,7 @@ module.exports = defineConfig({
   testDir: './recordings',
   outputDir: './output',
   workers: 1,
-  timeout: 120_000,
+  timeout: 300_000,
 
   globalSetup: './global-setup.js',
   globalTeardown: './global-teardown.js',

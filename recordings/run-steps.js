@@ -150,8 +150,11 @@ async function runStep(step, page, frameStack, ctx, sidebar) {
 
     case 'tryClick': {
       try {
-        await ctx().locator(step.selector).waitFor({ state: 'visible', timeout: step.timeout ?? 3_000 });
-        await ctx().locator(step.selector).click();
+        const loc = step.role
+          ? ctx().getByRole(step.role, { name: step.name, exact: step.exact ?? true })
+          : ctx().locator(step.selector);
+        await loc.waitFor({ state: 'visible', timeout: step.timeout ?? 3_000 });
+        await loc.click();
       } catch { /* element not present, continue */ }
       break;
     }
@@ -363,6 +366,54 @@ async function runStep(step, page, frameStack, ctx, sidebar) {
       break;
     }
 
+    case 'wpAdminMenuClick': {
+      // Try top-level items first (.wp-menu-name ignores update count badges).
+      // Fall back to submenu items (e.g. "Updates" under "Dashboard").
+      const topLevel = page
+        .locator('#adminmenu > li')
+        .filter({ has: page.locator(`.wp-menu-name:text-is("${step.item}")`) })
+        .locator('> a')
+        .first();
+      const subLevel = page.locator(
+        `#adminmenu .wp-submenu li a:text-is("${step.item}")`
+      ).first();
+      const topCount = await topLevel.count();
+      const menuLink = topCount > 0 ? topLevel : subLevel;
+      await highlightAndClick(page, menuLink);
+      await page.waitForLoadState('domcontentloaded');
+      break;
+    }
+
+    case 'wpEditorWPMenuClick': {
+      // Click the WordPress logo button at the top-left of the block editor.
+      await highlightAndClick(page, page.getByRole('button', { name: 'WordPress', exact: true }));
+      await page.waitForTimeout(300);
+      break;
+    }
+
+    case 'wpEditorToggleFullscreen': {
+      // Open Editor Options → Preferences and set the Fullscreen mode checkbox.
+      // Pass `enable: false` to turn fullscreen off (reveals the WP admin sidebar).
+      const optionsBtn = page.getByRole('button', { name: 'Options', exact: true });
+      await highlightAndClick(page, optionsBtn);
+      await page.waitForTimeout(300);
+      const prefsItem = page.getByRole('menuitem', { name: 'Preferences' });
+      await prefsItem.waitFor({ state: 'visible', timeout: 5_000 });
+      await prefsItem.click();
+      const modal = page.getByRole('dialog', { name: 'Preferences' });
+      await modal.waitFor({ state: 'visible', timeout: 5_000 });
+      const toggle = modal.getByRole('checkbox', { name: 'Fullscreen mode' });
+      await toggle.waitFor({ timeout: 3_000 });
+      const shouldEnable = step.enable !== false;
+      if (shouldEnable !== await toggle.isChecked()) {
+        await toggle.click();
+        await page.waitForTimeout(300);
+      }
+      await modal.getByRole('button', { name: 'Close' }).click();
+      await page.waitForTimeout(300);
+      break;
+    }
+
     case 'wpOpenOptionsMenu': {
       const btn = ctx().locator(step.selector);
       const expanded = await btn.getAttribute('aria-expanded');
@@ -377,10 +428,14 @@ async function runStep(step, page, frameStack, ctx, sidebar) {
       throw new Error(`Unknown action: "${step.action}"`);
   }
 
-  // If the sidebar was open before this action and has since closed, reopen it.
+  // If the sidebar was open before this action and has since closed, reopen it —
+  // but only if the Settings button is still on the page (i.e. we're still in the editor).
   if (sidebarWasOpen && !(await sidebar.isVisible())) {
-    await page.getByRole('button', { name: 'Settings', exact: true }).click();
-    await sidebar.waitFor({ state: 'visible', timeout: 5_000 });
+    const settingsBtn = page.getByRole('button', { name: 'Settings', exact: true });
+    if (await settingsBtn.isVisible()) {
+      await settingsBtn.click();
+      await sidebar.waitFor({ state: 'visible', timeout: 5_000 });
+    }
   }
 }
 

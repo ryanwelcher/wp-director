@@ -21,6 +21,10 @@
       "step": "login",
       "username": "admin",
       "password": "password"
+    },
+    {
+      "step": "runPHP",
+      "code": "<?php require_once '/wordpress/wp-load.php'; $user = get_user_by('login', 'admin'); $prefs = [ '_modified' => date('c'), 'core/edit-post' => [ 'welcomeGuide' => false, 'fullscreenMode' => false ], 'core/edit-site' => [ 'welcomeGuide' => false ] ]; update_user_meta($user->ID, 'wp_persisted_preferences', $prefs); update_user_option($uid, 'acknowledged_edit_file_warning', true); ?>"
     }
   ]
 }

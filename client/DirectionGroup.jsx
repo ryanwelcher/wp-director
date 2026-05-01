@@ -8,7 +8,6 @@ export function DirectionGroup({
   isAlwaysRun,
   isSkipped,
   isStartFrom,
-  onDelete,
   onDragEnd,
   onDragLeave,
   onDragOver,

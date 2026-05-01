@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { errorMessage } from '../utils/actions.js';
+import { responseErrorMessage } from '../utils/api.js';
 import { readSSE } from '../utils/sse.js';
 import { useAppState } from './AppStateContext.jsx';
 
@@ -109,6 +110,10 @@ export function RunProvider({ children }) {
 
     try {
       const res = await fetchPromise;
+      if (!res.ok) {
+        throw new Error(await responseErrorMessage(res));
+      }
+
       await readSSE(res, (msg) => {
         handleRunMessage(msg);
         if (msg.type !== 'done') return;
@@ -131,6 +136,10 @@ export function RunProvider({ children }) {
 
         onDone(msg);
       });
+
+      if (!receivedDone) {
+        throw new Error('Run stream ended before completion');
+      }
     } catch (err) {
       if (isAbortError(err)) {
         if (!receivedDone) {
@@ -141,7 +150,11 @@ export function RunProvider({ children }) {
       }
 
       setRunning(false);
-      toast.error(errorMessage(err, 'Run failed'));
+      stopScreencast();
+      const message = errorMessage(err, 'Run failed');
+      setLogText((current) => `${current}\n--- Failed ---\n${message}\n`);
+      setLogBadge({ text: 'failed', className: 'badge badge-fail' });
+      toast.error(message);
       throw err;
     } finally {
       clearRunAbortController(controller);

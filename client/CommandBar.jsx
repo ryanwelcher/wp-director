@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { toast } from 'react-toastify';
 import { useAppState } from './context/AppStateContext.jsx';
-import { normalizeDirections, errorMessage } from './utils/actions.js';
+import { errorMessage } from './utils/actions.js';
 import { postJSON } from './utils/api.js';
 
 export function CommandBar() {
-  const { directions, setDirections } = useAppState();
+  const { appendDirections, directions } = useAppState();
   const [command, setCommand] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -19,8 +19,7 @@ export function CommandBar() {
     try {
       const flatHistory = directions.flatMap((group) => group.actions ?? []);
       const data = await postJSON('/api/translate', { command: trimmed, history: flatHistory });
-      const nextDirections = normalizeDirections(data.directions ?? []);
-      setDirections((current) => [...current, ...nextDirections]);
+      const nextDirections = appendDirections(data.directions ?? []);
       setCommand('');
       toast.update(toastId, {
         render: `Added ${nextDirections.length} direction${nextDirections.length !== 1 ? 's' : ''}`,

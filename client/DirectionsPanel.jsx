@@ -4,7 +4,7 @@ import { useAppState } from './context/AppStateContext.jsx';
 import { DirectionGroup } from './DirectionGroup.jsx';
 import { DirectionMenu } from './DirectionMenu.jsx';
 import { DirectionPicker } from './DirectionPicker.jsx';
-import { errorMessage, flattenDirectionActions } from './utils/actions.js';
+import { directionsForJSON, errorMessage, flattenDirectionActions } from './utils/actions.js';
 import { fetchJSON, postJSON } from './utils/api.js';
 
 function menuPosition(target, width = 200) {
@@ -57,9 +57,15 @@ export function DirectionsPanel() {
       setPicker(null);
     }
 
+    let timeoutId = null;
     if (menu || picker) {
-      setTimeout(() => document.addEventListener('click', closeMenus, { once: true }), 0);
+      timeoutId = window.setTimeout(() => document.addEventListener('click', closeMenus, { once: true }), 0);
     }
+
+    return () => {
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+      document.removeEventListener('click', closeMenus);
+    };
   }, [menu, picker]);
 
   async function insertDirection(filename, insertIndex) {
@@ -81,7 +87,7 @@ export function DirectionsPanel() {
     try {
       const data = await postJSON('/api/directions/save', {
         name: group.label,
-        actions: [group],
+        actions: directionsForJSON([group]),
       });
       toast.success(`Saved direction "${group.label}"`);
       await loadDirectionLibrary();
@@ -118,7 +124,7 @@ export function DirectionsPanel() {
 
               return (
                 <DirectionGroup
-                  key={`${direction.label}-${index}`}
+                  key={direction._id ?? index}
                   direction={direction}
                   dragging={draggingIndex === index}
                   dragOver={dragOverIndex === index}
@@ -126,7 +132,6 @@ export function DirectionsPanel() {
                   isAlwaysRun={isAlwaysRun}
                   isSkipped={isSkipped}
                   isStartFrom={isStartFrom}
-                  onDelete={() => deleteDirection(index)}
                   onDragStart={(event) => {
                     if (event.target.tagName === 'INPUT') {
                       event.preventDefault();

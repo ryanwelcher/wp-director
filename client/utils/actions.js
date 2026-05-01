@@ -19,6 +19,12 @@ export const WP_SCREENS = {
   profile: 'Profile',
 };
 
+let nextDirectionId = 1;
+
+export function withDirectionId(direction) {
+  return direction?._id ? direction : { ...direction, _id: `direction-${nextDirectionId++}` };
+}
+
 export function describePlain(step = {}) {
   switch (step.action) {
     case 'navigate': return `Go to ${step.url}`;
@@ -47,7 +53,7 @@ export function describePlain(step = {}) {
 
 export function normalizeDirections(raw) {
   if (!Array.isArray(raw)) return [];
-  return raw.map((item) => (
+  return raw.map((item) => withDirectionId(
     item?.label != null
       ? { ...item, actions: Array.isArray(item.actions) ? item.actions : [] }
       : { label: describePlain(item), actions: [item] }
@@ -55,7 +61,7 @@ export function normalizeDirections(raw) {
 }
 
 export function directionsForJSON(directions) {
-  return directions.map(({ _open, _fromDirection, alwaysRun, ...rest }) => rest);
+  return directions.map(({ _id, _open, _fromDirection, alwaysRun, ...rest }) => rest);
 }
 
 export function directionsForRun(directions, alwaysRunIndices) {

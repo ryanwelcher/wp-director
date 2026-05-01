@@ -20,6 +20,7 @@ export function useRunStream({
 }) {
   const abortControllerRef = useRef(null);
   const [running, setRunning] = useState(false);
+  const [activeStepIndex, setActiveStepIndex] = useState(null);
 
   const clearRunAbortController = useCallback((controller) => {
     if (controller && abortControllerRef.current === controller) {
@@ -45,6 +46,7 @@ export function useRunStream({
   const markRunStopped = useCallback((onDone) => {
     stopPreview();
     setRunning(false);
+    setActiveStepIndex(null);
     markStopped();
     onDone({ stopped: true });
   }, [markStopped, stopPreview]);
@@ -52,6 +54,11 @@ export function useRunStream({
   const handleRunMessage = useCallback((msg) => {
     if (msg.type === 'stdout' || msg.type === 'stderr') {
       appendLog(msg.text);
+      return;
+    }
+
+    if (msg.type === 'step-progress') {
+      setActiveStepIndex(msg.index);
       return;
     }
 
@@ -63,6 +70,7 @@ export function useRunStream({
 
     startLog();
     setRunning(true);
+    setActiveStepIndex(null);
     startPreview();
 
     try {
@@ -79,6 +87,7 @@ export function useRunStream({
         clearRunAbortController(controller);
         stopPreview();
         setRunning(false);
+        setActiveStepIndex(null);
 
         if (msg.stopped) markStopped();
         else markDone(msg.code);
@@ -96,6 +105,7 @@ export function useRunStream({
       }
 
       setRunning(false);
+      setActiveStepIndex(null);
       stopPreview();
       const message = errorMessage(err, 'Run failed');
       markFailed(message);
@@ -123,6 +133,7 @@ export function useRunStream({
 
   return {
     running,
+    activeStepIndex,
     startRunRequest,
     streamRun,
     stopRun,

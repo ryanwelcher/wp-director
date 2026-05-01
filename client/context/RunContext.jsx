@@ -22,6 +22,7 @@ export function RunProvider({ children }) {
   const runLog = useRunLog();
   const runPreview = useRunPreview();
   const {
+    activeStepIndex,
     running,
     startRunRequest,
     streamRun,
@@ -52,6 +53,7 @@ export function RunProvider({ children }) {
 
   const value = useMemo(() => ({
     running,
+    activeStepIndex,
     logOpen: runLog.logOpen,
     setLogOpen: runLog.setLogOpen,
     logText: runLog.logText,
@@ -62,6 +64,7 @@ export function RunProvider({ children }) {
     stopRun,
   }), [
     recordAll,
+    activeStepIndex,
     runActions,
     runLog.logBadge,
     runLog.logOpen,

@@ -6,6 +6,7 @@ import { DirectionMenu } from './DirectionMenu.jsx';
 import { DirectionPicker } from './DirectionPicker.jsx';
 import { directionsForJSON, errorMessage, flattenDirectionActions } from './utils/actions.js';
 import { fetchJSON, postJSON } from './utils/api.js';
+import { useRunState } from './context/RunContext.jsx';
 
 function menuPosition(target, width = 200) {
   const rect = target.getBoundingClientRect();
@@ -45,6 +46,7 @@ export function DirectionsPanel() {
     toggleStartFrom,
     updateDirectionLabel,
   } = useAppState();
+  const { activeStepIndex } = useRunState();
   const draggingIndexRef = useRef(null);
   const [draggingIndex, setDraggingIndex] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
@@ -130,6 +132,7 @@ export function DirectionsPanel() {
                   dragOver={dragOverIndex === index}
                   index={index}
                   isAlwaysRun={isAlwaysRun}
+                  isActiveStep={activeStepIndex === index}
                   isSkipped={isSkipped}
                   isStartFrom={isStartFrom}
                   onDragStart={(event) => {

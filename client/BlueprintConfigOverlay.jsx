@@ -5,13 +5,13 @@ import { useBlueprintFormState } from './state/useBlueprintFormState.js';
 import { errorMessage } from './utils/actions.js';
 import { EnvironmentSection } from './blueprint/EnvironmentSection.jsx';
 import { SiteSettingsSection } from './blueprint/SiteSettingsSection.jsx';
+import { PluginsSection } from './blueprint/PluginsSection.jsx';
+import { ThemesSection } from './blueprint/ThemesSection.jsx';
 
 const FOCUSABLE_SELECTORS =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 const PLACEHOLDER_SECTIONS = [
-  { id: 'plugins', label: 'Plugins', description: 'Install and activate plugins from WordPress.org.' },
-  { id: 'themes',  label: 'Themes',  description: 'Install and activate themes from WordPress.org.' },
   { id: 'content', label: 'Content', description: 'Generate sample posts or import a WXR file.' },
 ];
 
@@ -157,6 +157,8 @@ export function BlueprintConfigOverlay({ onClose }) {
           )}
           <EnvironmentSection formState={formState} updateForm={updateForm} />
           <SiteSettingsSection formState={formState} updateForm={updateForm} />
+          <PluginsSection formState={formState} updateForm={updateForm} />
+          <ThemesSection formState={formState} updateForm={updateForm} />
           {PLACEHOLDER_SECTIONS.map(({ id, label, description }) => (
             <section key={id} className="blueprint-form-section" aria-labelledby={`section-${id}`}>
               <h3 id={`section-${id}`} className="blueprint-form-section-title">{label}</h3>

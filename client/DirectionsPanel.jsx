@@ -54,6 +54,12 @@ export function DirectionsPanel() {
   const [picker, setPicker] = useState(null);
 
   useEffect(() => {
+    if (activeStepIndex == null) return;
+    const items = document.querySelectorAll('#step-list li.direction-group');
+    items[activeStepIndex]?.scrollIntoView({ block: 'nearest' });
+  }, [activeStepIndex]);
+
+  useEffect(() => {
     function closeMenus() {
       setMenu(null);
       setPicker(null);

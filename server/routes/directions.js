@@ -9,7 +9,7 @@
  *   PUT    /api/directions/:filename  → rename a user entry (403 for built-ins)
  *   DELETE /api/directions/:filename  → delete a user entry (403 for built-ins)
  *
- * Built-ins live in src/directions/ (committed). User entries live in directions/
+ * Built-ins live in server/directions/ (committed). User entries live in directions/
  * at the project root (gitignored).
  */
 

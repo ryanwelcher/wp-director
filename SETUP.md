@@ -88,7 +88,7 @@ The UI's **Blueprint** panel lets you edit and preview blueprint changes without
 
 ### Ports
 
-Defaults are set in `src/config.js`:
+Defaults are set in `server/config.js`:
 
 | Variable | Default | Purpose |
 |---|---|---|

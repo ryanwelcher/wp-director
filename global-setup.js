@@ -8,7 +8,7 @@
  * CLI path (npm run record): delegates to playground-cli.js which picks a
  * free port, spawns a Playground instance, and waits for "Ready!".
  */
-const cliPlayground = require('./src/playground-cli');
+const cliPlayground = require('./server/playground-cli');
 
 /** @returns {Promise<void>} */
 module.exports = async function globalSetup() {

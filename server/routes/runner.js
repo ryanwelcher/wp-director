@@ -38,7 +38,7 @@ const { spawn } = require('child_process');
 const {
   STEPS_DIR,
   OUTPUT_DIR,
-  PUBLIC_DIR,
+  SCREENCASTS_DIR,
   DEFAULT_BLUEPRINT,
   GENERATED_BLUEPRINT,
 } = require('../config');
@@ -69,7 +69,13 @@ function sseHeaders(res) {
  * @returns {(data: any) => void}
  */
 function sseSender(res) {
-  return (data) => res.write(`data: ${JSON.stringify(data)}\n\n`);
+  let closed = false;
+  res.on('close', () => { closed = true; });
+
+  return (data) => {
+    if (closed || res.destroyed || res.writableEnded) return;
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
 }
 
 /**
@@ -173,9 +179,8 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
   currentBrowser = null;
 
   if (latestPreviewVideoPath && latestPreviewVideoFilename && fs.existsSync(latestPreviewVideoPath)) {
-    const publicScreencastsDir = path.join(PUBLIC_DIR, 'screencasts');
-    const publicPath = path.join(publicScreencastsDir, latestPreviewVideoFilename);
-    fs.mkdirSync(publicScreencastsDir, { recursive: true });
+    const publicPath = path.join(SCREENCASTS_DIR, latestPreviewVideoFilename);
+    fs.mkdirSync(SCREENCASTS_DIR, { recursive: true });
     fs.copyFileSync(latestPreviewVideoPath, publicPath);
     send({ type: 'screencastVideo', uri: `/screencasts/${latestPreviewVideoFilename}` });
   }
@@ -236,6 +241,7 @@ function register(app) {
     });
 
     pool.release(port, blueprintPath);
+    if (!res.destroyed && !res.writableEnded) res.end();
   });
 
   // Batch run: load all saved step files, filter to the requested names, run in order.
@@ -266,6 +272,7 @@ function register(app) {
     await runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send });
 
     pool.release(port, blueprintPath);
+    if (!res.destroyed && !res.writableEnded) res.end();
   });
 }
 

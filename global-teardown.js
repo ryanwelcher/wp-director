@@ -8,7 +8,7 @@
  * CLI path: kills the non-detached Playground instance that global-setup.js
  * spawned via playground-cli.js.
  */
-const cliPlayground = require('./src/playground-cli');
+const cliPlayground = require('./server/playground-cli');
 
 /** @returns {Promise<void>} */
 module.exports = async function globalTeardown() {

@@ -448,29 +448,40 @@ async function runStep(step, page, frameStack, ctx, sidebar) {
  *   Optional wrapper called around each step, receiving the step object and an
  *   async executor — e.g. Playwright's `test.step()` for named reporting.
  *   When null, steps run unwrapped.
+ * @param {((index: number, total: number) => void)|null} [onStepStart]
+ *   Called before each direction group begins executing, with its original
+ *   index in the full actions array and the total group count.
  * @returns {Promise<void>}
  */
-async function runSteps(page, def, runner = null) {
+async function runSteps(page, def, runner = null, onStepStart = null) {
   // Frame context stack: top of stack is the active locator context
   const frameStack = [page];
   const ctx = () => frameStack[frameStack.length - 1];
   const sidebar = page.getByRole('region', { name: 'Editor settings' });
 
   // Support both grouped format ({ label, actions[] }) and legacy flat/steps format
-  let rawActions = def.actions ?? def.steps ?? [];
-  if (def.startFrom != null && def.startFrom > 0) {
-    const pinned   = rawActions.slice(0, def.startFrom).filter(g => g.alwaysRun);
-    const fromHere = rawActions.slice(def.startFrom);
-    rawActions = [...pinned, ...fromHere];
-  }
-  const flatActions = rawActions.flatMap(s => s.actions ?? s.steps ?? [s]);
+  const allActions = def.actions ?? def.steps ?? [];
+  const total = allActions.length;
 
-  for (const step of flatActions) {
-    await (
-      runner
-      ? runner(step, async () => await runStep( step, page, frameStack, ctx, sidebar ))
-      : runStep( step, page, frameStack, ctx, sidebar )
-    );
+  // Preserve original indices through the startFrom filter so the UI can
+  // highlight the correct direction group regardless of what was skipped.
+  let toRun = allActions.map((group, i) => ({ group, origIndex: i }));
+  if (def.startFrom != null && def.startFrom > 0) {
+    const pinned   = toRun.slice(0, def.startFrom).filter(({ group: g }) => g.alwaysRun);
+    const fromHere = toRun.slice(def.startFrom);
+    toRun = [...pinned, ...fromHere];
+  }
+
+  for (const { group, origIndex } of toRun) {
+    onStepStart?.(origIndex, total);
+    const groupSteps = group.actions ?? group.steps ?? [group];
+    for (const step of groupSteps) {
+      await (
+        runner
+        ? runner(step, async () => await runStep( step, page, frameStack, ctx, sidebar ))
+        : runStep( step, page, frameStack, ctx, sidebar )
+      );
+    }
   }
 
   await page.waitForTimeout(def.endPause ?? DEFAULT_END_PAUSE);

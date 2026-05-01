@@ -786,6 +786,10 @@ async function readSSE(res, onDone) {
         if (msg.type === 'stdout' || msg.type === 'stderr') {
           logOutput.textContent += msg.text;
           logOutput.scrollTop = logOutput.scrollHeight;
+        } else if (msg.type === 'step-progress') {
+          const items = stepList.querySelectorAll('li.direction-group');
+          items.forEach((el, i) => el.classList.toggle('active-step', i === msg.index));
+          items[msg.index]?.scrollIntoView({ block: 'nearest' });
         } else if (msg.type === 'screencast') {
           previewImg.src = `data:image/jpeg;base64,${msg.data}`;
           previewPlaceholder.hidden = true;
@@ -794,6 +798,7 @@ async function readSSE(res, onDone) {
         } else if (msg.type === 'screencastVideo') {
           lastScreencastVideoUri = msg.uri;
         } else if (msg.type === 'done') {
+          stepList.querySelectorAll('li.direction-group.active-step').forEach(el => el.classList.remove('active-step'));
           onDone(msg);
         }
       } catch {}

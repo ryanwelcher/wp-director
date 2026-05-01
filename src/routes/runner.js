@@ -148,7 +148,9 @@ async function runPlaywrightApi({ scripts, port, videoSize, send, doneExtra = {}
         quality: 80,
         size: { width: 1280, height: 720 },
       });
-      await runSteps(page, def);
+      await runSteps(page, def, null, (index, total) => {
+        send({ type: 'step-progress', index, total });
+      });
       await page.screencast.stop();
 
       const video = page.video();

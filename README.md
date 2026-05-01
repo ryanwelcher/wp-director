@@ -75,13 +75,14 @@ Recorded videos and screenshots land in `output/`. Use `npm run show-trace` to i
 │   └── actions-runner.spec.js  # Dynamic test harness
 ├── scripts/                  # Your saved recording scripts (gitignored)
 ├── directions/               # Your saved direction snippets (gitignored)
-├── src/
+├── server/
 │   ├── config.js             # Ports and paths
 │   ├── claude.js             # Anthropic SDK client + prompt definitions
 │   ├── playground.js         # Playground lifecycle helpers
 │   ├── video.js              # ffmpeg video conversion
 │   ├── directions/           # Built-in direction templates
 │   └── routes/               # Express API route handlers
+├── client/                   # React UI components and client helpers
 ├── public/                   # Frontend UI (HTML, JS, CSS)
 └── output/                   # Test artifacts — videos, screenshots, traces
 ```

@@ -11,6 +11,13 @@ body {
   overflow-x: hidden;
 }
 
+#root {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
 header {
   padding: 1.25rem 1.5rem 1rem;
   border-bottom: 1px solid #1e2433;
@@ -82,6 +89,7 @@ header p {
 
 .blueprint-toolbar {
   display: flex;
+  gap: 0.5rem;
   justify-content: flex-end;
   margin-bottom: 0.6rem;
 }
@@ -723,6 +731,17 @@ header p {
 
 .badge-pass { background: #14532d; color: #86efac; }
 .badge-fail { background: #450a0a; color: #fca5a5; }
+
+.Toastify__toast {
+  border: 1px solid #2d3748;
+  border-radius: 6px;
+  font-size: 0.86rem;
+}
+
+.Toastify__toast-theme--dark {
+  background: #111827;
+  color: #e2e8f0;
+}
 
 /* ── Recordings section ─────────────────────────────────── */
 

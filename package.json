@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "Quickly record demo and support videos for WordPress sites",
   "scripts": {
-    "start": "nodemon --watch server.js --watch src server.js",
+    "start": "nodemon --watch server.js --watch server --watch public --watch client --watch vite.config.js server.js",
+    "start:prod": "npm run client:build && NODE_ENV=production node server.js",
+    "client:build": "vite build",
     "record": "playwright test",
     "record:actions": "playwright test recordings/actions-runner.spec.js",
     "record:action": "playwright test recordings/actions-runner.spec.js --grep",
@@ -15,11 +17,16 @@
     "dotenv": "^17.4.2",
     "express": "^4.18.0",
     "ffmpeg-static": "^5.3.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-toastify": "11.0.5",
     "ws": "^8.20.0"
   },
   "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
     "@playwright/test": "^1.44.0",
     "@wp-playground/cli": "^3.1.20",
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "vite": "^6.0.3"
   }
 }

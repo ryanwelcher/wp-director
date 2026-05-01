@@ -4,7 +4,7 @@
  * Shared step-execution logic for WP Director recordings.
  *
  * Used by both `actions-runner.spec.js` (Playwright test runner) and
- * `runPlaywrightApi` in `src/routes/runner.js` (Playwright library API).
+ * `runPlaywrightApi` in `server/routes/runner.js` (Playwright library API).
  */
 
 const HIGHLIGHT_HOLD = 1000;

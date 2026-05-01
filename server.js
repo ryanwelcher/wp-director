@@ -3,45 +3,84 @@
 /**
  * WP Director — Express bootstrap.
  *
- * Thin entry point. The real work lives in `src/`:
+ * Thin entry point. The real work lives in `server/`:
  *
- *   src/config.js       — paths, ports, constants
- *   src/claude.js       — Anthropic client + STEPS_PROMPT + STEPS_TOOL
- *   src/playground.js   — WP Playground process lifecycle
- *   src/video.js        — ffmpeg conversion + video discovery
- *   src/routes/*.js     — one file per API area; each exports register(app)
+ *   server/config.js       — paths, ports, constants
+ *   server/claude.js       — Anthropic client + STEPS_PROMPT + STEPS_TOOL
+ *   server/playground.js   — WP Playground process lifecycle
+ *   server/video.js        — ffmpeg conversion + video discovery
+ *   server/routes/*.js     — one file per API area; each exports register(app)
  *
  * This file loads environment variables, configures Express, mounts each
  * route module, and starts listening. Adding a new API area means dropping
- * a new `src/routes/<area>.js` and adding one line below.
+ * a new `server/routes/<area>.js` and adding one line below.
  */
 
 require('dotenv').config();
 const fs = require('fs');
+const path = require('path');
 const express = require('express');
-const { PUBLIC_DIR, DEFAULT_SERVER_PORT, DEFAULT_BLUEPRINT, GENERATED_BLUEPRINT } = require('./src/config');
+const {
+  SCREENCASTS_DIR,
+  DEFAULT_SERVER_PORT,
+  DEFAULT_BLUEPRINT,
+  GENERATED_BLUEPRINT,
+} = require('./server/config');
 
 const app = express();
 
 app.use(express.json());
-app.use(express.static(PUBLIC_DIR));
+app.use('/screencasts', express.static(SCREENCASTS_DIR));
 
 // Route modules — each registers its own handlers on `app`.
-require('./src/routes/translate').register(app);
-require('./src/routes/blueprint').register(app);
-require('./src/routes/scripts').register(app);
-require('./src/routes/directions').register(app);
-require('./src/routes/runner').register(app);
-require('./src/routes/recordings').register(app);
+require('./server/routes/translate').register(app);
+require('./server/routes/blueprint').register(app);
+require('./server/routes/scripts').register(app);
+require('./server/routes/directions').register(app);
+require('./server/routes/runner').register(app);
+require('./server/routes/recordings').register(app);
 
 const PORT = process.env.PORT || DEFAULT_SERVER_PORT;
-app.listen(PORT, () => {
-  console.log(`WP Director at http://localhost:${PORT}`);
 
-  // Pre-warm both Playground slots so the first recording starts immediately
-  // without waiting for a cold boot.
-  const blueprintPath = fs.existsSync(GENERATED_BLUEPRINT) ? GENERATED_BLUEPRINT : DEFAULT_BLUEPRINT;
-  require('./src/playground-server').init(blueprintPath).catch((err) => {
-    console.error('[Playground Pool] Failed to initialise:', err.message);
+async function mountFrontend() {
+  const distDir = path.join(__dirname, 'dist/public');
+  const distIndex = path.join(distDir, 'index.html');
+
+  if (process.env.NODE_ENV === 'production') {
+    if (!fs.existsSync(distIndex)) {
+      throw new Error('Production frontend build not found. Run `npm run build` before starting with NODE_ENV=production.');
+    }
+
+    app.use(express.static(distDir));
+    app.get('*', (req, res) => res.sendFile(distIndex));
+    return;
+  }
+
+  const { createServer } = await import('vite');
+  const vite = await createServer({
+    configFile: path.join(__dirname, 'vite.config.js'),
+    server: { middlewareMode: true },
+    appType: 'spa',
   });
+  app.use(vite.middlewares);
+}
+
+async function start() {
+  await mountFrontend();
+
+  app.listen(PORT, () => {
+    console.log(`WP Director at http://localhost:${PORT}`);
+
+    // Pre-warm both Playground slots so the first recording starts immediately
+    // without waiting for a cold boot.
+    const blueprintPath = fs.existsSync(GENERATED_BLUEPRINT) ? GENERATED_BLUEPRINT : DEFAULT_BLUEPRINT;
+    require('./server/playground-server').init(blueprintPath).catch((err) => {
+      console.error('[Playground Pool] Failed to initialise:', err.message);
+    });
+  });
+}
+
+start().catch((err) => {
+  console.error(err);
+  process.exit(1);
 });

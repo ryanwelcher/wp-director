@@ -4,7 +4,7 @@
  * Shared paths, ports, and constants.
  *
  * All paths are absolute and computed relative to the project root (one level
- * up from src/). Modules should import from here rather than recomputing paths,
+ * up from server/). Modules should import from here rather than recomputing paths,
  * so there's a single source of truth for filesystem layout.
  */
 
@@ -16,9 +16,9 @@ module.exports = {
   ROOT,
 
   // Directories
-  PUBLIC_DIR:              path.join(ROOT, 'public'),
   STEPS_DIR:               path.join(ROOT, 'scripts'),
   OUTPUT_DIR:              path.join(ROOT, 'output'),
+  SCREENCASTS_DIR:         path.join(ROOT, 'output', 'screencasts'),
   DIRECTIONS_DIR:          path.join(ROOT, 'directions'),
   BUILTIN_DIRECTIONS_DIR:  path.join(__dirname, 'directions'),
 

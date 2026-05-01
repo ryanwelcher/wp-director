@@ -7,13 +7,11 @@ import { EnvironmentSection } from './blueprint/EnvironmentSection.jsx';
 import { SiteSettingsSection } from './blueprint/SiteSettingsSection.jsx';
 import { PluginsSection } from './blueprint/PluginsSection.jsx';
 import { ThemesSection } from './blueprint/ThemesSection.jsx';
+import { ContentSection } from './blueprint/ContentSection.jsx';
 
 const FOCUSABLE_SELECTORS =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-const PLACEHOLDER_SECTIONS = [
-  { id: 'content', label: 'Content', description: 'Generate sample posts or import a WXR file.' },
-];
 
 export function BlueprintConfigOverlay({ onClose }) {
   const { blueprint: appBlueprint } = useAppState();
@@ -159,12 +157,7 @@ export function BlueprintConfigOverlay({ onClose }) {
           <SiteSettingsSection formState={formState} updateForm={updateForm} />
           <PluginsSection formState={formState} updateForm={updateForm} />
           <ThemesSection formState={formState} updateForm={updateForm} />
-          {PLACEHOLDER_SECTIONS.map(({ id, label, description }) => (
-            <section key={id} className="blueprint-form-section" aria-labelledby={`section-${id}`}>
-              <h3 id={`section-${id}`} className="blueprint-form-section-title">{label}</h3>
-              <p className="blueprint-form-section-placeholder">{description}</p>
-            </section>
-          ))}
+          <ContentSection formState={formState} updateForm={updateForm} />
         </div>
 
         {/* JSON tab */}

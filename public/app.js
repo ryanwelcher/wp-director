@@ -194,6 +194,8 @@ let updatingBlueprintFromCode = false;
 /** @type {string[]} */
 let selectedScripts = [];
 let lastScreencastVideoUri = '';
+/** @type {AbortController|null} */
+let currentRunAbortController = null;
 /** @type {Array<{name: string, filename: string, stepCount: number}>} */
 let savedScripts = [];
 /** @type {Array<{name: string, filename: string, actionCount: number, builtin: boolean}>} */
@@ -675,6 +677,65 @@ function setRunning(running) {
 }
 
 /**
+ * Track the in-flight run request so Stop can abort the long-lived `/api/run`
+ * fetch in addition to asking the server to stop the active browser run.
+ *
+ * @returns {AbortController}
+ */
+function startRunAbortController() {
+  const controller = new AbortController();
+  currentRunAbortController = controller;
+  return controller;
+}
+
+/**
+ * Clear the tracked run controller if it still belongs to the completed run.
+ *
+ * @param {AbortController|null} controller
+ */
+function clearRunAbortController(controller) {
+  if (controller && currentRunAbortController === controller) {
+    currentRunAbortController = null;
+  }
+}
+
+/**
+ * @param {unknown} err
+ * @returns {boolean}
+ */
+function isAbortError(err) {
+  return !!err && typeof err === 'object' && 'name' in err && err.name === 'AbortError';
+}
+
+function markRunStopped() {
+  stopScreencast();
+  setRunning(false);
+  logOutput.textContent += '\n--- Stopped ---\n';
+  logBadge.textContent = 'stopped';
+  logBadge.className = 'badge badge-fail';
+  logBadge.classList.remove('hidden');
+}
+
+/**
+ * Start an abortable JSON POST request for a run endpoint.
+ *
+ * @param {string} endpoint
+ * @param {object} body
+ * @returns {{ fetchPromise: Promise<Response>, abortController: AbortController }}
+ */
+function startRunRequest(endpoint, body) {
+  const abortController = startRunAbortController();
+  const fetchPromise = fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    signal: abortController.signal,
+    body: JSON.stringify(body),
+  });
+
+  return { fetchPromise, abortController };
+}
+
+/**
  * Low-level SSE reader. Appends `stdout`/`stderr` lines to the log panel and
  * calls `onDone` when the terminal `done` event arrives. Both single-run and
  * batch-run callers share this loop — only their `onDone` logic differs.
@@ -711,6 +772,8 @@ async function readSSE(res, onDone) {
           lastScreencastVideoUri = msg.uri;
         } else if (msg.type === 'done') {
           onDone(msg);
+          await reader.cancel();
+          return;
         }
       } catch {}
     }
@@ -725,9 +788,9 @@ async function readSSE(res, onDone) {
  * around the run.
  *
  * @param {Promise<Response>} fetchPromise  In-flight fetch to the run endpoint.
- * @param {{ onDone: (msg: object) => void }} opts
+ * @param {{ onDone: (msg: object) => void, abortController?: AbortController|null }} opts
  */
-async function streamRun(fetchPromise, { onDone }) {
+async function streamRun(fetchPromise, { onDone, abortController = null }) {
   logOutput.textContent = '';
   logPanel.open = true;
   logBadge.textContent = 'recording';
@@ -735,21 +798,37 @@ async function streamRun(fetchPromise, { onDone }) {
   setRunning(true);
   startScreencast();
 
-  const res = await fetchPromise;
-  await readSSE(res, (msg) => {
-    stopScreencast();
-    setRunning(false);
-    if (msg.stopped) {
-      logOutput.textContent += '\n--- Stopped ---\n';
-      logBadge.textContent = 'stopped';
-      logBadge.className = 'badge badge-fail';
-    } else {
-      logOutput.textContent += `\n--- Done (exit ${msg.code}) ---\n`;
-      logBadge.textContent = msg.code === 0 ? 'complete' : 'failed';
-      logBadge.className = 'badge' + (msg.code === 0 ? ' badge-pass' : ' badge-fail');
+  let receivedDone = false;
+  try {
+    const res = await fetchPromise;
+    await readSSE(res, (msg) => {
+      receivedDone = true;
+      clearRunAbortController(abortController);
+      stopScreencast();
+      setRunning(false);
+      if (msg.stopped) {
+        logOutput.textContent += '\n--- Stopped ---\n';
+        logBadge.textContent = 'stopped';
+        logBadge.className = 'badge badge-fail';
+      } else {
+        logOutput.textContent += `\n--- Done (exit ${msg.code}) ---\n`;
+        logBadge.textContent = msg.code === 0 ? 'complete' : 'failed';
+        logBadge.className = 'badge' + (msg.code === 0 ? ' badge-pass' : ' badge-fail');
+      }
+      onDone(msg);
+    });
+  } catch (err) {
+    if (isAbortError(err)) {
+      if (!receivedDone) {
+        markRunStopped();
+        onDone({ stopped: true });
+      }
+      return;
     }
-    onDone(msg);
-  });
+    throw err;
+  } finally {
+    clearRunAbortController(abortController);
+  }
 }
 
 /**
@@ -769,14 +848,18 @@ endPauseInput.addEventListener('input', () => {
 
 async function runActions() {
   const name = nameInput.value.trim() || `recording-${Date.now()}`;
-  await streamRun(
-    fetch('/api/run', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, actions: directionsForJSON(), blueprint, videoSize: getVideoSize(), endPause: getEndPause() }),
-    }),
-    { onDone: (msg) => { if (!msg.stopped) loadRecordings(); } }
-  );
+  const { fetchPromise, abortController } = startRunRequest('/api/run', {
+    name,
+    actions: directionsForJSON(),
+    blueprint,
+    videoSize: getVideoSize(),
+    endPause: getEndPause(),
+  });
+
+  await streamRun(fetchPromise, {
+    abortController,
+    onDone: (msg) => { if (!msg.stopped) loadRecordings(); },
+  });
 }
 
 /**
@@ -785,14 +868,15 @@ async function runActions() {
  */
 async function runPreview() {
   const name = nameInput.value.trim() || `preview-${Date.now()}`;
-  await streamRun(
-    fetch('/api/run', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, actions: directionsForJSON(), blueprint, videoSize: null, preview: true }),
-    }),
-    { onDone: () => {} }
-  );
+  const { fetchPromise, abortController } = startRunRequest('/api/run', {
+    name,
+    actions: directionsForJSON(),
+    blueprint,
+    videoSize: null,
+    preview: true,
+  });
+
+  await streamRun(fetchPromise, { abortController, onDone: () => {} });
 }
 
 // ── Saved Scripts ─────────────────────────────────────────────────────────────
@@ -1084,33 +1168,21 @@ async function saveScript() {
 
 /**
  * Batch-run all scripts in `selectedScripts` via POST `/api/run/batch`.
- * Uses its own SSE read loop (rather than `streamRun`) because batch runs
- * always reload the recordings list on success and don't use `onDone`.
  */
 async function recordAll() {
-  logOutput.textContent = '';
-  logPanel.open = true;
-  logBadge.textContent = 'recording';
-  logBadge.classList.remove('hidden');
   recordAllBtn.disabled = true;
-  setRunning(true);
-  startScreencast();
-
-  const res = await fetch('/api/run/batch', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ names: selectedScripts, blueprint, videoSize: getVideoSize() }),
+  const { fetchPromise, abortController } = startRunRequest('/api/run/batch', {
+    names: selectedScripts,
+    blueprint,
+    videoSize: getVideoSize(),
   });
 
-  await readSSE(res, (msg) => {
-    stopScreencast();
-    setRunning(false);
-    logOutput.textContent += msg.stopped ? '\n--- Stopped ---\n' : `\n--- Done (exit ${msg.code}) ---\n`;
-    logBadge.textContent = msg.stopped ? 'stopped' : (msg.code === 0 ? 'complete' : 'failed');
-    logBadge.className = 'badge' + (msg.stopped || msg.code !== 0 ? ' badge-fail' : ' badge-pass');
-    logBadge.classList.remove('hidden');
-    recordAllBtn.disabled = selectedScripts.length === 0;
-    if (!msg.stopped) loadRecordings();
+  await streamRun(fetchPromise, {
+    abortController,
+    onDone: (msg) => {
+      recordAllBtn.disabled = selectedScripts.length === 0;
+      if (!msg.stopped) loadRecordings();
+    },
   });
 }
 
@@ -1136,7 +1208,10 @@ commandInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addComm
 clearBtn.addEventListener('click', () => { directions = []; nameInput.value = ''; endPauseInput.value = '2'; endPauseDisplay.textContent = '2s'; renderDirections(); });
 recordBtn.addEventListener('click', runActions);
 previewBtn.addEventListener('click', runPreview);
-stopBtn.addEventListener('click', () => fetch('/api/stop', { method: 'POST' }));
+stopBtn.addEventListener('click', () => {
+  currentRunAbortController?.abort();
+  fetch('/api/stop', { method: 'POST' }).catch(() => {});
+});
 
 jsonPreview.addEventListener('input', onDirectionsEdit);
 

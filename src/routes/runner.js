@@ -69,7 +69,13 @@ function sseHeaders(res) {
  * @returns {(data: any) => void}
  */
 function sseSender(res) {
-  return (data) => res.write(`data: ${JSON.stringify(data)}\n\n`);
+  let closed = false;
+  res.on('close', () => { closed = true; });
+
+  return (data) => {
+    if (closed || res.destroyed || res.writableEnded) return;
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
 }
 
 /**
@@ -226,6 +232,7 @@ function register(app) {
     });
 
     pool.release(port, blueprintPath);
+    if (!res.destroyed && !res.writableEnded) res.end();
   });
 
   // Batch run: load all saved step files, filter to the requested names, run in order.
@@ -256,6 +263,7 @@ function register(app) {
     await runPlaywrightApi({ scripts, port, videoSize, send });
 
     pool.release(port, blueprintPath);
+    if (!res.destroyed && !res.writableEnded) res.end();
   });
 }
 

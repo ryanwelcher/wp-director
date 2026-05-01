@@ -98,13 +98,14 @@ function resolveBlueprintPath(blueprint) {
  * @param {Object} opts
  * @param {object[]} opts.scripts                   Step-definition objects to run, in order.
  * @param {number}   opts.port                      Playground port (from pool.acquire).
+ * @param {string}   opts.blueprintPath             Path to the active blueprint file.
  * @param {any}      opts.videoSize                 Target size for ffmpeg scaling.
  * @param {(data: any) => void} opts.send           SSE writer.
  * @param {Object}   [opts.doneExtra]               Extra fields merged into the `done` event.
  * @param {boolean}  [opts.preview]                 Skip ffmpeg conversion when true.
  * @returns {Promise<void>}
  */
-async function runPlaywrightApi({ scripts, port, videoSize, send, doneExtra = {}, preview = false }) {
+async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send, doneExtra = {}, preview = false }) {
   // IMPORTANT: When running multiple scripts, we are running all of them on the same Playground instance - this may or may not be desired.
   // If we want actions to be executed on the same Playground instance this is fine, but if we want a fresh Playground instance for each script, we need to acquire and release one for each script.
   const { chromium } = require('playwright');
@@ -141,7 +142,10 @@ async function runPlaywrightApi({ scripts, port, videoSize, send, doneExtra = {}
       latestPreviewVideoFilename = `${outputSlug}.webm`;
 
       // Load the site before starting the screencast so the video does not start with a blank screen.
-      await page.goto( '/' );
+      // Use the blueprint's landingPage if specified; otherwise fall back to the WP admin dashboard.
+      const blueprintJson = JSON.parse(fs.readFileSync(blueprintPath, 'utf8'));
+      const landingPage = blueprintJson.landingPage || '/wp-admin/';
+      await page.goto(landingPage);
 
       await page.screencast.start({
         onFrame: ({ data }) => send({ type: 'screencast', data: data.toString('base64') }),
@@ -224,6 +228,7 @@ function register(app) {
     await runPlaywrightApi({
       scripts: [runDef],
       port,
+      blueprintPath,
       videoSize,
       send,
       doneExtra: preview ? {} : { file: filePath },
@@ -258,7 +263,7 @@ function register(app) {
       .map(f => JSON.parse(fs.readFileSync(path.join(STEPS_DIR, f), 'utf8')))
       .filter(def => nameSet.has(def.name));
 
-    await runPlaywrightApi({ scripts, port, videoSize, send });
+    await runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send });
 
     pool.release(port, blueprintPath);
   });

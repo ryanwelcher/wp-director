@@ -139,6 +139,46 @@ header p {
   margin: 0;
 }
 
+.blueprint-overlay-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+  margin-right: 0.75rem;
+}
+
+.bp-action-btn {
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 0.4rem 0.9rem;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.bp-action-btn:disabled { cursor: not-allowed; opacity: 0.45; }
+
+.bp-action-btn--ghost {
+  background: transparent;
+  border: 1px solid #374151;
+  color: #94a3b8;
+}
+
+.bp-action-btn--ghost:hover:not(:disabled) {
+  background: #1a2035;
+  border-color: #6b7280;
+  color: #e2e8f0;
+}
+
+.bp-action-btn--primary {
+  background: #6366f1;
+  border: 1px solid transparent;
+  color: #fff;
+}
+
+.bp-action-btn--primary:hover:not(:disabled) { background: #4f46e5; }
+
 .blueprint-overlay-close {
   background: transparent;
   border: 1px solid #374151;

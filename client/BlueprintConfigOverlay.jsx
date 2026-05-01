@@ -1,20 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { toast } from 'react-toastify';
 import { useAppState } from './context/AppStateContext.jsx';
 import { useBlueprintFormState } from './state/useBlueprintFormState.js';
 import { errorMessage } from './utils/actions.js';
+import { postJSON } from './utils/api.js';
 import { EnvironmentSection } from './blueprint/EnvironmentSection.jsx';
 import { SiteSettingsSection } from './blueprint/SiteSettingsSection.jsx';
-import { PluginsSection } from './blueprint/PluginsSection.jsx';
-import { ThemesSection } from './blueprint/ThemesSection.jsx';
+import { SlugListSection } from './blueprint/SlugListSection.jsx';
 import { ContentSection } from './blueprint/ContentSection.jsx';
 
 const FOCUSABLE_SELECTORS =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-
 export function BlueprintConfigOverlay({ onClose }) {
-  const { blueprint: appBlueprint } = useAppState();
+  const { blueprint: appBlueprint, defaultBlueprint, setBlueprint } = useAppState();
   const { formState, updateForm, loadBlueprint, compiledBlueprint, hasExtraSteps } =
     useBlueprintFormState(appBlueprint);
 
@@ -23,9 +23,13 @@ export function BlueprintConfigOverlay({ onClose }) {
     JSON.stringify(compiledBlueprint, null, 2),
   );
   const [jsonError, setJsonError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const skipSyncRef = useRef(false);
-
   const overlayRef = useRef(null);
+  // Updated synchronously each render so the Escape handler always reads fresh state
+  const closeStateRef = useRef(null);
+  closeStateRef.current = { activeTab, jsonDraft, compiledBlueprint };
 
   // Sync compiled blueprint → JSON textarea whenever form state changes.
   // Skip one cycle after a JSON→form parse to avoid clobbering cursor position.
@@ -45,10 +49,17 @@ export function BlueprintConfigOverlay({ onClose }) {
     return () => { document.body.style.overflow = prev; };
   }, []);
 
-  // Escape key closes
+  // Escape key → auto-save and close. Registers once; reads latest state via ref.
   useEffect(() => {
     function handleKeyDown(e) {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') return;
+      const { activeTab: tab, jsonDraft: draft, compiledBlueprint: compiled } = closeStateRef.current;
+      let bp = compiled;
+      if (tab === 'json') {
+        try { bp = JSON.parse(draft); } catch { /* use compiled */ }
+      }
+      persist(bp).catch(() => {});
+      onClose();
     }
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
@@ -79,6 +90,56 @@ export function BlueprintConfigOverlay({ onClose }) {
     return () => overlay.removeEventListener('keydown', trapFocus);
   }, []);
 
+  function currentBlueprint() {
+    // If the JSON tab is active, use the draft JSON (may differ from compiled form)
+    if (activeTab === 'json') {
+      try { return JSON.parse(jsonDraft); } catch { /* fall through */ }
+    }
+    return compiledBlueprint;
+  }
+
+  async function persist(bp) {
+    await postJSON('/api/save-blueprint', { blueprint: bp });
+    setBlueprint(bp);
+  }
+
+  // Auto-save then close — fire-and-forget, never blocks the close
+  function handleClose() {
+    persist(currentBlueprint()).catch(() => {});
+    onClose();
+  }
+
+  async function handleSaveAndClose() {
+    setIsSaving(true);
+    try {
+      await persist(currentBlueprint());
+      onClose();
+    } catch (err) {
+      toast.error(errorMessage(err, 'Could not save blueprint'));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  function handleReset() {
+    if (!defaultBlueprint) return;
+    if (!window.confirm('Reset all fields to the default blueprint? Your current changes will be lost.')) return;
+    loadBlueprint(defaultBlueprint);
+  }
+
+  async function handlePreview() {
+    setIsPreviewLoading(true);
+    try {
+      const bp = currentBlueprint();
+      const { url } = await postJSON('/api/preview-blueprint', { blueprint: bp });
+      window.open(url, '_blank', 'noopener');
+    } catch (err) {
+      toast.error(errorMessage(err, 'Could not start preview'));
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  }
+
   function switchTab(newTab) {
     if (activeTab === 'json' && newTab === 'form') {
       // Parse JSON → form on leaving the JSON tab; block switch on error
@@ -107,11 +168,40 @@ export function BlueprintConfigOverlay({ onClose }) {
       {/* Header */}
       <div className="blueprint-overlay-header">
         <h2 className="blueprint-overlay-title">Configure Blueprint</h2>
+        <div className="blueprint-overlay-actions">
+          <button
+            type="button"
+            className="bp-action-btn bp-action-btn--ghost"
+            onClick={handlePreview}
+            disabled={isPreviewLoading}
+            aria-label="Test current blueprint in a new Playground tab"
+          >
+            {isPreviewLoading ? 'Starting…' : 'Test in Playground'}
+          </button>
+          <button
+            type="button"
+            className="bp-action-btn bp-action-btn--ghost"
+            onClick={handleReset}
+            disabled={!defaultBlueprint}
+            aria-label="Reset all fields to the default blueprint"
+          >
+            Reset to Default
+          </button>
+          <button
+            type="button"
+            className="bp-action-btn bp-action-btn--primary"
+            onClick={handleSaveAndClose}
+            disabled={isSaving}
+            aria-label="Save blueprint and close panel"
+          >
+            {isSaving ? 'Saving…' : 'Save / Apply'}
+          </button>
+        </div>
         <button
           className="blueprint-overlay-close"
           type="button"
           aria-label="Close Configure Blueprint panel"
-          onClick={onClose}
+          onClick={handleClose}
         >
           ✕
         </button>
@@ -155,8 +245,18 @@ export function BlueprintConfigOverlay({ onClose }) {
           )}
           <EnvironmentSection formState={formState} updateForm={updateForm} />
           <SiteSettingsSection formState={formState} updateForm={updateForm} />
-          <PluginsSection formState={formState} updateForm={updateForm} />
-          <ThemesSection formState={formState} updateForm={updateForm} />
+          <SlugListSection
+            title="Plugins" sectionId="section-plugins"
+            items={formState.plugins} onUpdate={(plugins) => updateForm({ plugins })}
+            itemType="plugin" inputId="bf-plugin-slug"
+            inputPlaceholder="WordPress.org plugin slug"
+          />
+          <SlugListSection
+            title="Themes" sectionId="section-themes"
+            items={formState.themes} onUpdate={(themes) => updateForm({ themes })}
+            itemType="theme" inputId="bf-theme-slug"
+            inputPlaceholder="WordPress.org theme slug"
+          />
           <ContentSection formState={formState} updateForm={updateForm} />
         </div>
 

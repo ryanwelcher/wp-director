@@ -6,9 +6,11 @@ import { SectionBadge } from './SectionBadge.jsx';
 function getBlueprintSummary(blueprint) {
   if (!blueprint) return 'No blueprint loaded';
   const plugins = (blueprint.steps ?? []).filter((s) => s.step === 'installPlugin').length;
+  const themes = (blueprint.steps ?? []).filter((s) => s.step === 'installTheme').length;
   const wp = blueprint.preferredVersions?.wp;
   const parts = [];
   if (plugins > 0) parts.push(`${plugins} plugin${plugins === 1 ? '' : 's'}`);
+  if (themes > 0) parts.push(`${themes} theme${themes === 1 ? '' : 's'}`);
   if (wp && wp !== 'latest') parts.push(`WP ${wp}`);
   return parts.length > 0 ? parts.join(', ') : 'Default configuration';
 }

@@ -48,6 +48,18 @@ function register(app) {
     }
   });
 
+  app.post('/api/save-blueprint', (req, res) => {
+    const { blueprint } = req.body;
+    if (!blueprint) return res.status(400).json({ error: 'blueprint required' });
+
+    try {
+      fs.writeFileSync(GENERATED_BLUEPRINT, JSON.stringify(blueprint, null, 2));
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post('/api/preview-blueprint', async (req, res) => {
     const { blueprint } = req.body;
     if (!blueprint) return res.status(400).json({ error: 'blueprint required' });

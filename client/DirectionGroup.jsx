@@ -2,6 +2,7 @@ import { describePlain } from './utils/actions.js';
 
 export function DirectionGroup({
   direction,
+  dragging,
   dragOver,
   index,
   isAlwaysRun,
@@ -9,6 +10,7 @@ export function DirectionGroup({
   isStartFrom,
   onDelete,
   onDragEnd,
+  onDragLeave,
   onDragOver,
   onDragStart,
   onDrop,
@@ -19,6 +21,7 @@ export function DirectionGroup({
 }) {
   const className = [
     'direction-group',
+    dragging ? 'dragging' : '',
     dragOver ? 'drag-over' : '',
     isStartFrom ? 'start-from' : '',
     isSkipped ? 'skipped' : '',
@@ -32,7 +35,7 @@ export function DirectionGroup({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onDragOver={onDragOver}
-      onDragLeave={onDragEnd}
+      onDragLeave={onDragLeave}
       onDrop={onDrop}
     >
       <div className="direction-group-header">

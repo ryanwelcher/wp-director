@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useAppState } from './context/AppStateContext.jsx';
 import { DirectionGroup } from './DirectionGroup.jsx';
@@ -45,6 +45,7 @@ export function DirectionsPanel() {
     toggleStartFrom,
     updateDirectionLabel,
   } = useAppState();
+  const draggingIndexRef = useRef(null);
   const [draggingIndex, setDraggingIndex] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
   const [menu, setMenu] = useState(null);
@@ -119,6 +120,7 @@ export function DirectionsPanel() {
                 <DirectionGroup
                   key={`${direction.label}-${index}`}
                   direction={direction}
+                  dragging={draggingIndex === index}
                   dragOver={dragOverIndex === index}
                   index={index}
                   isAlwaysRun={isAlwaysRun}
@@ -130,24 +132,33 @@ export function DirectionsPanel() {
                       event.preventDefault();
                       return;
                     }
+                    draggingIndexRef.current = index;
                     setDraggingIndex(index);
                     event.dataTransfer.effectAllowed = 'move';
+                    event.dataTransfer.setData('text/plain', String(index));
                   }}
                   onDragEnd={() => {
+                    draggingIndexRef.current = null;
                     setDraggingIndex(null);
                     setDragOverIndex(null);
                   }}
                   onDragOver={(event) => {
                     event.preventDefault();
-                    if (draggingIndex !== null && draggingIndex !== index) {
+                    event.dataTransfer.dropEffect = 'move';
+                    if (draggingIndexRef.current !== null && draggingIndexRef.current !== index) {
                       setDragOverIndex(index);
                     }
                   }}
+                  onDragLeave={() => {
+                    setDragOverIndex((current) => (current === index ? null : current));
+                  }}
                   onDrop={(event) => {
                     event.preventDefault();
-                    if (draggingIndex !== null && draggingIndex !== index) {
-                      reorderDirections(draggingIndex, index);
+                    const from = draggingIndexRef.current;
+                    if (from !== null && from !== index) {
+                      reorderDirections(from, index);
                     }
+                    draggingIndexRef.current = null;
                     setDraggingIndex(null);
                     setDragOverIndex(null);
                   }}

@@ -21,7 +21,6 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const {
-  PUBLIC_DIR,
   SCREENCASTS_DIR,
   DEFAULT_SERVER_PORT,
   DEFAULT_BLUEPRINT,
@@ -45,25 +44,25 @@ const PORT = process.env.PORT || DEFAULT_SERVER_PORT;
 
 async function mountFrontend() {
   const distDir = path.join(__dirname, 'dist/public');
+  const distIndex = path.join(distDir, 'index.html');
 
-  if (process.env.NODE_ENV === 'production' && fs.existsSync(distDir)) {
+  if (process.env.NODE_ENV === 'production') {
+    if (!fs.existsSync(distIndex)) {
+      throw new Error('Production frontend build not found. Run `npm run build` before starting with NODE_ENV=production.');
+    }
+
     app.use(express.static(distDir));
-    app.get('*', (req, res) => res.sendFile(path.join(distDir, 'index.html')));
+    app.get('*', (req, res) => res.sendFile(distIndex));
     return;
   }
 
-  try {
-    const { createServer } = await import('vite');
-    const vite = await createServer({
-      configFile: path.join(__dirname, 'vite.config.js'),
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } catch (err) {
-    console.warn(`[Vite] Falling back to static public/ assets: ${err.message}`);
-    app.use(express.static(PUBLIC_DIR));
-  }
+  const { createServer } = await import('vite');
+  const vite = await createServer({
+    configFile: path.join(__dirname, 'vite.config.js'),
+    server: { middlewareMode: true },
+    appType: 'spa',
+  });
+  app.use(vite.middlewares);
 }
 
 async function start() {

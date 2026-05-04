@@ -10,7 +10,7 @@ export function DirectionMenu({ direction, onClose, onDelete, onInsert, onSave, 
   }
 
   return (
-    <div className="direction-menu" style={{ top: position.top, left: position.left }}>
+    <div className="direction-menu" style={{ top: position.top, left: position.left }} onClick={(event) => event.stopPropagation()}>
       <button className="direction-menu-item direction-menu-toggle" type="button" onClick={handleClick(onToggle)}>
         {direction._open ? '\u25B2 Hide steps' : '\u25BC Show steps'}
       </button>

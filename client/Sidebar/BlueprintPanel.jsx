@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'react-toastify';
 import { useAppState } from '../context/AppStateContext.jsx';
 import { useBlueprintFormState } from '../state/useBlueprintFormState.js';
@@ -9,6 +9,10 @@ import { SiteSettingsSection } from '../blueprint/SiteSettingsSection.jsx';
 import { SlugListSection } from '../blueprint/SlugListSection.jsx';
 import { ContentSection } from '../blueprint/ContentSection.jsx';
 import { SectionBadge } from './SectionBadge.jsx';
+
+function formatBlueprint(blueprint) {
+  return blueprint ? JSON.stringify(blueprint, null, 2) : '';
+}
 
 export function BlueprintPanel() {
   const { blueprint: appBlueprint, defaultBlueprint, setBlueprint, isBlueprintModified } = useAppState();

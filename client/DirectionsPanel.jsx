@@ -1,11 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useAppState } from './context/AppStateContext.jsx';
 import { DirectionGroup } from './DirectionGroup.jsx';
 import { DirectionMenu } from './DirectionMenu.jsx';
 import { DirectionPicker } from './DirectionPicker.jsx';
 import { directionsForJSON, errorMessage, flattenDirectionActions } from './utils/actions.js';
-import { fetchJSON, postJSON } from './utils/api.js';
+import {
+  useDirectionLoader,
+  useSaveDirectionMutation,
+} from './utils/apiHooks.js';
 import { useRunState } from './context/RunContext.jsx';
 
 function menuPosition(target, width = 200) {
@@ -37,7 +40,6 @@ export function DirectionsPanel() {
     directionsView,
     insertDirectionAt,
     libraryEntries,
-    loadDirectionLibrary,
     reorderDirections,
     setDirectionsView,
     startFromIndex,
@@ -52,33 +54,20 @@ export function DirectionsPanel() {
   const [dragOverIndex, setDragOverIndex] = useState(null);
   const [menu, setMenu] = useState(null);
   const [picker, setPicker] = useState(null);
+  const loadDirection = useDirectionLoader();
+  const saveDirectionMutation = useSaveDirectionMutation();
 
-  useEffect(() => {
-    if (activeStepIndex == null) return;
-    const items = document.querySelectorAll('#step-list li.direction-group');
-    items[activeStepIndex]?.scrollIntoView({ block: 'nearest' });
-  }, [activeStepIndex]);
-
-  useEffect(() => {
-    function closeMenus() {
-      setMenu(null);
-      setPicker(null);
-    }
-
-    let timeoutId = null;
-    if (menu || picker) {
-      timeoutId = window.setTimeout(() => document.addEventListener('click', closeMenus, { once: true }), 0);
-    }
-
-    return () => {
-      if (timeoutId !== null) window.clearTimeout(timeoutId);
-      document.removeEventListener('click', closeMenus);
-    };
-  }, [menu, picker]);
+  const closePopovers = useCallback(() => {
+    setMenu(null);
+    setPicker(null);
+  }, []);
+  const activeDirectionRef = useCallback((node) => {
+    if (node) node.scrollIntoView({ block: 'nearest' });
+  }, []);
 
   async function insertDirection(filename, insertIndex) {
     try {
-      const data = await fetchJSON(`/api/directions/${filename}`);
+      const data = await loadDirection(filename);
       const flatSteps = flattenDirectionActions(data.actions ?? []);
       const index = insertIndex ?? directions.length;
       insertDirectionAt({ label: data.name, actions: flatSteps, _fromDirection: true }, index);
@@ -93,12 +82,11 @@ export function DirectionsPanel() {
     if (!group) return;
 
     try {
-      const data = await postJSON('/api/directions/save', {
+      const data = await saveDirectionMutation.mutateAsync({
         name: group.label,
         actions: directionsForJSON([group]),
       });
       toast.success(`Saved direction "${group.label}"`);
-      await loadDirectionLibrary();
       return data;
     } catch (err) {
       toast.error(errorMessage(err, 'Save failed'));
@@ -141,6 +129,7 @@ export function DirectionsPanel() {
                   isActiveStep={activeStepIndex === index}
                   isSkipped={isSkipped}
                   isStartFrom={isStartFrom}
+                  itemRef={activeStepIndex === index ? activeDirectionRef : null}
                   onDragStart={(event) => {
                     if (event.target.tagName === 'INPUT') {
                       event.preventDefault();
@@ -213,25 +202,31 @@ export function DirectionsPanel() {
       )}
 
       {menu && directions[menu.index] && (
-        <DirectionMenu
-          direction={directions[menu.index]}
-          position={menu.position}
-          onClose={() => setMenu(null)}
-          onDelete={() => deleteDirection(menu.index)}
-          onInsert={() => setPicker({ anchorIndex: menu.index, position: menu.position })}
-          onSave={() => saveDirection(menu.index)}
-          onToggle={() => toggleDirectionOpen(menu.index)}
-        />
+        <>
+          <button className="popover-backdrop" type="button" aria-label="Close menu" onClick={closePopovers} />
+          <DirectionMenu
+            direction={directions[menu.index]}
+            position={menu.position}
+            onClose={() => setMenu(null)}
+            onDelete={() => deleteDirection(menu.index)}
+            onInsert={() => setPicker({ anchorIndex: menu.index, position: menu.position })}
+            onSave={() => saveDirection(menu.index)}
+            onToggle={() => toggleDirectionOpen(menu.index)}
+          />
+        </>
       )}
 
       {picker && (
-        <DirectionPicker
-          anchorIndex={picker.anchorIndex}
-          entries={libraryEntries}
-          position={picker.position}
-          onClose={() => setPicker(null)}
-          onSelect={insertDirection}
-        />
+        <>
+          <button className="popover-backdrop" type="button" aria-label="Close direction picker" onClick={closePopovers} />
+          <DirectionPicker
+            anchorIndex={picker.anchorIndex}
+            entries={libraryEntries}
+            position={picker.position}
+            onClose={() => setPicker(null)}
+            onSelect={insertDirection}
+          />
+        </>
       )}
     </div>
   );

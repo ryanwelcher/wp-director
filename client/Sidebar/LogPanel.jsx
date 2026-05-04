@@ -1,12 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useCallback } from 'react';
 import { useRunState } from '../context/RunContext.jsx';
 
 export function LogPanel() {
   const { logBadge, logOpen, logText, setLogOpen } = useRunState();
-  const outputRef = useRef(null);
-
-  useEffect(() => {
-    if (outputRef.current) outputRef.current.scrollTop = outputRef.current.scrollHeight;
+  const scrollOutputRef = useCallback((node) => {
+    if (node) node.scrollTop = node.scrollHeight;
   }, [logText]);
 
   return (
@@ -15,7 +13,7 @@ export function LogPanel() {
         <span>Output</span>
         <span className={logBadge.className}>{logBadge.text}</span>
       </summary>
-      <pre id="log-output" ref={outputRef}>{logText}</pre>
+      <pre id="log-output" ref={scrollOutputRef}>{logText}</pre>
     </details>
   );
 }

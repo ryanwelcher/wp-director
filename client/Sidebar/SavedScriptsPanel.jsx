@@ -1,32 +1,29 @@
-import { useEffect, useRef } from 'react';
+import { useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { useAppState } from '../context/AppStateContext.jsx';
 import { useRunState } from '../context/RunContext.jsx';
 import { errorMessage } from '../utils/actions.js';
-import { fetchJSON } from '../utils/api.js';
+import { useDeleteScriptMutation } from '../utils/apiHooks.js';
 import { SectionBadge } from './SectionBadge.jsx';
 
 export function SavedScriptsPanel() {
   const {
-    loadSavedScripts,
     loadScriptIntoEditor,
     savedScripts,
     selectedScripts,
     setSelectedScripts,
   } = useAppState();
   const { recordAll, running } = useRunState();
-  const selectAllRef = useRef(null);
-
-  useEffect(() => {
-    if (!selectAllRef.current) return;
-    selectAllRef.current.indeterminate = selectedScripts.length > 0 && selectedScripts.length < savedScripts.length;
-  }, [savedScripts.length, selectedScripts.length]);
+  const deleteScriptMutation = useDeleteScriptMutation();
+  const partiallySelected = selectedScripts.length > 0 && selectedScripts.length < savedScripts.length;
+  const setSelectAllRef = useCallback((node) => {
+    if (node) node.indeterminate = partiallySelected;
+  }, [partiallySelected]);
 
   async function deleteScript(script) {
     try {
-      await fetchJSON(`/api/scripts/${script.filename}`, { method: 'DELETE' });
+      await deleteScriptMutation.mutateAsync(script.filename);
       setSelectedScripts((current) => current.filter((name) => name !== script.name));
-      await loadSavedScripts();
     } catch (err) {
       toast.error(errorMessage(err, 'Delete failed'));
     }
@@ -86,7 +83,7 @@ export function SavedScriptsPanel() {
         <div className="saved-scripts-footer">
           <label className="select-all-label">
             <input
-              ref={selectAllRef}
+              ref={setSelectAllRef}
               type="checkbox"
               checked={allSelected}
               onChange={(event) => {

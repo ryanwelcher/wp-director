@@ -2,23 +2,23 @@ import { useState } from 'react';
 import { toast } from 'react-toastify';
 import { useAppState } from './context/AppStateContext.jsx';
 import { errorMessage } from './utils/actions.js';
-import { postJSON } from './utils/api.js';
+import { useTranslateMutation } from './utils/apiHooks.js';
 
 export function CommandBar() {
   const { appendDirections, directions } = useAppState();
   const [command, setCommand] = useState('');
-  const [loading, setLoading] = useState(false);
+  const translateMutation = useTranslateMutation();
+  const loading = translateMutation.isPending;
 
   async function addCommand() {
     const trimmed = command.trim();
     if (!trimmed || loading) return;
 
-    setLoading(true);
     const toastId = toast.loading('Translating...');
 
     try {
       const flatHistory = directions.flatMap((group) => group.actions ?? []);
-      const data = await postJSON('/api/translate', { command: trimmed, history: flatHistory });
+      const data = await translateMutation.mutateAsync({ command: trimmed, history: flatHistory });
       const nextDirections = appendDirections(data.directions ?? []);
       setCommand('');
       toast.update(toastId, {
@@ -34,8 +34,6 @@ export function CommandBar() {
         isLoading: false,
         autoClose: false,
       });
-    } finally {
-      setLoading(false);
     }
   }
 

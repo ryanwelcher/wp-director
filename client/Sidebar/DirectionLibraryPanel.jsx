@@ -1,17 +1,17 @@
 import { toast } from 'react-toastify';
 import { useAppState } from '../context/AppStateContext.jsx';
 import { errorMessage } from '../utils/actions.js';
-import { fetchJSON } from '../utils/api.js';
+import { useDeleteDirectionMutation } from '../utils/apiHooks.js';
 import { SectionBadge } from './SectionBadge.jsx';
 
 export function DirectionLibraryPanel() {
-  const { libraryEntries, loadDirectionLibrary } = useAppState();
+  const { libraryEntries } = useAppState();
+  const deleteDirectionMutation = useDeleteDirectionMutation();
 
   async function deleteDirection(entry) {
     try {
-      await fetchJSON(`/api/directions/${entry.filename}`, { method: 'DELETE' });
+      await deleteDirectionMutation.mutateAsync(entry.filename);
       toast.success(`Deleted direction "${entry.name}"`);
-      await loadDirectionLibrary();
     } catch (err) {
       toast.error(errorMessage(err, 'Delete failed'));
     }

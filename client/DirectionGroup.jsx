@@ -9,6 +9,7 @@ export function DirectionGroup({
   isActiveStep,
   isSkipped,
   isStartFrom,
+  itemRef,
   onDragEnd,
   onDragLeave,
   onDragOver,
@@ -31,6 +32,7 @@ export function DirectionGroup({
 
   return (
     <li
+      ref={itemRef}
       className={className}
       draggable
       onDragStart={onDragStart}

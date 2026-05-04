@@ -1,39 +1,28 @@
-import { useEffect, useMemo, useState } from 'react';
-import { toast } from 'react-toastify';
-import { errorMessage } from '../utils/actions.js';
-import { fetchJSON } from '../utils/api.js';
+import { useMemo, useState } from 'react';
+import {
+  useCurrentBlueprintQuery,
+  useDefaultBlueprintQuery,
+} from '../utils/apiHooks.js';
 
 export function useBlueprintState() {
-  const [blueprint, setBlueprint] = useState(null);
-  const [defaultBlueprint, setDefaultBlueprint] = useState(null);
+  const [blueprintOverride, setBlueprint] = useState();
+  const defaultBlueprintQuery = useDefaultBlueprintQuery();
+  const currentBlueprintQuery = useCurrentBlueprintQuery();
+  const currentBlueprintSettled = currentBlueprintQuery.isSuccess || currentBlueprintQuery.isError;
+  const defaultBlueprint = defaultBlueprintQuery.data ?? null;
+  const loadedBlueprint = defaultBlueprintQuery.isSuccess && currentBlueprintSettled
+    ? currentBlueprintQuery.data ?? defaultBlueprint
+    : null;
+  const blueprint = blueprintOverride === undefined ? loadedBlueprint : blueprintOverride;
 
   const isBlueprintModified = useMemo(() => (
     !!defaultBlueprint && JSON.stringify(blueprint) !== JSON.stringify(defaultBlueprint)
   ), [blueprint, defaultBlueprint]);
 
-  useEffect(() => {
-    let active = true;
-
-    Promise.all([
-      fetchJSON('/api/default-blueprint'),
-      fetchJSON('/api/current-blueprint').catch(() => null),
-    ]).then(([defaultRes, currentRes]) => {
-      if (!active) return;
-      const nextDefault = defaultRes?.blueprint ?? null;
-      setDefaultBlueprint(nextDefault);
-      setBlueprint(currentRes?.blueprint ?? nextDefault);
-    }).catch((err) => {
-      if (active) toast.error(errorMessage(err, 'Could not load blueprint'));
-    });
-
-    return () => { active = false; };
-  }, []);
-
   return {
     blueprint,
     setBlueprint,
     defaultBlueprint,
-    setDefaultBlueprint,
     isBlueprintModified,
   };
 }

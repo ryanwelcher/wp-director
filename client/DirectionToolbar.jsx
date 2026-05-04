@@ -2,7 +2,7 @@ import { toast } from 'react-toastify';
 import { useAppState } from './context/AppStateContext.jsx';
 import { useRunState } from './context/RunContext.jsx';
 import { errorMessage } from './utils/actions.js';
-import { postJSON } from './utils/api.js';
+import { useSaveScriptMutation } from './utils/apiHooks.js';
 
 const VIDEO_SIZES = ['1280x720', '1920x1080', '3840x2160'];
 const VIDEO_LABELS = {
@@ -18,7 +18,6 @@ export function DirectionToolbar() {
     currentEndPause,
     directions,
     endPause,
-    loadSavedScripts,
     name,
     setEndPause,
     setName,
@@ -27,18 +26,18 @@ export function DirectionToolbar() {
     videoSize,
   } = useAppState();
   const { running, runActions, stopRun } = useRunState();
+  const saveScriptMutation = useSaveScriptMutation();
   const hasDirections = directions.length > 0;
 
   async function saveScript() {
     const scriptName = name.trim() || `recording-${Date.now()}`;
     try {
-      await postJSON('/api/scripts/save', {
+      await saveScriptMutation.mutateAsync({
         name: scriptName,
         directions: cleanDirections,
         endPause: currentEndPause,
       });
       toast.success(`Saved "${scriptName}"`);
-      await loadSavedScripts();
     } catch (err) {
       toast.error(errorMessage(err, 'Save failed'));
     }

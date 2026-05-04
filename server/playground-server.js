@@ -27,14 +27,20 @@
 
 const crypto = require('crypto');
 const fs = require('fs');
+const path = require('path');
 const {
   RECORDING_PLAYGROUND_PORT_MIN,
   RECORDING_PLAYGROUND_PORT_MAX,
 } = require('./config');
-const { killProcess, startPlayground } = require('./playground');
+const { killAndWait, startPlayground } = require('./playground');
 
 const INITIAL_SLOT_COUNT = 2;
 const MAX_SLOT_COUNT = RECORDING_PLAYGROUND_PORT_MAX - RECORDING_PLAYGROUND_PORT_MIN + 1;
+
+// Hard deadline for killing an old process (covers SIGTERM grace + SIGKILL landing time).
+const OLD_PROC_KILL_TIMEOUT_MS = 10_000;
+// Delay before retrying a failed background boot (gives the OS time to release the port).
+const BOOT_RETRY_DELAY_MS = 2_000;
 
 /**
  * @typedef {'idle'|'booting'|'warm'|'active'} SlotStatus
@@ -101,38 +107,62 @@ function hashBlueprint(blueprintPath) {
  */
 function bootSlot(index, blueprintPath) {
   const slot = slots[index];
-  killProcess(slot.proc);
+  const oldProc = slot.proc;
+
+  // Update state synchronously so callers that check status/pendingHash
+  // immediately after calling bootSlot see the correct values.
   slot.proc = null;
   slot.status = 'booting';
   slot.blueprintHash = null;
   slot.pendingHash = hashBlueprint(blueprintPath);
-  slot.onDone = null;
+  slot.onData = null;
 
-  // Pass a dynamic wrapper so the process's stdout/stderr listeners always
-  // delegate to slot.onData — even after acquire() swaps in a new callback.
-  const promise = startPlayground({ port: slot.port, blueprintPath, onData: (e) => slots[index]?.onData?.(e) })
-    .then((proc) => {
-      slot.proc = proc;
-      proc.on('close', () => {
-        if (slot.proc !== proc) return;
-        slot.proc = null;
-        slot.bootPromise = null;
-        slot.pendingHash = null;
-        slot.blueprintHash = null;
-        if (slot.status !== 'booting') slot.status = 'idle';
-      });
-      slot.status = 'warm';
-      slot.blueprintHash = slot.pendingHash;
-      slot.pendingHash = null;
-      slot.bootPromise = null;
-    })
-    .catch((err) => {
+  console.log(`[Playground Pool] Slot ${index} (port ${slot.port}): booting with ${path.basename(blueprintPath)}...`);
+
+  const promise = (async () => {
+    // Wait for the old process to fully exit before binding the same port.
+    // killAndWait sends SIGTERM then escalates to SIGKILL after 5s if needed.
+    // The outer race enforces a hard 10s ceiling in case even SIGKILL is slow.
+    if (oldProc) {
+      await Promise.race([
+        killAndWait(oldProc),
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error(`Slot ${index}: old process did not exit within ${OLD_PROC_KILL_TIMEOUT_MS}ms`)),
+            OLD_PROC_KILL_TIMEOUT_MS
+          )
+        ),
+      ]);
+      console.log(`[Playground Pool] Slot ${index} (port ${slot.port}): old process exited, starting new one...`);
+    }
+
+    // Pass a dynamic wrapper so the process's stdout/stderr listeners always
+    // delegate to slot.onData — even after acquire() swaps in a new callback.
+    const proc = await startPlayground({ port: slot.port, blueprintPath, onData: (e) => slots[index]?.onData?.(e) });
+
+    slot.proc = proc;
+    proc.on('close', () => {
+      if (slot.proc !== proc) return;
       slot.proc = null;
-      slot.status = 'idle';
-      slot.pendingHash = null;
       slot.bootPromise = null;
-      throw err;
+      slot.pendingHash = null;
+      slot.blueprintHash = null;
+      if (slot.status !== 'booting') slot.status = 'idle';
+      console.log(`[Playground Pool] Slot ${index} (port ${slot.port}): process closed`);
     });
+    slot.status = 'warm';
+    slot.blueprintHash = slot.pendingHash;
+    slot.pendingHash = null;
+    slot.bootPromise = null;
+    console.log(`[Playground Pool] Slot ${index} (port ${slot.port}): warm and ready`);
+  })().catch((err) => {
+    slot.proc = null;
+    slot.status = 'idle';
+    slot.pendingHash = null;
+    slot.bootPromise = null;
+    console.error(`[Playground Pool] Slot ${index} (port ${slot.port}): boot failed —`, err.message);
+    throw err;
+  });
 
   slot.bootPromise = promise;
   return promise;
@@ -147,10 +177,10 @@ function bootSlot(index, blueprintPath) {
  * @returns {Promise<void>}
  */
 async function init(defaultBlueprintPath) {
-  bootSlot(1, defaultBlueprintPath).catch((err) => {
-    console.error('[Playground Pool] Recording slot 1 (port', slots[1]?.port, ') failed to start:', err.message);
-  });
+  console.log(`[Playground Pool] Initialising with ${path.basename(defaultBlueprintPath)} (${INITIAL_SLOT_COUNT} slots)`);
+  bootSlotWithRetry(1, defaultBlueprintPath, `Slot 1 (port ${slots[1]?.port}) init`);
   await bootSlot(0, defaultBlueprintPath);
+  console.log('[Playground Pool] Ready');
 }
 
 /**
@@ -184,9 +214,7 @@ async function acquire(blueprintPath, onData = null) {
     console.log('[Playground Pool] Expanding playground pool ...');
     const slot = createSlot(RECORDING_PLAYGROUND_PORT_MIN + slots.length);
     const index = slots.push(slot) - 1;
-    bootSlot(index, blueprintPath).catch((err) => {
-      console.error('[Playground Pool] Expanded slot failed to start (port', slot.port, '):', err.message);
-    });
+    bootSlotWithRetry(index, blueprintPath, `Expanded slot (port ${slot.port})`);
   }
 
   // Medium path — race any matching boots so whichever finishes first can be
@@ -207,8 +235,11 @@ async function acquire(blueprintPath, onData = null) {
   const idx = targetIndex === -1 ? 0 : targetIndex;
   const target = slots[idx];
 
+  console.log(`[Playground Pool] Slow path — rebooting slot ${idx} (port ${target.port}) with ${path.basename(blueprintPath)}`);
+
   if (target.status === 'booting') {
     // Let the current boot finish before overriding (avoids port conflicts).
+    console.log(`[Playground Pool] Slot ${idx} (port ${target.port}): waiting for in-progress boot to finish...`);
     try { await target.bootPromise; } catch {}
   }
 
@@ -216,7 +247,6 @@ async function acquire(blueprintPath, onData = null) {
   target.status = 'active';
   target.onData = onData;
   _refreshAnother(target.port, blueprintPath);
-  console.log('[Playground Pool] Rebooting playground', target.port);
   return target.port;
 }
 
@@ -231,16 +261,38 @@ async function acquire(blueprintPath, onData = null) {
 function release(port, blueprintPath) {
   const index = slots.findIndex(s => s.port === port);
   if (index === -1) return;
-  console.log('[Playground Pool] Releasing playground', port);
+  console.log(`[Playground Pool] Slot ${index} (port ${port}): released — rebooting for next run`);
   // Clear onData so the background reboot's log output doesn't leak into
   // the just-finished request's SSE stream.
   slots[index].onData = null;
-  bootSlot(index, blueprintPath).catch((err) => {
-    console.error('[Playground Pool] Post-recording slot refresh failed (port', port, '):', err.message);
-  });
+  bootSlotWithRetry(index, blueprintPath, `Slot ${index} (port ${port}) post-release reboot`);
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
+
+/**
+ * Boot a slot, retrying once after a short delay if the first attempt fails.
+ * Used for background boots only — the slow-path in acquire() propagates
+ * errors directly to the caller and does not use this wrapper.
+ *
+ * @param {number} index
+ * @param {string} blueprintPath
+ * @param {string} logContext   Short label for error messages.
+ * @returns {Promise<void>}
+ */
+async function bootSlotWithRetry(index, blueprintPath, logContext) {
+  try {
+    await bootSlot(index, blueprintPath);
+  } catch (err) {
+    console.warn(`[Playground Pool] ${logContext} — first attempt failed (${err.message}), retrying in ${BOOT_RETRY_DELAY_MS}ms...`);
+    await new Promise(r => setTimeout(r, BOOT_RETRY_DELAY_MS));
+    try {
+      await bootSlot(index, blueprintPath);
+    } catch (retryErr) {
+      console.error(`[Playground Pool] ${logContext} — retry also failed:`, retryErr.message);
+    }
+  }
+}
 
 /**
  * If another slot is not already warm (or booting) with the same blueprint,
@@ -259,9 +311,7 @@ function _refreshAnother(usedPort, blueprintPath) {
   );
   if (index === -1) return;
   const other = slots[index];
-  bootSlot(index, blueprintPath).catch((err) => {
-    console.error('[Playground Pool] Background slot refresh failed (port', other.port, '):', err.message);
-  });
+  bootSlotWithRetry(index, blueprintPath, `Slot ${index} (port ${other.port}) background refresh`);
 }
 
 /**
@@ -286,4 +336,50 @@ function _claimWarmSlot(hash, blueprintPath, onData, logPrefix) {
   return null;
 }
 
-module.exports = { init, acquire, release };
+/**
+ * Kick off background boots for all non-active slots that are not already
+ * warm or booting with this blueprint. Call after saving or resetting the
+ * blueprint so slots are pre-warmed before the next recording is requested.
+ *
+ * @param {string} blueprintPath
+ */
+function warmAll(blueprintPath) {
+  const hash = hashBlueprint(blueprintPath);
+  const blueprint = path.basename(blueprintPath);
+  console.log(`[Playground Pool] warmAll — re-warming slots with ${blueprint}`);
+
+  slots.forEach((slot, index) => {
+    if (slot.status === 'active') {
+      console.log(`[Playground Pool] Slot ${index} (port ${slot.port}): skipped (active)`);
+      return;
+    }
+    if (slot.status === 'warm' && slot.blueprintHash === hash) {
+      console.log(`[Playground Pool] Slot ${index} (port ${slot.port}): already warm with this blueprint`);
+      return;
+    }
+    if (slot.status === 'booting' && slot.pendingHash === hash) {
+      console.log(`[Playground Pool] Slot ${index} (port ${slot.port}): already booting with this blueprint`);
+      return;
+    }
+    bootSlotWithRetry(index, blueprintPath, `Slot ${index} (port ${slot.port}) warm-all reboot`);
+  });
+}
+
+/**
+ * Return pool status relative to `blueprintPath`.
+ *
+ * @param {string} blueprintPath
+ * @returns {{ warm: number, booting: number, total: number, ready: boolean }}
+ */
+function getStatus(blueprintPath) {
+  const hash = hashBlueprint(blueprintPath);
+  let warm = 0;
+  let booting = 0;
+  for (const slot of slots) {
+    if (slot.status === 'warm' && slot.blueprintHash === hash) warm++;
+    else if (slot.status === 'booting' && slot.pendingHash === hash) booting++;
+  }
+  return { warm, booting, total: slots.length, ready: warm > 0 };
+}
+
+module.exports = { init, acquire, release, warmAll, getStatus };

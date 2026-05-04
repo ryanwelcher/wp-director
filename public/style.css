@@ -273,6 +273,18 @@ header p {
 #step-list li.direction-group.always-run { border-left: 3px solid #f59e0b; }
 #step-list li.direction-group.always-run .direction-pin-btn { color: #f59e0b; }
 #step-list li.direction-group.skipped.always-run { opacity: 1; }
+#step-list li.direction-group.is-translating {
+  border-color: #3b82f6;
+  background: #14213a;
+}
+#step-list li.direction-group.has-translation-error {
+  border-color: #ef4444;
+  background: #26151b;
+}
+#step-list li.direction-group.is-translating .drag-handle,
+#step-list li.direction-group.has-translation-error .drag-handle {
+  cursor: default;
+}
 #step-list li.direction-group.active-step {
   border-color: #6366f1;
   background: #1e1f3b;
@@ -314,6 +326,48 @@ header p {
 .direction-start-btn:hover { color: #4ade80; background: #0f2a1a; }
 .direction-pin-btn:hover { color: #f59e0b; background: #1f1a0a; }
 .direction-menu-btn:hover { color: #94a3b8; background: #252d3d; }
+.direction-start-btn:disabled,
+.direction-pin-btn:disabled {
+  color: #2d3748;
+  cursor: not-allowed;
+}
+.direction-start-btn:disabled:hover,
+.direction-pin-btn:disabled:hover {
+  background: transparent;
+}
+
+.direction-label-input:disabled {
+  color: #94a3b8;
+  cursor: default;
+}
+
+.direction-translation-state {
+  align-items: center;
+  border-top: 1px solid #24324a;
+  color: #93c5fd;
+  display: flex;
+  font-size: 0.78rem;
+  gap: 0.5rem;
+  padding: 0.45rem 0.75rem 0.5rem 3.2rem;
+}
+
+.direction-translation-state--error {
+  border-top-color: #3f1f28;
+  color: #fca5a5;
+}
+
+.direction-spinner {
+  animation: direction-spin 0.8s linear infinite;
+  border: 2px solid #1d4ed8;
+  border-top-color: #93c5fd;
+  border-radius: 50%;
+  height: 0.8rem;
+  width: 0.8rem;
+}
+
+@keyframes direction-spin {
+  to { transform: rotate(360deg); }
+}
 
 .direction-menu {
   position: absolute;

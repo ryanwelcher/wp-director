@@ -132,11 +132,11 @@ export function formToBlueprint(form, schema) {
   const blueprint = {};
   if (schema) blueprint.$schema = schema;
 
-  // Versions — omit if "latest" to keep output clean
-  const versions = {};
-  if (form.wpVersion && form.wpVersion !== 'latest') versions.wp = form.wpVersion;
-  if (form.phpVersion && form.phpVersion !== 'latest') versions.php = form.phpVersion;
-  if (Object.keys(versions).length > 0) blueprint.preferredVersions = versions;
+  // Versions — emit both keys together whenever either is pinned; Playground requires
+  // the full preferredVersions object when the node is present.
+  if (form.wpVersion !== 'latest' || form.phpVersion !== 'latest') {
+    blueprint.preferredVersions = { wp: form.wpVersion, php: form.phpVersion };
+  }
 
   if (form.landingPage) blueprint.landingPage = form.landingPage;
 

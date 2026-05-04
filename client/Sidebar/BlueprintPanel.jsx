@@ -66,6 +66,15 @@ export function BlueprintPanel() {
         />
         <ContentSection formState={formState} updateForm={updateForm} />
 
+        <section className="blueprint-form-section">
+          <details className="bfs-collapsible">
+            <summary className="bfs-summary">JSON</summary>
+            <pre className="bfs-json-preview">
+              {JSON.stringify(compiledBlueprint, null, 2)}
+            </pre>
+          </details>
+        </section>
+
         <div className="blueprint-panel-actions">
           {!poolStatus.ready && (
             <p className="blueprint-pool-status" role="status">

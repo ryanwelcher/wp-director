@@ -10,6 +10,7 @@ export function useDefaultBlueprintQuery() {
   return useQuery({
     queryKey: queryKeys.blueprint.default,
     queryFn: api.getDefaultBlueprint,
+    meta: { errorMessage: 'Could not load blueprint' },
   });
 }
 

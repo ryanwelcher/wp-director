@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { useAppState } from '../context/AppStateContext.jsx';
 import { useRunState } from '../context/RunContext.jsx';
@@ -15,12 +15,10 @@ export function SavedScriptsPanel() {
   } = useAppState();
   const { recordAll, running } = useRunState();
   const deleteScriptMutation = useDeleteScriptMutation();
-  const selectAllRef = useRef(null);
-
-  useEffect(() => {
-    if (!selectAllRef.current) return;
-    selectAllRef.current.indeterminate = selectedScripts.length > 0 && selectedScripts.length < savedScripts.length;
-  }, [savedScripts.length, selectedScripts.length]);
+  const partiallySelected = selectedScripts.length > 0 && selectedScripts.length < savedScripts.length;
+  const setSelectAllRef = useCallback((node) => {
+    if (node) node.indeterminate = partiallySelected;
+  }, [partiallySelected]);
 
   async function deleteScript(script) {
     try {
@@ -85,7 +83,7 @@ export function SavedScriptsPanel() {
         <div className="saved-scripts-footer">
           <label className="select-all-label">
             <input
-              ref={selectAllRef}
+              ref={setSelectAllRef}
               type="checkbox"
               checked={allSelected}
               onChange={(event) => {

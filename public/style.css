@@ -326,6 +326,16 @@ header p {
   padding: 0.3rem 0;
 }
 
+.popover-backdrop {
+  background: transparent;
+  border: 0;
+  cursor: default;
+  inset: 0;
+  padding: 0;
+  position: fixed;
+  z-index: 999;
+}
+
 .direction-menu-item {
   background: none;
   border: none;

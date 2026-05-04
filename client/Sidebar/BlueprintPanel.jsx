@@ -1,9 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'react-toastify';
 import { useAppState } from '../context/AppStateContext.jsx';
 import { errorMessage } from '../utils/actions.js';
 import { usePreviewBlueprintMutation } from '../utils/apiHooks.js';
 import { SectionBadge } from './SectionBadge.jsx';
+
+function formatBlueprint(blueprint) {
+  return blueprint ? JSON.stringify(blueprint, null, 2) : '';
+}
 
 export function BlueprintPanel() {
   const {
@@ -12,33 +16,22 @@ export function BlueprintPanel() {
     isBlueprintModified,
     setBlueprint,
   } = useAppState();
-  const [draft, setDraft] = useState('');
+  const [draftOverride, setDraftOverride] = useState(null);
   const [error, setError] = useState('');
   const previewBlueprintMutation = usePreviewBlueprintMutation();
   const testing = previewBlueprintMutation.isPending;
-  const skipNextSyncRef = useRef(false);
-
-  useEffect(() => {
-    if (skipNextSyncRef.current) {
-      skipNextSyncRef.current = false;
-      return;
-    }
-    setDraft(blueprint ? JSON.stringify(blueprint, null, 2) : '');
-    setError('');
-  }, [blueprint]);
+  const draft = draftOverride ?? formatBlueprint(blueprint);
 
   function editBlueprint(value) {
-    setDraft(value);
+    setDraftOverride(value);
 
     if (!value.trim()) {
-      skipNextSyncRef.current = true;
       setBlueprint(defaultBlueprint);
       setError('');
       return;
     }
 
     try {
-      skipNextSyncRef.current = true;
       setBlueprint(JSON.parse(value));
       setError('');
     } catch (err) {
@@ -61,7 +54,7 @@ export function BlueprintPanel() {
 
   function resetBlueprint() {
     setBlueprint(defaultBlueprint);
-    setDraft(defaultBlueprint ? JSON.stringify(defaultBlueprint, null, 2) : '');
+    setDraftOverride(null);
     setError('');
   }
 

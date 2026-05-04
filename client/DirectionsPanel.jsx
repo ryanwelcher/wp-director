@@ -5,7 +5,10 @@ import { DirectionGroup } from './DirectionGroup.jsx';
 import { DirectionMenu } from './DirectionMenu.jsx';
 import { DirectionPicker } from './DirectionPicker.jsx';
 import { directionsForJSON, errorMessage, flattenDirectionActions } from './utils/actions.js';
-import { fetchJSON, postJSON } from './utils/api.js';
+import {
+  useDirectionLoader,
+  useSaveDirectionMutation,
+} from './utils/apiHooks.js';
 import { useRunState } from './context/RunContext.jsx';
 
 function menuPosition(target, width = 200) {
@@ -37,7 +40,6 @@ export function DirectionsPanel() {
     directionsView,
     insertDirectionAt,
     libraryEntries,
-    loadDirectionLibrary,
     reorderDirections,
     setDirectionsView,
     startFromIndex,
@@ -52,6 +54,8 @@ export function DirectionsPanel() {
   const [dragOverIndex, setDragOverIndex] = useState(null);
   const [menu, setMenu] = useState(null);
   const [picker, setPicker] = useState(null);
+  const loadDirection = useDirectionLoader();
+  const saveDirectionMutation = useSaveDirectionMutation();
 
   useEffect(() => {
     if (activeStepIndex == null) return;
@@ -78,7 +82,7 @@ export function DirectionsPanel() {
 
   async function insertDirection(filename, insertIndex) {
     try {
-      const data = await fetchJSON(`/api/directions/${filename}`);
+      const data = await loadDirection(filename);
       const flatSteps = flattenDirectionActions(data.actions ?? []);
       const index = insertIndex ?? directions.length;
       insertDirectionAt({ label: data.name, actions: flatSteps, _fromDirection: true }, index);
@@ -93,12 +97,11 @@ export function DirectionsPanel() {
     if (!group) return;
 
     try {
-      const data = await postJSON('/api/directions/save', {
+      const data = await saveDirectionMutation.mutateAsync({
         name: group.label,
         actions: directionsForJSON([group]),
       });
       toast.success(`Saved direction "${group.label}"`);
-      await loadDirectionLibrary();
       return data;
     } catch (err) {
       toast.error(errorMessage(err, 'Save failed'));

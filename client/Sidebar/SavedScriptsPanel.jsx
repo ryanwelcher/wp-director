@@ -3,18 +3,18 @@ import { toast } from 'react-toastify';
 import { useAppState } from '../context/AppStateContext.jsx';
 import { useRunState } from '../context/RunContext.jsx';
 import { errorMessage } from '../utils/actions.js';
-import { fetchJSON } from '../utils/api.js';
+import { useDeleteScriptMutation } from '../utils/apiHooks.js';
 import { SectionBadge } from './SectionBadge.jsx';
 
 export function SavedScriptsPanel() {
   const {
-    loadSavedScripts,
     loadScriptIntoEditor,
     savedScripts,
     selectedScripts,
     setSelectedScripts,
   } = useAppState();
   const { recordAll, running } = useRunState();
+  const deleteScriptMutation = useDeleteScriptMutation();
   const selectAllRef = useRef(null);
 
   useEffect(() => {
@@ -24,9 +24,8 @@ export function SavedScriptsPanel() {
 
   async function deleteScript(script) {
     try {
-      await fetchJSON(`/api/scripts/${script.filename}`, { method: 'DELETE' });
+      await deleteScriptMutation.mutateAsync(script.filename);
       setSelectedScripts((current) => current.filter((name) => name !== script.name));
-      await loadSavedScripts();
     } catch (err) {
       toast.error(errorMessage(err, 'Delete failed'));
     }

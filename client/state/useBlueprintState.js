@@ -1,33 +1,43 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import { errorMessage } from '../utils/actions.js';
-import { fetchJSON } from '../utils/api.js';
+import {
+  useCurrentBlueprintQuery,
+  useDefaultBlueprintQuery,
+} from '../utils/apiHooks.js';
 
 export function useBlueprintState() {
   const [blueprint, setBlueprint] = useState(null);
   const [defaultBlueprint, setDefaultBlueprint] = useState(null);
+  const defaultBlueprintQuery = useDefaultBlueprintQuery();
+  const currentBlueprintQuery = useCurrentBlueprintQuery();
 
   const isBlueprintModified = useMemo(() => (
     !!defaultBlueprint && JSON.stringify(blueprint) !== JSON.stringify(defaultBlueprint)
   ), [blueprint, defaultBlueprint]);
 
   useEffect(() => {
-    let active = true;
+    if (!defaultBlueprintQuery.isError) return;
+    toast.error(errorMessage(defaultBlueprintQuery.error, 'Could not load blueprint'));
+  }, [defaultBlueprintQuery.error, defaultBlueprintQuery.isError]);
 
-    Promise.all([
-      fetchJSON('/api/default-blueprint'),
-      fetchJSON('/api/current-blueprint').catch(() => null),
-    ]).then(([defaultRes, currentRes]) => {
-      if (!active) return;
-      const nextDefault = defaultRes?.blueprint ?? null;
-      setDefaultBlueprint(nextDefault);
-      setBlueprint(currentRes?.blueprint ?? nextDefault);
-    }).catch((err) => {
-      if (active) toast.error(errorMessage(err, 'Could not load blueprint'));
-    });
+  useEffect(() => {
+    if (!defaultBlueprintQuery.isSuccess) return;
+    setDefaultBlueprint(defaultBlueprintQuery.data ?? null);
+  }, [defaultBlueprintQuery.data, defaultBlueprintQuery.isSuccess]);
 
-    return () => { active = false; };
-  }, []);
+  useEffect(() => {
+    const currentBlueprintSettled = currentBlueprintQuery.isSuccess || currentBlueprintQuery.isError;
+    if (!defaultBlueprintQuery.isSuccess || !currentBlueprintSettled) return;
+
+    setBlueprint(currentBlueprintQuery.data ?? defaultBlueprintQuery.data ?? null);
+  }, [
+    currentBlueprintQuery.data,
+    currentBlueprintQuery.isError,
+    currentBlueprintQuery.isSuccess,
+    defaultBlueprintQuery.data,
+    defaultBlueprintQuery.isSuccess,
+  ]);
 
   return {
     blueprint,

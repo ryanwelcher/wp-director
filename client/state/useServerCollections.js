@@ -1,46 +1,38 @@
 import { useCallback, useEffect, useState } from 'react';
-import { fetchJSON } from '../utils/api.js';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '../utils/api.js';
+import {
+  useDirectionLibraryQuery,
+  useRecordingsQuery,
+  useSavedScriptsQuery,
+} from '../utils/apiHooks.js';
 
 export function useServerCollections() {
-  const [savedScripts, setSavedScripts] = useState([]);
   const [selectedScripts, setSelectedScripts] = useState([]);
-  const [libraryEntries, setLibraryEntries] = useState([]);
-  const [recordings, setRecordings] = useState([]);
+  const queryClient = useQueryClient();
+  const savedScriptsQuery = useSavedScriptsQuery();
+  const directionLibraryQuery = useDirectionLibraryQuery();
+  const recordingsQuery = useRecordingsQuery();
 
-  const loadSavedScripts = useCallback(async () => {
-    try {
-      const data = await fetchJSON('/api/scripts');
-      const scripts = data?.scripts ?? [];
-      setSavedScripts(scripts);
-      setSelectedScripts((current) => current.filter((name) => scripts.some((script) => script.name === name)));
-    } catch {
-      setSavedScripts([]);
-    }
-  }, []);
+  const savedScripts = savedScriptsQuery.data ?? [];
+  const libraryEntries = directionLibraryQuery.data ?? [];
+  const recordings = recordingsQuery.data ?? [];
 
-  const loadDirectionLibrary = useCallback(async () => {
-    try {
-      const data = await fetchJSON('/api/directions');
-      setLibraryEntries(data?.directions ?? []);
-    } catch {
-      setLibraryEntries([]);
-    }
-  }, []);
+  const loadSavedScripts = useCallback(() => (
+    queryClient.invalidateQueries({ queryKey: queryKeys.scripts })
+  ), [queryClient]);
 
-  const loadRecordings = useCallback(async () => {
-    try {
-      const data = await fetchJSON('/api/recordings');
-      setRecordings(data?.recordings ?? []);
-    } catch {
-      setRecordings([]);
-    }
-  }, []);
+  const loadDirectionLibrary = useCallback(() => (
+    queryClient.invalidateQueries({ queryKey: queryKeys.directions.all })
+  ), [queryClient]);
+
+  const loadRecordings = useCallback(() => (
+    queryClient.invalidateQueries({ queryKey: queryKeys.recordings })
+  ), [queryClient]);
 
   useEffect(() => {
-    loadSavedScripts();
-    loadDirectionLibrary();
-    loadRecordings();
-  }, [loadDirectionLibrary, loadRecordings, loadSavedScripts]);
+    setSelectedScripts((current) => current.filter((name) => savedScripts.some((script) => script.name === name)));
+  }, [savedScripts]);
 
   return {
     savedScripts,

@@ -1,7 +1,8 @@
 import { useCallback, useRef, useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { errorMessage } from '../utils/actions.js';
-import { responseErrorMessage } from '../utils/api.js';
+import { api, responseErrorMessage } from '../utils/api.js';
 import { readSSE } from '../utils/sse.js';
 
 function isAbortError(err) {
@@ -21,6 +22,13 @@ export function useRunStream({
   const abortControllerRef = useRef(null);
   const [running, setRunning] = useState(false);
   const [activeStepIndex, setActiveStepIndex] = useState(null);
+  const { mutateAsync: startRun } = useMutation({
+    mutationFn: ({ endpoint, body, signal }) => api.startRun(endpoint, body, signal),
+  });
+  const { mutate: sendStopRun } = useMutation({
+    mutationFn: api.stopRun,
+    onError: () => {},
+  });
 
   const clearRunAbortController = useCallback((controller) => {
     if (controller && abortControllerRef.current === controller) {
@@ -34,14 +42,9 @@ export function useRunStream({
 
     return {
       controller,
-      fetchPromise: fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-        body: JSON.stringify(body),
-      }),
+      fetchPromise: startRun({ endpoint, body, signal: controller.signal }),
     };
-  }, []);
+  }, [startRun]);
 
   const markRunStopped = useCallback((onDone) => {
     stopPreview();
@@ -128,8 +131,8 @@ export function useRunStream({
 
   const stopRun = useCallback(() => {
     abortControllerRef.current?.abort();
-    fetch('/api/stop', { method: 'POST' }).catch(() => {});
-  }, []);
+    sendStopRun();
+  }, [sendStopRun]);
 
   return {
     running,

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useAppState } from '../context/AppStateContext.jsx';
 import { errorMessage } from '../utils/actions.js';
-import { postJSON } from '../utils/api.js';
+import { usePreviewBlueprintMutation } from '../utils/apiHooks.js';
 import { SectionBadge } from './SectionBadge.jsx';
 
 export function BlueprintPanel() {
@@ -14,7 +14,8 @@ export function BlueprintPanel() {
   } = useAppState();
   const [draft, setDraft] = useState('');
   const [error, setError] = useState('');
-  const [testing, setTesting] = useState(false);
+  const previewBlueprintMutation = usePreviewBlueprintMutation();
+  const testing = previewBlueprintMutation.isPending;
   const skipNextSyncRef = useRef(false);
 
   useEffect(() => {
@@ -47,17 +48,14 @@ export function BlueprintPanel() {
 
   async function testBlueprint() {
     if (!blueprint) return;
-    setTesting(true);
 
     try {
-      const data = await postJSON('/api/preview-blueprint', { blueprint });
+      const data = await previewBlueprintMutation.mutateAsync(blueprint);
       window.open(data.url, '_blank');
     } catch (err) {
       const message = errorMessage(err, 'Failed to start preview');
       setError(message);
       toast.error(message);
-    } finally {
-      setTesting(false);
     }
   }
 

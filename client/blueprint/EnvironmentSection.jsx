@@ -18,8 +18,9 @@ export function EnvironmentSection({ formState, updateForm }) {
   const isPreset = LANDING_PAGE_PRESETS.some((p) => p.value === formState.landingPage);
 
   return (
-    <section className="blueprint-form-section" aria-labelledby="section-environment">
-      <h3 id="section-environment" className="blueprint-form-section-title">Environment</h3>
+    <section className="blueprint-form-section">
+      <details className="bfs-collapsible">
+      <summary className="bfs-summary" id="section-environment">Environment</summary>
       <div className="bf-fields">
 
         {/* Version row */}
@@ -99,6 +100,7 @@ export function EnvironmentSection({ formState, updateForm }) {
         </label>
 
       </div>
+      </details>
     </section>
   );
 }

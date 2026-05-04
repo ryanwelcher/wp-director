@@ -23,8 +23,9 @@ export function SlugListSection({ title, sectionId, items, onUpdate, itemType, i
   }
 
   return (
-    <section className="blueprint-form-section" aria-labelledby={sectionId}>
-      <h3 id={sectionId} className="blueprint-form-section-title">{title}</h3>
+    <section className="blueprint-form-section">
+      <details className="bfs-collapsible">
+      <summary className="bfs-summary" id={sectionId}>{title}</summary>
       <div className="bf-fields">
         <div className="bf-slug-row">
           <input
@@ -73,6 +74,7 @@ export function SlugListSection({ title, sectionId, items, onUpdate, itemType, i
           </ul>
         )}
       </div>
+      </details>
     </section>
   );
 }

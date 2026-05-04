@@ -2,9 +2,10 @@ export function ContentSection({ formState, updateForm }) {
   const bothSet = formState.samplePosts > 0 && formState.wxrPath.trim().length > 0;
 
   return (
-    <section className="blueprint-form-section" aria-labelledby="section-content">
-      <h3 id="section-content" className="blueprint-form-section-title">Content</h3>
-      <div className="bf-fields">
+    <section className="blueprint-form-section">
+      <details className="bfs-collapsible">
+        <summary className="bfs-summary" id="section-content">Content</summary>
+        <div className="bf-fields">
 
         <div className="bf-field">
           <label className="bf-label" htmlFor="bf-sample-posts">Sample Posts</label>
@@ -44,7 +45,8 @@ export function ContentSection({ formState, updateForm }) {
           </div>
         )}
 
-      </div>
+        </div>
+      </details>
     </section>
   );
 }

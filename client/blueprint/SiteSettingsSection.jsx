@@ -45,23 +45,25 @@ const FIELDS = [
 
 export function SiteSettingsSection({ formState, updateForm }) {
   return (
-    <section className="blueprint-form-section" aria-labelledby="section-site-settings">
-      <h3 id="section-site-settings" className="blueprint-form-section-title">Site Settings</h3>
-      <div className="bf-fields">
-        {FIELDS.map(({ id, label, key, type, placeholder }) => (
-          <div key={id} className="bf-field">
-            <label className="bf-label" htmlFor={id}>{label}</label>
-            <input
-              id={id}
-              type={type}
-              className="bf-input"
-              value={formState[key]}
-              onChange={(e) => updateForm({ [key]: e.target.value })}
-              placeholder={placeholder}
-            />
-          </div>
-        ))}
-      </div>
+    <section className="blueprint-form-section">
+      <details className="bfs-collapsible">
+        <summary className="bfs-summary" id="section-site-settings">Site Settings</summary>
+        <div className="bf-fields">
+          {FIELDS.map(({ id, label, key, type, placeholder }) => (
+            <div key={id} className="bf-field">
+              <label className="bf-label" htmlFor={id}>{label}</label>
+              <input
+                id={id}
+                type={type}
+                className="bf-input"
+                value={formState[key]}
+                onChange={(e) => updateForm({ [key]: e.target.value })}
+                placeholder={placeholder}
+              />
+            </div>
+          ))}
+        </div>
+      </details>
     </section>
   );
 }

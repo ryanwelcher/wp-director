@@ -43,7 +43,7 @@ header p {
 }
 
 /* Sidebar sections share a common summary style */
-.sidebar-content details {
+.sidebar-content > details {
   border-bottom: 1px solid #1e2433;
 }
 
@@ -68,8 +68,8 @@ header p {
   font-size: 0.6rem;
   transition: transform 0.15s;
 }
-#blueprint-section[open] summary::before { transform: rotate(90deg); }
-#blueprint-section[open] summary { color: #94a3b8; }
+#blueprint-section[open] > summary::before { transform: rotate(90deg); }
+#blueprint-section[open] > summary { color: #94a3b8; }
 
 .badge {
   background: #1e3a5f;
@@ -85,7 +85,7 @@ header p {
 .badge.hidden { display: none; }
 
 .blueprint-body {
-  padding: 0 1.5rem 1rem;
+  padding: 0.25rem 0 0.5rem;
 }
 
 .blueprint-panel-actions {
@@ -93,14 +93,15 @@ header p {
   align-items: center;
   gap: 0.5rem;
   justify-content: flex-end;
-  margin-bottom: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem 1.25rem 0 0.75rem;
+  border-top: 1px solid #1e2433;
 }
 
 .blueprint-pool-status {
   color: #f59e0b;
   font-size: 0.8rem;
-  margin: 0 0 0.75rem;
-  text-align: right;
+  margin: 0 auto 0 0;
 }
 
 .bp-action-btn {
@@ -135,40 +136,42 @@ header p {
 
 .bp-action-btn--primary:hover:not(:disabled) { background: #4f46e5; }
 
-/* ── Blueprint tabs ──────────────────────────────────────── */
+/* ── Collapsible blueprint form sections ─────────────────── */
 
-.blueprint-tabs {
-  border-bottom: 1px solid #1e2433;
-  display: flex;
-  flex-shrink: 0;
-  gap: 0;
-  padding: 0 1.5rem;
+.bfs-collapsible {
+  padding: 0 0.75rem;
 }
 
-.blueprint-tab-btn {
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  color: #64748b;
+.bfs-summary {
+  align-items: center;
   cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 500;
-  margin-bottom: -1px;
-  padding: 0.7rem 1rem;
-  transition: color 0.15s, border-color 0.15s;
+  display: flex;
+  gap: 0.5rem;
+  list-style: none;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.1rem 0;
+  user-select: none;
 }
 
-.blueprint-tab-btn:hover { color: #94a3b8; }
+.bfs-summary::-webkit-details-marker { display: none; }
 
-.blueprint-tab-btn.active {
-  border-bottom-color: #6366f1;
-  color: #a5b4fc;
+.bfs-summary::before {
+  content: '▶';
+  color: #475569;
+  font-size: 0.55rem;
+  transition: transform 0.15s;
+  flex-shrink: 0;
 }
 
-/* ── Blueprint form tab ──────────────────────────────────── */
+#blueprint-section .bfs-collapsible[open] > .bfs-summary::before {
+  transform: rotate(90deg);
+}
 
-.blueprint-form-tab {
-  padding: 1.5rem;
+#blueprint-section .bfs-collapsible[open] > .bfs-summary {
+  color: #e2e8f0;
+  margin-bottom: 0.75rem;
 }
 
 .blueprint-notice {
@@ -184,17 +187,11 @@ header p {
 
 .blueprint-form-section {
   border-top: 1px solid #1e2433;
-  padding: 1.25rem 0;
+  padding: 0.35rem 0;
 }
 
 .blueprint-form-section:first-of-type { border-top: none; }
 
-.blueprint-form-section-title {
-  color: #e2e8f0;
-  font-size: 0.95rem;
-  font-weight: 600;
-  margin-bottom: 0.4rem;
-}
 
 .blueprint-form-section-placeholder {
   color: #4b5563;
@@ -209,6 +206,7 @@ header p {
   flex-direction: column;
   gap: 1rem;
   margin-top: 1rem;
+  padding: 0 0.5rem;
 }
 
 .bf-field {
@@ -435,42 +433,6 @@ header p {
 .bf-remove-btn:hover {
   background: #f87171;
   color: #fff;
-}
-
-/* ── Blueprint JSON tab ──────────────────────────────────── */
-
-.blueprint-json-tab {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  padding: 1.5rem;
-}
-
-#blueprint-preview {
-  background: #111827;
-  border: 1px solid #1e2433;
-  border-radius: 6px;
-  color: #fbbf24;
-  flex: 1;
-  font-family: 'Menlo', 'Monaco', monospace;
-  font-size: 0.78rem;
-  line-height: 1.6;
-  min-height: 300px;
-  outline: none;
-  padding: 0.75rem 1rem;
-  resize: vertical;
-  white-space: pre;
-  width: 100%;
-  transition: border-color 0.15s;
-}
-
-#blueprint-preview:focus { border-color: #6366f1; }
-#blueprint-preview.invalid { border-color: #ef4444; }
-
-.blueprint-json-error {
-  color: #f87171;
-  font-size: 0.82rem;
-  margin-top: 0.5rem;
 }
 
 /* ── Steps command bar ───────────────────────────────────── */

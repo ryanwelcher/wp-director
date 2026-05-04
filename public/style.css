@@ -88,63 +88,12 @@ header p {
   padding: 0 1.5rem 1rem;
 }
 
-.blueprint-summary {
-  color: #64748b;
-  font-size: 0.82rem;
-  margin-bottom: 0.75rem;
-}
-
-.configure-blueprint-btn {
-  background: #6366f1;
-  border: none;
-  border-radius: 6px;
-  color: #fff;
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 500;
-  padding: 0.5rem 1rem;
-  transition: background 0.15s;
-  width: 100%;
-}
-
-.configure-blueprint-btn:hover { background: #4f46e5; }
-
-/* ── Blueprint full-screen overlay ──────────────────────── */
-
-.blueprint-overlay {
-  background: #0f1117;
-  bottom: 0;
-  display: flex;
-  flex-direction: column;
-  left: 0;
-  position: fixed;
-  right: 0;
-  top: 0;
-  z-index: 2000;
-}
-
-.blueprint-overlay-header {
-  align-items: center;
-  border-bottom: 1px solid #1e2433;
-  display: flex;
-  flex-shrink: 0;
-  justify-content: space-between;
-  padding: 1rem 1.5rem;
-}
-
-.blueprint-overlay-title {
-  color: #f8fafc;
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin: 0;
-}
-
-.blueprint-overlay-actions {
+.blueprint-panel-actions {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-left: auto;
-  margin-right: 0.75rem;
+  justify-content: flex-end;
+  margin-bottom: 0.5rem;
 }
 
 .bp-action-btn {
@@ -179,33 +128,9 @@ header p {
 
 .bp-action-btn--primary:hover:not(:disabled) { background: #4f46e5; }
 
-.blueprint-overlay-close {
-  background: transparent;
-  border: 1px solid #374151;
-  border-radius: 6px;
-  color: #94a3b8;
-  cursor: pointer;
-  font-size: 1rem;
-  line-height: 1;
-  padding: 0.4rem 0.7rem;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
-}
-
-.blueprint-overlay-close:hover {
-  background: #1a2035;
-  border-color: #6b7280;
-  color: #e2e8f0;
-}
-
-.blueprint-overlay-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0;
-}
-
 /* ── Blueprint tabs ──────────────────────────────────────── */
 
-.blueprint-overlay-tabs {
+.blueprint-tabs {
   border-bottom: 1px solid #1e2433;
   display: flex;
   flex-shrink: 0;

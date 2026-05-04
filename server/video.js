@@ -47,6 +47,7 @@ const { OUTPUT_DIR } = require('./config');
 function findNewestVideoDir() {
   if (!fs.existsSync(OUTPUT_DIR)) return null;
   const dirs = fs.readdirSync(OUTPUT_DIR)
+    .filter(d => !d.startsWith('.'))
     .filter(d => fs.existsSync(path.join(OUTPUT_DIR, d, 'video.webm')))
     .map(d => ({ d, mtime: fs.statSync(path.join(OUTPUT_DIR, d)).mtimeMs }))
     .sort((a, b) => b.mtime - a.mtime);

@@ -9,9 +9,14 @@
  * spawned via playground-cli.js.
  */
 const cliPlayground = require('./server/playground-cli');
+const { promotePlaywrightRecordings } = require('./server/playwright-output');
 
 /** @returns {Promise<void>} */
 module.exports = async function globalTeardown() {
   if (process.env.WP_DIRECTOR_SERVER === '1') return;
-  cliPlayground.kill();
+  try {
+    promotePlaywrightRecordings();
+  } finally {
+    cliPlayground.kill();
+  }
 };

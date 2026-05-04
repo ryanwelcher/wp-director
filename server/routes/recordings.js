@@ -16,6 +16,7 @@
  */
 
 const fs = require('fs');
+const path = require('path');
 const { OUTPUT_DIR } = require('../config');
 const { findVideoFile } = require('../video');
 
@@ -27,10 +28,16 @@ function dirnameToSlug(dirname) {
   return dirname.replace(/^actions-runner-/, '').replace(/-chromium$/, '');
 }
 
+/** @param {string} dirname */
+function isListableRecordingDir(dirname) {
+  if (dirname.startsWith('.')) return false;
+  return !fs.existsSync(path.join(OUTPUT_DIR, dirname, '.wp-director-preview'));
+}
+
 function register(app) {
   app.get('/api/recordings', (req, res) => {
     if (!fs.existsSync(OUTPUT_DIR)) return res.json({ recordings: [] });
-    const dirs = fs.readdirSync(OUTPUT_DIR).filter(d => findVideoFile(d) !== null);
+    const dirs = fs.readdirSync(OUTPUT_DIR).filter(d => isListableRecordingDir(d) && findVideoFile(d) !== null);
     const recordings = dirs.map((dirname) => {
       const found = findVideoFile(dirname);
       // findVideoFile returned non-null from the filter above, so this is safe.

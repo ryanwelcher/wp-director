@@ -17,6 +17,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const rangeParser = require('range-parser');
 const { OUTPUT_DIR } = require('../config');
 const { findVideoFile } = require('../video');
 
@@ -57,9 +58,32 @@ function register(app) {
     const found = findVideoFile(dirname);
     if (!found) return res.status(404).end();
     const slug = dirnameToSlug(dirname);
+    const stat = fs.statSync(found.file);
+    const range = req.headers.range;
+
+    res.setHeader('Accept-Ranges', 'bytes');
     res.setHeader('Content-Type', found.mime);
     res.setHeader('Content-Disposition', `attachment; filename="${slug}.${found.ext}"`);
-    fs.createReadStream(found.file).pipe(res);
+
+    if (!range) {
+      res.setHeader('Content-Length', stat.size);
+      fs.createReadStream(found.file).pipe(res);
+      return;
+    }
+
+    const parsedRange = rangeParser(stat.size, range);
+    if (parsedRange === -1 || parsedRange === -2 || parsedRange.type !== 'bytes' || parsedRange.length !== 1) {
+      res.status(416)
+        .setHeader('Content-Range', `bytes */${stat.size}`)
+        .end();
+      return;
+    }
+
+    const { start, end } = parsedRange[0];
+    res.status(206);
+    res.setHeader('Content-Range', `bytes ${start}-${end}/${stat.size}`);
+    res.setHeader('Content-Length', end - start + 1);
+    fs.createReadStream(found.file, { start, end }).pipe(res);
   });
 }
 

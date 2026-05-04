@@ -1,18 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useAppState } from '../context/AppStateContext.jsx';
 import { useBlueprintFormState } from '../state/useBlueprintFormState.js';
 import { errorMessage } from '../utils/actions.js';
-import { postJSON } from '../utils/api.js';
+import { api } from '../utils/api.js';
 import { EnvironmentSection } from '../blueprint/EnvironmentSection.jsx';
 import { SiteSettingsSection } from '../blueprint/SiteSettingsSection.jsx';
 import { SlugListSection } from '../blueprint/SlugListSection.jsx';
 import { ContentSection } from '../blueprint/ContentSection.jsx';
 import { SectionBadge } from './SectionBadge.jsx';
 
-function formatBlueprint(blueprint) {
-  return blueprint ? JSON.stringify(blueprint, null, 2) : '';
-}
 
 export function BlueprintPanel() {
   const { blueprint: appBlueprint, defaultBlueprint, setBlueprint, isBlueprintModified } = useAppState();
@@ -42,7 +39,7 @@ export function BlueprintPanel() {
   }
 
   async function persist(bp) {
-    await postJSON('/api/save-blueprint', { blueprint: bp });
+    await api.saveBlueprint(bp);
     setBlueprint(bp);
   }
 

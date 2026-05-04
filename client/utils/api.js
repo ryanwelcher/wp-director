@@ -113,6 +113,10 @@ export const api = {
     return data?.recordings ?? [];
   },
 
+  async saveBlueprint(blueprint) {
+    return requestJSON('/api/save-blueprint', postOptions({ blueprint }));
+  },
+
   async previewBlueprint(blueprint) {
     return requestJSON('/api/preview-blueprint', postOptions({ blueprint }));
   },

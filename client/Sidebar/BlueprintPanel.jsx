@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import { useAppState } from '../context/AppStateContext.jsx';
 import { useBlueprintFormState } from '../state/useBlueprintFormState.js';
@@ -18,8 +18,24 @@ export function BlueprintPanel() {
 
   const [isSaving, setIsSaving] = useState(false);
 
+  const [poolMsgVisible, setPoolMsgVisible] = useState(!poolStatus.ready);
+  const [poolMsgFading, setPoolMsgFading] = useState(false);
+
+  useEffect(() => {
+    if (!poolStatus.ready) {
+      setPoolMsgFading(false);
+      setPoolMsgVisible(true);
+    } else if (poolMsgVisible) {
+      setPoolMsgFading(true);
+      const t = setTimeout(() => setPoolMsgVisible(false), 600);
+      return () => clearTimeout(t);
+    }
+  }, [poolStatus.ready]);
+
   async function handleSave() {
     setIsSaving(true);
+    setPoolMsgFading(false);
+    setPoolMsgVisible(true);
     try {
       await api.saveBlueprint(compiledBlueprint);
       setBlueprint(compiledBlueprint);
@@ -33,6 +49,8 @@ export function BlueprintPanel() {
   async function handleReset() {
     if (!defaultBlueprint) return;
     if (!window.confirm('Reset all fields to the default blueprint? Your current changes will be lost.')) return;
+    setPoolMsgFading(false);
+    setPoolMsgVisible(true);
     try {
       const bp = await api.resetBlueprint();
       const target = bp ?? defaultBlueprint;
@@ -76,9 +94,12 @@ export function BlueprintPanel() {
         </section>
 
         <div className="blueprint-panel-actions">
-          {!poolStatus.ready && (
-            <p className="blueprint-pool-status" role="status">
-              Playground warming up — {poolStatus.warm}/{poolStatus.total} ready
+          {poolMsgVisible && (
+            <p
+              className={`blueprint-pool-status${poolMsgFading ? ' blueprint-pool-status--fading' : ''}`}
+              role="status"
+            >
+              Configuring environment…
             </p>
           )}
           <button

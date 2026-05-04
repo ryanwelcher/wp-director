@@ -16,7 +16,7 @@ const DEFINE_WP_CONFIG_STEP = {
   },
 };
 
-const LOGIN_STEP = { step: 'login', username: 'admin', password: 'password' };
+const LOGIN_STEP = { step: 'login' };
 
 // The exact runPHP code emitted by formToBlueprint — always appended before login.
 const WELCOME_GUIDE_PHP =
@@ -112,8 +112,8 @@ export function blueprintToForm(blueprint) {
       // legacy — activation is now always unconditional; ignore
     } else if (step.step === 'importWxr') {
       form.wxrPath = step.file?.url ?? step.file?.contents ?? '';
-    } else if (step.step === 'runWpCliCommand') {
-      const match = (step.command ?? '').match(/^post generate --count=(\d+)/);
+    } else if (step.step === 'wp-cli') {
+      const match = (step.command ?? '').match(/^(?:wp )?post generate --count=(\d+)/i);
       if (match) {
         form.samplePosts = parseInt(match[1], 10);
       } else {
@@ -141,6 +141,8 @@ export function formToBlueprint(form, schema) {
   if (form.landingPage) blueprint.landingPage = form.landingPage;
 
   if (!form.networking) blueprint.features = { networking: false };
+
+  if (form.samplePosts > 0) blueprint.extraLibraries = ['wp-cli'];
 
   const steps = [];
 
@@ -175,8 +177,8 @@ export function formToBlueprint(form, schema) {
   // 7. Sample posts
   if (form.samplePosts > 0) {
     steps.push({
-      step: 'runWpCliCommand',
-      command: `post generate --count=${form.samplePosts} --post_type=post --post_status=publish`,
+      step: 'wp-cli',
+      command: `wp post generate --count=${form.samplePosts} --post_type=post --post_status=publish`,
     });
   }
 

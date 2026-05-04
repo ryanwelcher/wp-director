@@ -27,6 +27,7 @@ const {
   PREVIEW_PLAYGROUND_PORT,
 } = require('../config');
 const { killPreviewPlayground, startPreviewPlayground } = require('../playground');
+const pool = require('../playground-server');
 
 function register(app) {
   app.get('/api/default-blueprint', (req, res) => {
@@ -54,10 +55,27 @@ function register(app) {
 
     try {
       fs.writeFileSync(GENERATED_BLUEPRINT, JSON.stringify(blueprint, null, 2));
+      pool.warmAll(GENERATED_BLUEPRINT);
       res.json({ ok: true });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
+  });
+
+  app.post('/api/reset-blueprint', (req, res) => {
+    try {
+      const defaultContent = fs.readFileSync(DEFAULT_BLUEPRINT, 'utf8');
+      fs.writeFileSync(GENERATED_BLUEPRINT, defaultContent);
+      pool.warmAll(GENERATED_BLUEPRINT);
+      res.json({ blueprint: JSON.parse(defaultContent) });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/pool-status', (req, res) => {
+    const src = fs.existsSync(GENERATED_BLUEPRINT) ? GENERATED_BLUEPRINT : DEFAULT_BLUEPRINT;
+    res.json(pool.getStatus(src));
   });
 
   app.post('/api/preview-blueprint', async (req, res) => {

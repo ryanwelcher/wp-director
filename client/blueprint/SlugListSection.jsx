@@ -10,16 +10,12 @@ export function SlugListSection({ title, sectionId, items, onUpdate, itemType, i
 
   function addItem() {
     if (!canAdd) return;
-    onUpdate([...items, { slug: slugTrimmed, activate: true }]);
+    onUpdate([...items, { slug: slugTrimmed }]);
     setSlugInput('');
   }
 
   function removeItem(index) {
     onUpdate(items.filter((_, i) => i !== index));
-  }
-
-  function toggleActivate(index) {
-    onUpdate(items.map((item, i) => i === index ? { ...item, activate: !item.activate } : item));
   }
 
   function handleKeyDown(e) {
@@ -64,18 +60,6 @@ export function SlugListSection({ title, sectionId, items, onUpdate, itemType, i
             {items.map((item, index) => (
               <li key={item.slug} className="bf-item">
                 <span className="bf-item-slug">{item.slug}</span>
-                <label className="bf-item-toggle" htmlFor={`${inputId}-activate-${index}`}>
-                  <span className="bf-toggle" aria-hidden="true">
-                    <input
-                      type="checkbox"
-                      id={`${inputId}-activate-${index}`}
-                      checked={item.activate}
-                      onChange={() => toggleActivate(index)}
-                    />
-                    <span className="bf-toggle-track" />
-                  </span>
-                  <span className="bf-item-toggle-label">Activate</span>
-                </label>
                 <button
                   type="button"
                   className="bf-remove-btn"

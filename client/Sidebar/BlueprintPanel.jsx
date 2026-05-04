@@ -12,7 +12,7 @@ import { SectionBadge } from './SectionBadge.jsx';
 
 
 export function BlueprintPanel() {
-  const { blueprint: appBlueprint, defaultBlueprint, setBlueprint, isBlueprintModified } = useAppState();
+  const { blueprint: appBlueprint, defaultBlueprint, setBlueprint, isBlueprintModified, poolStatus } = useAppState();
   const { formState, updateForm, loadBlueprint, compiledBlueprint, hasExtraSteps } =
     useBlueprintFormState(appBlueprint);
 
@@ -54,10 +54,17 @@ export function BlueprintPanel() {
     }
   }
 
-  function handleReset() {
+  async function handleReset() {
     if (!defaultBlueprint) return;
     if (!window.confirm('Reset all fields to the default blueprint? Your current changes will be lost.')) return;
-    loadBlueprint(defaultBlueprint);
+    try {
+      const bp = await api.resetBlueprint();
+      const target = bp ?? defaultBlueprint;
+      loadBlueprint(target);
+      setBlueprint(target);
+    } catch (err) {
+      toast.error(errorMessage(err, 'Could not reset blueprint'));
+    }
   }
 
   function switchTab(newTab) {
@@ -101,6 +108,12 @@ export function BlueprintPanel() {
             {isSaving ? 'Saving…' : 'Save'}
           </button>
         </div>
+
+        {!poolStatus.ready && (
+          <p className="blueprint-pool-status" role="status">
+            Playground warming up — {poolStatus.warm}/{poolStatus.total} ready
+          </p>
+        )}
 
         <div className="blueprint-tabs" role="tablist">
           <button

@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext } from 'react';
 import { useBlueprintState } from '../state/useBlueprintState.js';
 import { useDirectionsState } from '../state/useDirectionsState.js';
+import { usePoolStatus } from '../state/usePoolStatus.js';
 import { useRunSettingsState } from '../state/useRunSettingsState.js';
 import { useServerCollections } from '../state/useServerCollections.js';
 
@@ -19,6 +20,7 @@ export function AppStateProvider({ children }) {
   } = useRunSettingsState();
   const blueprintState = useBlueprintState();
   const collections = useServerCollections();
+  const poolStatus = usePoolStatus();
 
   const clearDirections = useCallback(() => {
     clearDirectionState();
@@ -38,6 +40,7 @@ export function AppStateProvider({ children }) {
     ...collections,
     clearDirections,
     loadScriptIntoEditor,
+    poolStatus,
   };
 
   return (

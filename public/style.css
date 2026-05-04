@@ -96,6 +96,13 @@ header p {
   margin-bottom: 0.5rem;
 }
 
+.blueprint-pool-status {
+  color: #f59e0b;
+  font-size: 0.8rem;
+  margin: 0 0 0.75rem;
+  text-align: right;
+}
+
 .bp-action-btn {
   border-radius: 6px;
   cursor: pointer;

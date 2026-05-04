@@ -77,6 +77,12 @@ export function blueprintToForm(blueprint) {
   form.language = topOpts.WPLANG ?? '';
   form.permalinkStructure = topOpts.permalink_structure ?? '';
 
+  // Top-level plugins array shorthand — each entry is a slug string or URL string
+  for (const entry of blueprint.plugins ?? []) {
+    const slug = typeof entry === 'string' ? entry : (entry.slug ?? '');
+    if (slug && !form.plugins.some((p) => p.slug === slug)) form.plugins.push({ slug });
+  }
+
   const extraSteps = [];
 
   for (const step of blueprint.steps ?? []) {
@@ -96,20 +102,14 @@ export function blueprintToForm(blueprint) {
       if (opts.permalink_structure != null) form.permalinkStructure = opts.permalink_structure;
     } else if (step.step === 'installPlugin') {
       const slug = step.pluginData?.slug ?? '';
-      if (slug) form.plugins.push({ slug, activate: false });
+      if (slug && !form.plugins.some((p) => p.slug === slug)) form.plugins.push({ slug });
     } else if (step.step === 'activatePlugin') {
-      const slug = stripPluginPath(step.pluginPath ?? '');
-      const plugin = form.plugins.find((p) => p.slug === slug);
-      if (plugin) plugin.activate = true;
+      // legacy — activation is now always unconditional; ignore
     } else if (step.step === 'installTheme') {
       const slug = step.themeData?.slug ?? '';
-      if (slug) form.themes.push({ slug, activate: false });
+      if (slug) form.themes.push({ slug });
     } else if (step.step === 'activateTheme') {
-      const slug = stripThemePath(step.themePath ?? '');
-      const theme = slug
-        ? form.themes.find((t) => t.slug === slug)
-        : form.themes[form.themes.length - 1];
-      if (theme) theme.activate = true;
+      // legacy — activation is now always unconditional; ignore
     } else if (step.step === 'importWxr') {
       form.wxrPath = step.file?.url ?? step.file?.contents ?? '';
     } else if (step.step === 'runWpCliCommand') {
@@ -159,26 +159,17 @@ export function formToBlueprint(form, schema) {
     steps.push({ step: 'setSiteOptions', options: siteOpts });
   }
 
-  // 3. Install plugins
-  for (const p of form.plugins) {
-    if (!p.slug) continue;
-    steps.push({ step: 'installPlugin', pluginData: { resource: 'wordpress.org/plugins', slug: p.slug } });
-  }
-  // 4. Activate plugins
-  for (const p of form.plugins) {
-    if (!p.slug || !p.activate) continue;
-    steps.push({ step: 'activatePlugin', pluginPath: `wordpress/wp-content/plugins/${p.slug}` });
+  // 3. Plugins — top-level shorthand array of slug strings
+  const pluginEntries = form.plugins.filter((p) => p.slug);
+  if (pluginEntries.length > 0) {
+    blueprint.plugins = pluginEntries.map((p) => p.slug);
   }
 
-  // 5. Install themes
+  // 4. Install + activate each theme unconditionally
   for (const t of form.themes) {
     if (!t.slug) continue;
     steps.push({ step: 'installTheme', themeData: { resource: 'wordpress.org/themes', slug: t.slug } });
-  }
-  // 6. Activate theme (only the one marked active)
-  for (const t of form.themes) {
-    if (!t.slug || !t.activate) continue;
-    steps.push({ step: 'activateTheme', themePath: `wordpress/wp-content/themes/${t.slug}` });
+    steps.push({ step: 'activateTheme', themeFolderName: t.slug });
   }
 
   // 7. Sample posts

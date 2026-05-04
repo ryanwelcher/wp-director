@@ -877,16 +877,15 @@ header p {
 .recording-preview-btn:hover,
 .recording-download-btn:hover { border-color: #6b7280; color: #e2e8f0; }
 
-.recording-video-wrapper {
-  flex-basis: 100%;
-  margin-top: 0.4rem;
+.recording-preview-btn:disabled {
+  border-color: #2d3748;
+  color: #374151;
+  cursor: not-allowed;
 }
 
-.recording-video-wrapper video {
-  border-radius: 6px;
-  display: block;
-  max-height: 360px;
-  width: 100%;
+.recording-preview-btn:disabled:hover {
+  border-color: #2d3748;
+  color: #374151;
 }
 
 /* ── Saved Scripts section ──────────────────────────────── */

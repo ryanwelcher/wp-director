@@ -1,10 +1,10 @@
-import { useState } from 'react';
 import { useAppState } from '../context/AppStateContext.jsx';
+import { useRunState } from '../context/RunContext.jsx';
 import { SectionBadge } from './SectionBadge.jsx';
 
 export function RecordingsPanel() {
   const { recordings } = useAppState();
-  const [openRecording, setOpenRecording] = useState(null);
+  const { running, showPreviewVideo } = useRunState();
 
   return (
     <details id="recordings-section">
@@ -17,7 +17,6 @@ export function RecordingsPanel() {
           {!recordings.length && <p className="hint">No recordings yet - run a script to generate a video.</p>}
 
           {recordings.map((recording) => {
-            const isOpen = openRecording === recording.dirname;
             const sizeMb = (recording.size / (1024 * 1024)).toFixed(1);
             const videoUrl = `/api/recordings/${recording.dirname}/video`;
             return (
@@ -27,9 +26,10 @@ export function RecordingsPanel() {
                 <button
                   className="recording-preview-btn secondary"
                   type="button"
-                  onClick={() => setOpenRecording(isOpen ? null : recording.dirname)}
+                  disabled={running}
+                  onClick={() => showPreviewVideo(videoUrl)}
                 >
-                  {isOpen ? 'Hide' : 'Preview'}
+                  Preview
                 </button>
                 <a
                   className="recording-download-btn secondary"
@@ -38,11 +38,6 @@ export function RecordingsPanel() {
                 >
                   Download
                 </a>
-                {isOpen && (
-                  <div className="recording-video-wrapper">
-                    <video controls src={videoUrl} preload="metadata" />
-                  </div>
-                )}
               </div>
             );
           })}

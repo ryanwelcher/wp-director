@@ -25,6 +25,11 @@ export function useRunPreview() {
     ));
   }, []);
 
+  const showPreviewVideo = useCallback((videoSrc) => {
+    lastScreencastVideoRef.current = videoSrc;
+    setPreview({ mode: 'video', imageSrc: '', videoSrc, poster: '' });
+  }, []);
+
   const handlePreviewMessage = useCallback((msg) => {
     if (msg.type === 'screencast') {
       setPreview({
@@ -45,6 +50,7 @@ export function useRunPreview() {
     preview,
     startPreview,
     stopPreview,
+    showPreviewVideo,
     handlePreviewMessage,
   };
 }

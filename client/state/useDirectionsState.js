@@ -13,6 +13,29 @@ function remapMovedIndex(index, from, to) {
   return index;
 }
 
+function pendingDirection(command) {
+  return withDirectionId({
+    label: command,
+    actions: [],
+    _translation: {
+      status: 'pending',
+      command,
+      createdAt: Date.now(),
+    },
+  });
+}
+
+function translatedDirections(raw, command) {
+  return normalizeDirections(raw).map((direction) => ({
+    ...direction,
+    _translation: {
+      status: 'resolved',
+      command,
+      resolvedAt: Date.now(),
+    },
+  }));
+}
+
 export function useDirectionsState() {
   const [directions, setDirections] = useState([]);
   const [startFromIndex, setStartFromIndex] = useState(null);
@@ -40,6 +63,35 @@ export function useDirectionsState() {
     const nextDirections = normalizeDirections(raw);
     setDirections((current) => [...current, ...nextDirections]);
     return nextDirections;
+  }, []);
+
+  const appendPendingDirection = useCallback((command) => {
+    const direction = pendingDirection(command);
+    setDirections((current) => [...current, direction]);
+    return direction;
+  }, []);
+
+  const resolvePendingDirection = useCallback((id, raw, command) => {
+    const nextDirections = translatedDirections(raw, command);
+    setDirections((current) => current.flatMap((direction) => (
+      direction._id === id ? nextDirections : [direction]
+    )));
+    return nextDirections;
+  }, []);
+
+  const failPendingDirection = useCallback((id, err) => {
+    setDirections((current) => current.map((direction) => (
+      direction._id === id
+        ? {
+            ...direction,
+            _translation: {
+              ...direction._translation,
+              status: 'error',
+              error: err instanceof Error ? err.message : 'Translation failed',
+            },
+          }
+        : direction
+    )));
   }, []);
 
   const clearDirections = useCallback(() => {
@@ -123,6 +175,9 @@ export function useDirectionsState() {
     setDirectionsView,
     replaceDirections,
     appendDirections,
+    appendPendingDirection,
+    resolvePendingDirection,
+    failPendingDirection,
     clearDirections,
     updateDirectionLabel,
     toggleDirectionOpen,

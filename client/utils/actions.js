@@ -25,6 +25,11 @@ export function withDirectionId(direction) {
   return direction?._id ? direction : { ...direction, _id: `direction-${nextDirectionId++}` };
 }
 
+export function isDirectionResolved(direction) {
+  const status = direction?._translation?.status;
+  return status == null || status === 'resolved';
+}
+
 export function describePlain(step = {}) {
   switch (step.action) {
     case 'navigate': return `Go to ${step.url}`;
@@ -61,13 +66,22 @@ export function normalizeDirections(raw) {
 }
 
 export function directionsForJSON(directions) {
-  return directions.map(({ _id, _open, _fromDirection, alwaysRun, ...rest }) => rest);
+  return directions
+    .filter(isDirectionResolved)
+    .map(({ _id, _open, _fromDirection, _translation, alwaysRun, ...rest }) => rest);
 }
 
 export function directionsForRun(directions, alwaysRunIndices) {
-  return directionsForJSON(directions).map((direction, index) => (
-    alwaysRunIndices.has(index) ? { ...direction, alwaysRun: true } : direction
-  ));
+  return directions.flatMap((direction, index) => {
+    if (!isDirectionResolved(direction)) return [];
+
+    const { _id, _open, _fromDirection, _translation, alwaysRun, ...cleanDirection } = direction;
+    return [
+      alwaysRunIndices.has(index)
+        ? { ...cleanDirection, alwaysRun: true }
+        : cleanDirection,
+    ];
+  });
 }
 
 export function flattenDirectionActions(actions = []) {

@@ -1039,6 +1039,28 @@ header p {
   flex-direction: column;
 }
 
+.preview-heading {
+  align-items: baseline;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.preview-heading h2 {
+  margin-bottom: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview-heading-timestamp {
+  color: #475569;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+}
+
 #preview-container {
   flex: 1;
   display: flex;

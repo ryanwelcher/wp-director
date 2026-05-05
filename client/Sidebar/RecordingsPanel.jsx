@@ -1,16 +1,7 @@
 import { useAppState } from '../context/AppStateContext.jsx';
 import { useRunState } from '../context/RunContext.jsx';
+import { formatFileSize, formatTimestamp } from '../utils/formatters.js';
 import { SectionBadge } from './SectionBadge.jsx';
-
-const fileSizeFormatter = new Intl.NumberFormat(undefined, {
-  maximumFractionDigits: 1,
-  minimumFractionDigits: 1,
-});
-
-const timestampFormatter = new Intl.DateTimeFormat(undefined, {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-});
 
 function DownloadIcon() {
   return (
@@ -27,28 +18,6 @@ function PreviewIcon() {
       <path d="M8 5v14l11-7z" fill="currentColor" />
     </svg>
   );
-}
-
-function formatFileSize(bytes) {
-  if (!Number.isFinite(bytes) || bytes < 0) return '';
-
-  const units = ['B', 'KB', 'MB', 'GB'];
-  let value = bytes;
-  let unitIndex = 0;
-
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex += 1;
-  }
-
-  return `${fileSizeFormatter.format(value)} ${units[unitIndex]}`;
-}
-
-function formatTimestamp(value) {
-  if (!value) return null;
-
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : timestampFormatter.format(date);
 }
 
 export function RecordingsPanel() {
@@ -85,7 +54,10 @@ export function RecordingsPanel() {
                     aria-label={`Preview ${recording.name}`}
                     title="Preview"
                     disabled={running}
-                    onClick={() => showPreviewVideo(videoUrl)}
+                    onClick={() => showPreviewVideo(videoUrl, {
+                      recordedAt: recording.createdAt,
+                      title: recording.name,
+                    })}
                   >
                     <PreviewIcon />
                   </button>

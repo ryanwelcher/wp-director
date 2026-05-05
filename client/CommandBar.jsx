@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { useAppState } from './context/AppStateContext.jsx';
 import { errorMessage } from './utils/actions.js';
 import { useTranslateMutation } from './utils/apiHooks.js';
+import { toastAddedDirections } from './utils/toasts.js';
 
 export function CommandBar() {
   const {
@@ -31,7 +32,7 @@ export function CommandBar() {
       }
 
       const nextDirections = resolvePendingDirection(pending._id, translatedDirections, trimmed);
-      toast.success(`Added ${nextDirections.length} direction${nextDirections.length !== 1 ? 's' : ''}`);
+      toastAddedDirections(nextDirections.length);
     } catch (err) {
       failPendingDirection(pending._id, err);
       toast.error(errorMessage(err, 'Translation failed'));

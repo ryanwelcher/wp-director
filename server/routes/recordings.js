@@ -3,8 +3,9 @@
 /**
  * Recordings list + download.
  *
- *   GET /api/recordings                  → list all completed recordings
- *   GET /api/recordings/:dirname/video   → stream the MP4 (or WebM fallback)
+ *   GET    /api/recordings                  → list all completed recordings
+ *   GET    /api/recordings/:dirname/video   → stream the MP4 (or WebM fallback)
+ *   DELETE /api/recordings/:dirname         → delete one completed recording
  *
  * "Recordings" == directories under `output/` that have a video file.
  * Playwright names them `actions-runner-<test-name>-chromium`; UI recordings
@@ -19,11 +20,12 @@
 const fs = require('fs');
 const path = require('path');
 const rangeParser = require('range-parser');
-const { OUTPUT_DIR } = require('../config');
+const { OUTPUT_DIR, SCREENCASTS_DIR } = require('../config');
 const { findVideoFile } = require('../video');
 
 const TIMESTAMP_PATTERN = /^(.+)-(\d{8}T\d{6}Z)(?:-\d+)?$/;
 const RUNNER_PREFIX = 'actions-runner-';
+const OUTPUT_ROOT = path.resolve(OUTPUT_DIR);
 
 /**
  * @param {string} dirname  Raw output directory.
@@ -74,6 +76,33 @@ function isListableRecordingDir(dirname) {
   return !fs.existsSync(path.join(OUTPUT_DIR, dirname, '.wp-director-preview'));
 }
 
+/** @param {string} dirname */
+function isSafeRecordingDirname(dirname) {
+  return /^[a-z0-9-]+$/i.test(dirname);
+}
+
+/**
+ * Resolve a user-supplied recording directory name to an absolute path.
+ * Only listable recording directories under OUTPUT_DIR are accepted.
+ *
+ * @param {string} dirname
+ * @returns {string | null}
+ */
+function resolveRecordingDir(dirname) {
+  if (!isSafeRecordingDirname(dirname)) return null;
+  if (!isListableRecordingDir(dirname)) return null;
+  if (!findVideoFile(dirname)) return null;
+
+  const dir = path.resolve(OUTPUT_ROOT, dirname);
+  if (dir !== OUTPUT_ROOT && !dir.startsWith(`${OUTPUT_ROOT}${path.sep}`)) return null;
+  if (!fs.existsSync(dir)) return null;
+
+  const stat = fs.lstatSync(dir);
+  if (!stat.isDirectory() || stat.isSymbolicLink()) return null;
+
+  return dir;
+}
+
 function register(app) {
   app.get('/api/recordings', (req, res) => {
     if (!fs.existsSync(OUTPUT_DIR)) return res.json({ recordings: [] });
@@ -92,7 +121,7 @@ function register(app) {
   app.get('/api/recordings/:dirname/video', (req, res) => {
     const dirname = req.params.dirname;
     // Filesystem-safe identifier only — rejects traversal attempts.
-    if (!/^[a-z0-9-]+$/i.test(dirname)) return res.status(400).end();
+    if (!isSafeRecordingDirname(dirname)) return res.status(400).end();
     const found = findVideoFile(dirname);
     if (!found) return res.status(404).end();
     const { filenameBase } = parseRecordingDirname(dirname);
@@ -122,6 +151,20 @@ function register(app) {
     res.setHeader('Content-Range', `bytes ${start}-${end}/${stat.size}`);
     res.setHeader('Content-Length', end - start + 1);
     fs.createReadStream(found.file, { start, end }).pipe(res);
+  });
+
+  app.delete('/api/recordings/:dirname', (req, res) => {
+    const dirname = req.params.dirname;
+    const dir = resolveRecordingDir(dirname);
+    if (!dir) return res.status(isSafeRecordingDirname(dirname) ? 404 : 400).json({ error: 'Recording not found' });
+
+    try {
+      fs.rmSync(dir, { recursive: true, force: false });
+      fs.rmSync(path.join(SCREENCASTS_DIR, `${dirname}.webm`), { force: true });
+      res.json({ deleted: true });
+    } catch {
+      res.status(500).json({ error: 'Could not delete recording' });
+    }
   });
 }
 

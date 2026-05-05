@@ -42,6 +42,15 @@ export function useRecordingsQuery() {
   });
 }
 
+export function useDeleteRecordingMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: api.deleteRecording,
+    onSuccess: () => invalidate(queryClient, queryKeys.recordings),
+  });
+}
+
 export function useDirectionLoader() {
   const queryClient = useQueryClient();
 

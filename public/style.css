@@ -882,7 +882,8 @@ header p {
 }
 
 .recording-preview-btn,
-.recording-download-btn {
+.recording-download-btn,
+.recording-delete-btn {
   align-items: center;
   background: transparent;
   border: 1px solid #374151;
@@ -908,13 +909,26 @@ header p {
 .recording-preview-btn:hover,
 .recording-download-btn:hover { border-color: #6b7280; color: #e2e8f0; }
 
-.recording-preview-btn:disabled {
+.recording-delete-btn {
+  border-color: #4b1c1c;
+  color: #f87171;
+}
+
+.recording-delete-btn:hover {
+  background: #4b1c1c;
+  border-color: #ef4444;
+}
+
+.recording-preview-btn:disabled,
+.recording-delete-btn:disabled {
   border-color: #2d3748;
   color: #374151;
   cursor: not-allowed;
 }
 
-.recording-preview-btn:disabled:hover {
+.recording-preview-btn:disabled:hover,
+.recording-delete-btn:disabled:hover {
+  background: transparent;
   border-color: #2d3748;
   color: #374151;
 }

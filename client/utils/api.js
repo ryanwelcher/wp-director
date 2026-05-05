@@ -113,6 +113,10 @@ export const api = {
     return data?.recordings ?? [];
   },
 
+  async deleteRecording(dirname) {
+    return requestJSON(`/api/recordings/${encodeURIComponent(dirname)}`, { method: 'DELETE' });
+  },
+
   async previewBlueprint(blueprint) {
     return requestJSON('/api/preview-blueprint', postOptions({ blueprint }));
   },

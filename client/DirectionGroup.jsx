@@ -20,6 +20,11 @@ export function DirectionGroup({
   onToggleAlwaysRun,
   onToggleStartFrom,
 }) {
+  const translationStatus = direction._translation?.status;
+  const translationError = direction._translation?.error;
+  const isTranslating = translationStatus === 'pending';
+  const isTranslationError = translationStatus === 'error';
+  const isResolved = !translationStatus || translationStatus === 'resolved';
   const className = [
     'direction-group',
     dragging ? 'dragging' : '',
@@ -28,13 +33,16 @@ export function DirectionGroup({
     isStartFrom ? 'start-from' : '',
     isSkipped ? 'skipped' : '',
     isAlwaysRun ? 'always-run' : '',
+    isTranslating ? 'is-translating' : '',
+    isTranslationError ? 'has-translation-error' : '',
   ].filter(Boolean).join(' ');
 
   return (
     <li
       ref={itemRef}
       className={className}
-      draggable
+      aria-busy={isTranslating}
+      draggable={isResolved}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onDragOver={onDragOver}
@@ -48,6 +56,7 @@ export function DirectionGroup({
           className="direction-label-input"
           value={direction.label}
           title="Edit label"
+          disabled={!isResolved}
           onChange={(event) => onLabelChange(event.target.value)}
           onDragStart={(event) => event.preventDefault()}
         />
@@ -55,6 +64,7 @@ export function DirectionGroup({
           className="direction-start-btn"
           title={isStartFrom ? 'Clear preview start point' : 'Preview from this step'}
           type="button"
+          disabled={!isResolved}
           onClick={onToggleStartFrom}
         >
           &#9655;
@@ -63,6 +73,7 @@ export function DirectionGroup({
           className="direction-pin-btn"
           title={isAlwaysRun ? 'Remove always-run' : 'Always run (even when skipping earlier steps)'}
           type="button"
+          disabled={!isResolved}
           onClick={onToggleAlwaysRun}
         >
           &#128204;
@@ -71,6 +82,19 @@ export function DirectionGroup({
           &#8943;
         </button>
       </div>
+
+      {isTranslating && (
+        <div className="direction-translation-state">
+          <span className="direction-spinner" aria-hidden="true" />
+          <span>Translating direction...</span>
+        </div>
+      )}
+
+      {isTranslationError && (
+        <div className="direction-translation-state direction-translation-state--error">
+          {translationError || 'Translation failed'}
+        </div>
+      )}
 
       {direction._open && direction.actions?.length > 0 && (
         <ul className="direction-inner-list">

@@ -1,11 +1,12 @@
 // @ts-check
 const { defineConfig, devices } = require('@playwright/test');
+const { PLAYWRIGHT_OUTPUT_DIR } = require('./server/config');
 
 const isPreview = process.env.WP_DIRECTOR_PREVIEW === '1';
 
 module.exports = defineConfig({
   testDir: './recordings',
-  outputDir: './output',
+  outputDir: PLAYWRIGHT_OUTPUT_DIR,
   workers: 1,
   timeout: 300_000,
 

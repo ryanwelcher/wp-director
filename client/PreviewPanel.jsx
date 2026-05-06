@@ -1,12 +1,20 @@
 import { useRunState } from './context/RunContext.jsx';
+import { formatTimestamp } from './utils/formatters.js';
 
 export function PreviewPanel() {
   const { preview } = useRunState();
   const isPolling = preview.mode === 'connecting' || preview.mode === 'image';
+  const heading = preview.mode === 'video' && preview.title ? `Recording: ${preview.title}` : 'Live Preview';
+  const recordingTimestamp = preview.mode === 'video' && preview.title
+    ? formatTimestamp(preview.recordedAt)
+    : null;
 
   return (
     <div className={`panel${isPolling ? ' polling' : ''}`} id="preview-panel">
-      <h2>Live Preview</h2>
+      <div className="preview-heading">
+        <h2>{heading}</h2>
+        {recordingTimestamp && <span className="preview-heading-timestamp">{recordingTimestamp}</span>}
+      </div>
       <div id="preview-container">
         {(preview.mode === 'idle' || preview.mode === 'connecting') && (
           <div id="preview-placeholder">

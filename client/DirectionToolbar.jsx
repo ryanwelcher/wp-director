@@ -16,10 +16,10 @@ export function DirectionToolbar() {
     cleanDirections,
     clearDirections,
     currentEndPause,
-    directions,
     endPause,
     name,
     poolStatus,
+    runDirections,
     setEndPause,
     setName,
     setVideoSize,
@@ -28,7 +28,7 @@ export function DirectionToolbar() {
   } = useAppState();
   const { running, runActions, stopRun } = useRunState();
   const saveScriptMutation = useSaveScriptMutation();
-  const hasDirections = directions.length > 0;
+  const hasResolvedDirections = runDirections.length > 0;
   const poolReady = poolStatus.ready;
   const poolLabel = poolReady ? null : `Playground warming up (${poolStatus.warm}/${poolStatus.total} ready)…`;
 
@@ -48,7 +48,7 @@ export function DirectionToolbar() {
 
   function exportTxt() {
     const scriptName = name.trim() || 'recording';
-    const lines = directions.map((group, index) => `${index + 1}. ${group.label}`);
+    const lines = cleanDirections.map((group, index) => `${index + 1}. ${group.label}`);
     const text = `${scriptName}\n${'-'.repeat(scriptName.length)}\n\n${lines.join('\n')}\n`;
     const link = document.createElement('a');
     link.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
@@ -78,10 +78,10 @@ export function DirectionToolbar() {
         />
       </label>
 
-      <button className="secondary" type="button" disabled={!hasDirections} onClick={saveScript}>
+      <button className="secondary" type="button" disabled={!hasResolvedDirections} onClick={saveScript}>
         Save Script
       </button>
-      <button className="secondary" type="button" disabled={!hasDirections} onClick={exportTxt}>
+      <button className="secondary" type="button" disabled={!hasResolvedDirections} onClick={exportTxt}>
         Export TXT
       </button>
       <button className="secondary" type="button" onClick={clearDirections}>

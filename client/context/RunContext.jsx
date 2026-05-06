@@ -59,6 +59,7 @@ export function RunProvider({ children }) {
     logText: runLog.logText,
     logBadge: runLog.logBadge,
     preview: runPreview.preview,
+    showPreviewVideo: runPreview.showPreviewVideo,
     runActions,
     recordAll,
     stopRun,
@@ -71,6 +72,7 @@ export function RunProvider({ children }) {
     runLog.logText,
     runLog.setLogOpen,
     runPreview.preview,
+    runPreview.showPreviewVideo,
     running,
     stopRun,
   ]);

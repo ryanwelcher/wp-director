@@ -3,8 +3,10 @@ import { useCallback, useRef, useState } from 'react';
 const IDLE_PREVIEW = {
   mode: 'idle',
   imageSrc: '',
+  recordedAt: null,
   videoSrc: '',
   poster: '',
+  title: '',
 };
 
 export function useRunPreview() {
@@ -13,16 +15,21 @@ export function useRunPreview() {
 
   const startPreview = useCallback(() => {
     lastScreencastVideoRef.current = '';
-    setPreview({ mode: 'connecting', imageSrc: '', videoSrc: '', poster: '' });
+    setPreview({ mode: 'connecting', imageSrc: '', recordedAt: null, videoSrc: '', poster: '', title: '' });
   }, []);
 
   const stopPreview = useCallback(() => {
     const videoSrc = lastScreencastVideoRef.current;
     setPreview((current) => (
       videoSrc
-        ? { mode: 'video', imageSrc: '', videoSrc, poster: current.imageSrc }
+        ? { mode: 'video', imageSrc: '', recordedAt: null, videoSrc, poster: current.imageSrc, title: '' }
         : IDLE_PREVIEW
     ));
+  }, []);
+
+  const showPreviewVideo = useCallback((videoSrc, { recordedAt = null, title = '' } = {}) => {
+    lastScreencastVideoRef.current = videoSrc;
+    setPreview({ mode: 'video', imageSrc: '', recordedAt, videoSrc, poster: '', title });
   }, []);
 
   const handlePreviewMessage = useCallback((msg) => {
@@ -30,8 +37,10 @@ export function useRunPreview() {
       setPreview({
         mode: 'image',
         imageSrc: `data:image/jpeg;base64,${msg.data}`,
+        recordedAt: null,
         videoSrc: '',
         poster: '',
+        title: '',
       });
       return;
     }
@@ -45,6 +54,7 @@ export function useRunPreview() {
     preview,
     startPreview,
     stopPreview,
+    showPreviewVideo,
     handlePreviewMessage,
   };
 }

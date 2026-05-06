@@ -843,50 +843,94 @@ header p {
 .recording-item {
   align-items: center;
   border-bottom: 1px solid #1a2035;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   font-size: 0.85rem;
-  gap: 0.75rem;
+  gap: 0.25rem 0.6rem;
+  grid-template-areas:
+    "name actions"
+    "meta actions";
+  grid-template-columns: minmax(0, 1fr) auto;
   padding: 0.55rem 0;
 }
 
 .recording-item:last-child { border-bottom: none; }
 
-.recording-item-name { flex: 1; color: #cbd5e1; }
+.recording-item-name {
+  color: #cbd5e1;
+  grid-area: name;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .recording-item-meta {
   color: #475569;
+  display: flex;
+  flex-wrap: wrap;
   font-size: 0.75rem;
-  min-width: 4rem;
-  text-align: right;
+  gap: 0.25rem 0.6rem;
+  grid-area: meta;
+  line-height: 1.35;
+  min-width: 0;
+}
+
+.recording-item-actions {
+  display: flex;
+  gap: 0.4rem;
+  grid-area: actions;
 }
 
 .recording-preview-btn,
-.recording-download-btn {
+.recording-download-btn,
+.recording-delete-btn {
+  align-items: center;
   background: transparent;
   border: 1px solid #374151;
   border-radius: 5px;
   color: #94a3b8;
   cursor: pointer;
+  display: inline-flex;
   font-size: 0.78rem;
-  padding: 0.2rem 0.6rem;
+  height: 1.75rem;
+  justify-content: center;
+  padding: 0;
   text-decoration: none;
   transition: border-color 0.15s, color 0.15s;
+  width: 1.75rem;
+}
+
+.recording-action-icon {
+  display: block;
+  height: 0.95rem;
+  width: 0.95rem;
 }
 
 .recording-preview-btn:hover,
 .recording-download-btn:hover { border-color: #6b7280; color: #e2e8f0; }
 
-.recording-video-wrapper {
-  flex-basis: 100%;
-  margin-top: 0.4rem;
+.recording-delete-btn {
+  border-color: #4b1c1c;
+  color: #f87171;
 }
 
-.recording-video-wrapper video {
-  border-radius: 6px;
-  display: block;
-  max-height: 360px;
-  width: 100%;
+.recording-delete-btn:hover {
+  background: #4b1c1c;
+  border-color: #ef4444;
+}
+
+.recording-preview-btn:disabled,
+.recording-delete-btn:disabled {
+  border-color: #2d3748;
+  color: #374151;
+  cursor: not-allowed;
+}
+
+.recording-preview-btn:disabled:hover,
+.recording-delete-btn:disabled:hover {
+  background: transparent;
+  border-color: #2d3748;
+  color: #374151;
 }
 
 /* ── Saved Scripts section ──────────────────────────────── */
@@ -1007,6 +1051,28 @@ header p {
   border-left: 1px solid #1e2433;
   display: flex;
   flex-direction: column;
+}
+
+.preview-heading {
+  align-items: baseline;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.preview-heading h2 {
+  margin-bottom: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview-heading-timestamp {
+  color: #475569;
+  flex-shrink: 0;
+  font-size: 0.75rem;
 }
 
 #preview-container {

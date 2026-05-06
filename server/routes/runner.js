@@ -38,12 +38,15 @@ const { spawn } = require('child_process');
 const {
   STEPS_DIR,
   OUTPUT_DIR,
+  PLAYWRIGHT_OUTPUT_DIR,
+  PREVIEW_OUTPUT_DIR,
   SCREENCASTS_DIR,
   DEFAULT_BLUEPRINT,
   GENERATED_BLUEPRINT,
 } = require('../config');
 const pool = require('../playground-server');
 const { processVideo } = require('../video');
+const { timestamp, timestampedDirname, uniqueDir } = require('../output-paths');
 const { nameToFilename } = require('./scripts');
 const { runSteps } = require('../../recordings/run-steps');
 
@@ -127,7 +130,7 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
   const contextOpts = {
     baseURL: `http://127.0.0.1:${port}`,
     viewport: { width: 1920, height: 1080 },
-    recordVideo: { dir: OUTPUT_DIR, size: { width: 1920, height: 1080 } },
+    recordVideo: { dir: PLAYWRIGHT_OUTPUT_DIR, size: { width: 1920, height: 1080 } },
   };
 
   const context = await browser.newContext(contextOpts);
@@ -141,11 +144,15 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
 
       const page = await context.newPage();
       const outputSlug = nameToFilename(def.name).replace(/\.json$/i, '');
-      const videoDir = path.join(OUTPUT_DIR, outputSlug);
+      const outputStamp = timestamp();
+      const outputDirname = timestampedDirname(outputSlug, outputStamp);
+      const videoRoot = preview ? PREVIEW_OUTPUT_DIR : OUTPUT_DIR;
+      const videoDir = uniqueDir(path.join(videoRoot, outputDirname));
       const recordedVideoPath = path.join(videoDir, 'video.webm');
       fs.mkdirSync(videoDir, { recursive: true });
+      if (preview) fs.writeFileSync(path.join(videoDir, '.wp-director-preview'), '');
       latestPreviewVideoPath = recordedVideoPath;
-      latestPreviewVideoFilename = `${outputSlug}.webm`;
+      latestPreviewVideoFilename = `${path.basename(videoDir)}.webm`;
 
       // Load the site before starting the screencast so the video does not start with a blank screen.
       // Use the blueprint's landingPage if specified; otherwise fall back to the WP admin dashboard.

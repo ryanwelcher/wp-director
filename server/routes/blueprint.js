@@ -55,7 +55,7 @@ function register(app) {
 
     try {
       fs.writeFileSync(GENERATED_BLUEPRINT, JSON.stringify(blueprint, null, 2));
-      pool.warmAll(GENERATED_BLUEPRINT);
+      pool.resetPool(GENERATED_BLUEPRINT);
       res.json({ ok: true });
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -66,7 +66,7 @@ function register(app) {
     try {
       const defaultContent = fs.readFileSync(DEFAULT_BLUEPRINT, 'utf8');
       fs.writeFileSync(GENERATED_BLUEPRINT, defaultContent);
-      pool.warmAll(GENERATED_BLUEPRINT);
+      pool.resetPool(GENERATED_BLUEPRINT);
       res.json({ blueprint: JSON.parse(defaultContent) });
     } catch (err) {
       res.status(500).json({ error: err.message });

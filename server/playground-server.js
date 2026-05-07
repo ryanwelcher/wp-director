@@ -31,6 +31,8 @@ const path = require('path');
 const {
   RECORDING_PLAYGROUND_PORT_MIN,
   RECORDING_PLAYGROUND_PORT_MAX,
+  DEFAULT_BLUEPRINT,
+  GENERATED_BLUEPRINT,
 } = require('./config');
 const { killAndWait, startPlayground } = require('./playground');
 
@@ -80,7 +82,7 @@ const slots = Array.from(
   (_, index) => createSlot(RECORDING_PLAYGROUND_PORT_MIN + index)
 );
 
-// Flipped to false at the top of warmAll so /api/pool-status reflects
+// Flipped to false at the top of resetPool so /api/pool-status reflects
 // "not ready" in the same tick a Save is processed, before slot state
 // transitions are observable to a poll. Restored to true once at least one
 // slot finishes booting.
@@ -266,20 +268,28 @@ async function acquire(blueprintPath, onData = null) {
 
 /**
  * Mark the slot at `port` as done and start rebooting it in the background
- * so it is warm for the run after next. Should be called after the recording
- * that used this port has completed.
+ * with the *current* blueprint so it is warm for the run after next.
  *
- * @param {number} port          Port returned by acquire().
- * @param {string} blueprintPath Blueprint the recording ran with.
+ * @param {number} port  Port returned by acquire().
  */
-function release(port, blueprintPath) {
+function release(port) {
   const index = slots.findIndex(s => s.port === port);
   if (index === -1) return;
   console.log(`[Playground Pool] Slot ${index} (port ${port}): released — rebooting for next run`);
   // Clear onData so the background reboot's log output doesn't leak into
   // the just-finished request's SSE stream.
   slots[index].onData = null;
-  bootSlotWithRetry(index, blueprintPath, `Slot ${index} (port ${port}) post-release reboot`);
+  bootSlotWithRetry(index, currentBlueprintPath(), `Slot ${index} (port ${port}) post-release reboot`);
+}
+
+/**
+ * Resolve the active blueprint at call time — the UI-customised generated
+ * blueprint if one exists, otherwise the bundled default.
+ *
+ * @returns {string}
+ */
+function currentBlueprintPath() {
+  return fs.existsSync(GENERATED_BLUEPRINT) ? GENERATED_BLUEPRINT : DEFAULT_BLUEPRINT;
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -361,39 +371,25 @@ function _claimWarmSlot(hash, blueprintPath, onData, logPrefix) {
 }
 
 /**
- * Kick off background boots for all non-active slots that are not already
- * warm or booting with this blueprint. Call after saving or resetting the
- * blueprint so slots are pre-warmed before the next recording is requested.
+ * Reboot every non-active slot with the given blueprint. Called after the
+ * UI saves or resets the blueprint — the UI gates Save/Reset behind real
+ * form-state changes, so no hash check is needed here.
+ *
+ * Active slots keep running their current recording; they pick up the new
+ * blueprint when they reboot via release().
  *
  * @param {string} blueprintPath
  */
-function warmAll(blueprintPath) {
-  const hash = hashBlueprint(blueprintPath);
-  const blueprint = path.basename(blueprintPath);
-  console.log(`[Playground Pool] warmAll — re-warming slots with ${blueprint}`);
-
-  let scheduledAny = false;
+function resetPool(blueprintPath) {
+  readyFlag = false;
+  console.log(`[Playground Pool] resetPool — rebooting slots with ${path.basename(blueprintPath)}`);
   slots.forEach((slot, index) => {
     if (slot.status === 'active') {
       console.log(`[Playground Pool] Slot ${index} (port ${slot.port}): skipped (active)`);
       return;
     }
-    if (slot.status === 'warm' && slot.blueprintHash === hash) {
-      console.log(`[Playground Pool] Slot ${index} (port ${slot.port}): already warm with this blueprint`);
-      return;
-    }
-    if (slot.status === 'booting' && slot.pendingHash === hash) {
-      console.log(`[Playground Pool] Slot ${index} (port ${slot.port}): already booting with this blueprint`);
-      return;
-    }
-    scheduledAny = true;
-    bootSlotWithRetry(index, blueprintPath, `Slot ${index} (port ${slot.port}) warm-all reboot`);
+    bootSlotWithRetry(index, blueprintPath, `Slot ${index} (port ${slot.port}) resetPool reboot`);
   });
-
-  // Only mark the pool as not-ready if we actually rebooted something. Saving
-  // with no real blueprint changes leaves slots warm — the UI must not be
-  // stuck on "Configuring environment…" in that case.
-  if (scheduledAny) readyFlag = false;
 }
 
 /**
@@ -413,4 +409,4 @@ function getStatus(blueprintPath) {
   return { warm, booting, total: slots.length, ready: readyFlag && warm > 0 };
 }
 
-module.exports = { init, acquire, release, warmAll, getStatus };
+module.exports = { init, acquire, release, resetPool, getStatus };

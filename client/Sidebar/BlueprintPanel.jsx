@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import { useAppState } from '../context/AppStateContext.jsx';
-import { useBlueprintFormState } from '../state/useBlueprintFormState.js';
+import { blueprintToForm, useBlueprintFormState } from '../state/useBlueprintFormState.js';
 import { errorMessage } from '../utils/actions.js';
 import { api } from '../utils/api.js';
 import { EnvironmentSection } from '../blueprint/EnvironmentSection.jsx';
@@ -17,6 +17,19 @@ export function BlueprintPanel() {
     useBlueprintFormState(appBlueprint);
 
   const [isSaving, setIsSaving] = useState(false);
+
+  // Compare on form-state (not compiled JSON) so incidental key-order / shape
+  // differences in the on-disk blueprint don't make the form look "dirty".
+  const savedForm = useMemo(() => blueprintToForm(appBlueprint), [appBlueprint]);
+  const defaultForm = useMemo(() => blueprintToForm(defaultBlueprint), [defaultBlueprint]);
+  const hasUnsavedChanges = useMemo(
+    () => JSON.stringify(formState) !== JSON.stringify(savedForm),
+    [formState, savedForm],
+  );
+  const isAtDefault = useMemo(
+    () => JSON.stringify(formState) === JSON.stringify(defaultForm),
+    [formState, defaultForm],
+  );
 
   const [poolMsgVisible, setPoolMsgVisible] = useState(!poolStatus.ready);
   const [poolMsgFading, setPoolMsgFading] = useState(false);
@@ -54,6 +67,7 @@ export function BlueprintPanel() {
   async function handleReset() {
     if (!defaultBlueprint) return;
     if (!window.confirm('Reset all fields to the default blueprint? Your current changes will be lost.')) return;
+    setIsSaving(true);
     setPoolMsgFading(false);
     setPoolMsgVisible(true);
     setPoolStatus(prev => ({ ...prev, ready: false }));
@@ -68,6 +82,8 @@ export function BlueprintPanel() {
       } catch {}
     } catch (err) {
       toast.error(errorMessage(err, 'Could not reset blueprint'));
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -116,7 +132,7 @@ export function BlueprintPanel() {
             type="button"
             className="bp-action-btn bp-action-btn--ghost"
             onClick={handleReset}
-            disabled={!defaultBlueprint}
+            disabled={!defaultBlueprint || isAtDefault || isSaving}
           >
             Reset
           </button>
@@ -124,7 +140,7 @@ export function BlueprintPanel() {
             type="button"
             className="bp-action-btn bp-action-btn--primary"
             onClick={handleSave}
-            disabled={isSaving}
+            disabled={isSaving || !hasUnsavedChanges}
           >
             {isSaving ? 'Saving…' : 'Save'}
           </button>

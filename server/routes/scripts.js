@@ -52,6 +52,8 @@ function register(app) {
           directionCount: directions.length,
           directions,
           endPause: def.endPause,
+          stepPause: def.stepPause,
+          typingDelay: def.typingDelay,
         };
       } catch {
         // Skip malformed files rather than failing the whole listing.
@@ -62,11 +64,13 @@ function register(app) {
   });
 
   app.post('/api/scripts/save', (req, res) => {
-    const { name = `recording-${Date.now()}`, directions = [], endPause } = req.body;
+    const { name = `recording-${Date.now()}`, directions = [], endPause, stepPause, typingDelay } = req.body;
     if (!fs.existsSync(STEPS_DIR)) fs.mkdirSync(STEPS_DIR);
     const filename = nameToFilename(name);
     const scriptData = { name, directions };
     if (endPause != null) scriptData.endPause = endPause;
+    if (stepPause != null) scriptData.stepPause = stepPause;
+    if (typingDelay != null) scriptData.typingDelay = typingDelay;
     fs.writeFileSync(path.join(STEPS_DIR, filename), JSON.stringify(scriptData, null, 2));
     res.json({ filename });
   });

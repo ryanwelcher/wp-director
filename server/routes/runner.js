@@ -210,7 +210,17 @@ function register(app) {
 
   // Single-recording run: write the posted steps to a file and run them directly.
   app.post('/api/run', async (req, res) => {
-    const { name = `recording-${Date.now()}`, actions = [], blueprint = null, videoSize = null, preview = false, endPause, startFrom } = req.body;
+    const {
+      name = `recording-${Date.now()}`,
+      actions = [],
+      blueprint = null,
+      videoSize = null,
+      preview = false,
+      endPause,
+      stepPause,
+      typingDelay,
+      startFrom,
+    } = req.body;
     if (!actions.length) return res.status(400).json({ error: 'no actions provided' });
 
     if (!fs.existsSync(STEPS_DIR)) fs.mkdirSync(STEPS_DIR);
@@ -218,6 +228,8 @@ function register(app) {
     const filePath = path.join(STEPS_DIR, filename);
     const scriptData = { name, actions };
     if (endPause != null) scriptData.endPause = endPause;
+    if (stepPause != null) scriptData.stepPause = stepPause;
+    if (typingDelay != null) scriptData.typingDelay = typingDelay;
     fs.writeFileSync(filePath, JSON.stringify(scriptData, null, 2));
 
     sseHeaders(res);
@@ -253,7 +265,7 @@ function register(app) {
 
   // Batch run: load all saved step files, filter to the requested names, run in order.
   app.post('/api/run/batch', async (req, res) => {
-    const { names = [], blueprint = null, videoSize = null } = req.body;
+    const { names = [], blueprint = null, videoSize = null, endPause, stepPause, typingDelay } = req.body;
     if (!names.length) return res.status(400).json({ error: 'no scripts selected' });
 
     sseHeaders(res);
@@ -274,7 +286,13 @@ function register(app) {
     const scripts = fs.readdirSync(STEPS_DIR)
       .filter(f => f.endsWith('.json'))
       .map(f => JSON.parse(fs.readFileSync(path.join(STEPS_DIR, f), 'utf8')))
-      .filter(def => nameSet.has(def.name));
+      .filter(def => nameSet.has(def.name))
+      .map((def) => ({
+        ...def,
+        ...(endPause != null ? { endPause } : {}),
+        ...(stepPause != null ? { stepPause } : {}),
+        ...(typingDelay != null ? { typingDelay } : {}),
+      }));
 
     await runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send });
 

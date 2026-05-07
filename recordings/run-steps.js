@@ -9,6 +9,18 @@
 
 const HIGHLIGHT_HOLD = 1000;
 const DEFAULT_END_PAUSE = 2000;
+const DEFAULT_STEP_PAUSE = 0;
+const DEFAULT_TYPING_DELAY = 100;
+
+function settingMilliseconds(value, fallback, max = 10_000) {
+  const milliseconds = Number(value);
+  if (!Number.isFinite(milliseconds)) return fallback;
+  return Math.max(0, Math.min(max, Math.round(milliseconds)));
+}
+
+function stepTypingDelay(step, settings, fallback = DEFAULT_TYPING_DELAY) {
+  return step.delay ?? settings.typingDelay ?? fallback;
+}
 
 /**
  * Scroll `locator` into view, inject a pulsing blue ring around it for
@@ -84,9 +96,10 @@ async function typeSlow(locator, text, delay = 100) {
  * @param {Array<import('@playwright/test').Page|import('@playwright/test').FrameLocator>} frameStack Frame context stack; top is the active locator context.
  * @param {() => import('@playwright/test').Page|import('@playwright/test').FrameLocator} ctx        Returns the active frame context.
  * @param {import('@playwright/test').Locator}                           sidebar    Editor settings region locator.
+ * @param {{ typingDelay: number }}                                      settings   Runtime recording settings.
  * @returns {Promise<void>}
  */
-async function runStep(step, page, frameStack, ctx, sidebar) {
+async function runStep(step, page, frameStack, ctx, sidebar, settings = { typingDelay: DEFAULT_TYPING_DELAY }) {
   const sidebarWasOpen = await sidebar.isVisible();
   switch (step.action) {
     case 'navigate':
@@ -107,11 +120,11 @@ async function runStep(step, page, frameStack, ctx, sidebar) {
 
     case 'type':
       await ctx().locator(step.selector).click();
-      await page.keyboard.type(step.text, { delay: step.delay ?? 0 });
+      await page.keyboard.type(step.text, { delay: step.delay ?? settings.typingDelay ?? 0 });
       break;
 
     case 'slowType':
-      await typeSlow(ctx().locator(step.selector), step.text, step.delay ?? 100);
+      await typeSlow(ctx().locator(step.selector), step.text, stepTypingDelay(step, settings));
       break;
 
     case 'wait':
@@ -163,7 +176,7 @@ async function runStep(step, page, frameStack, ctx, sidebar) {
       await page.goto('/wp-admin/plugin-install.php', { waitUntil: 'domcontentloaded' });
       const pluginSearchInput = page.locator('#search-plugins');
       await pluginSearchInput.waitFor({ state: 'visible' });
-      await typeSlow(pluginSearchInput, step.slug);
+      await typeSlow(pluginSearchInput, step.slug, stepTypingDelay(step, settings));
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(800);
       const installBtn = page.locator(`.plugin-card-${step.slug} .install-now`);
@@ -186,7 +199,7 @@ async function runStep(step, page, frameStack, ctx, sidebar) {
       await page.goto('/wp-admin/theme-install.php', { waitUntil: 'domcontentloaded' });
       const searchInput = page.locator('#wp-filter-search-input');
       await searchInput.waitFor({ state: 'visible' });
-      await typeSlow(searchInput, step.slug);
+      await typeSlow(searchInput, step.slug, stepTypingDelay(step, settings));
       await page.waitForLoadState('networkidle');
       const themeInstallBtn = page.locator(`[aria-label="Install ${displayName}"]`);
       await themeInstallBtn.waitFor({ timeout: 15_000 });
@@ -208,7 +221,7 @@ async function runStep(step, page, frameStack, ctx, sidebar) {
       if (step.programmatic) {
         await titleLocator.fill(step.title);
       } else {
-        await typeSlow(titleLocator, step.title, step.delay ?? 100);
+        await typeSlow(titleLocator, step.title, stepTypingDelay(step, settings));
       }
       await page.waitForTimeout(300);
       break;
@@ -228,7 +241,7 @@ async function runStep(step, page, frameStack, ctx, sidebar) {
       }
       await targetLocator.waitFor({ state: 'visible', timeout: 10_000 });
       const replace = step.replace !== false;
-      const delay = step.delay ?? 100;
+      const delay = stepTypingDelay(step, settings);
       await targetLocator.scrollIntoViewIfNeeded();
       await targetLocator.click({ clickCount: replace ? 3 : 1 });
       await targetLocator.pressSequentially(step.content, { delay });
@@ -458,9 +471,13 @@ async function runSteps(page, def, runner = null, onStepStart = null) {
   const frameStack = [page];
   const ctx = () => frameStack[frameStack.length - 1];
   const sidebar = page.getByRole('region', { name: 'Editor settings' });
+  const settings = {
+    stepPause: settingMilliseconds(def.stepPause, DEFAULT_STEP_PAUSE),
+    typingDelay: settingMilliseconds(def.typingDelay, DEFAULT_TYPING_DELAY, 1000),
+  };
 
-  // Support both grouped format ({ label, actions[] }) and legacy flat/steps format
-  const allActions = def.actions ?? def.steps ?? [];
+  // Support grouped direction format plus legacy flat actions/steps formats.
+  const allActions = def.actions ?? def.directions ?? def.steps ?? [];
   const total = allActions.length;
 
   // Preserve original indices through the startFrom filter so the UI can
@@ -472,15 +489,19 @@ async function runSteps(page, def, runner = null, onStepStart = null) {
     toRun = [...pinned, ...fromHere];
   }
 
-  for (const { group, origIndex } of toRun) {
+  for (const [groupIndex, { group, origIndex }] of toRun.entries()) {
     onStepStart?.(origIndex, total);
     const groupSteps = group.actions ?? group.steps ?? [group];
     for (const step of groupSteps) {
       await (
         runner
-        ? runner(step, async () => await runStep( step, page, frameStack, ctx, sidebar ))
-        : runStep( step, page, frameStack, ctx, sidebar )
+        ? runner(step, async () => await runStep(step, page, frameStack, ctx, sidebar, settings))
+        : runStep(step, page, frameStack, ctx, sidebar, settings)
       );
+    }
+    const isLastGroup = groupIndex === toRun.length - 1;
+    if (!isLastGroup && settings.stepPause > 0) {
+      await page.waitForTimeout(settings.stepPause);
     }
   }
 

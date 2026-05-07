@@ -11,6 +11,8 @@ export function RunProvider({ children }) {
   const {
     blueprint,
     currentEndPause,
+    currentStepPause,
+    currentTypingDelay,
     currentVideoSize,
     loadRecordings,
     name,
@@ -41,6 +43,8 @@ export function RunProvider({ children }) {
   const { runActions, recordAll } = useRunActions({
     blueprint,
     currentEndPause,
+    currentStepPause,
+    currentTypingDelay,
     currentVideoSize,
     loadRecordings,
     name,

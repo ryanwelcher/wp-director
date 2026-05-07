@@ -4,26 +4,17 @@ import { useRunState } from './context/RunContext.jsx';
 import { errorMessage } from './utils/actions.js';
 import { useSaveScriptMutation } from './utils/apiHooks.js';
 
-const VIDEO_SIZES = ['1280x720', '1920x1080', '3840x2160'];
-const VIDEO_LABELS = {
-  '1280x720': '720p',
-  '1920x1080': '1080p',
-  '3840x2160': '4K',
-};
-
 export function DirectionToolbar() {
   const {
     cleanDirections,
     clearDirections,
     currentEndPause,
-    endPause,
+    currentStepPause,
+    currentTypingDelay,
     name,
     runDirections,
-    setEndPause,
     setName,
-    setVideoSize,
     startFromIndex,
-    videoSize,
   } = useAppState();
   const { running, runActions, stopRun } = useRunState();
   const saveScriptMutation = useSaveScriptMutation();
@@ -36,6 +27,8 @@ export function DirectionToolbar() {
         name: scriptName,
         directions: cleanDirections,
         endPause: currentEndPause,
+        stepPause: currentStepPause,
+        typingDelay: currentTypingDelay,
       });
       toast.success(`Saved "${scriptName}"`);
     } catch (err) {
@@ -108,37 +101,6 @@ export function DirectionToolbar() {
           &#9654; Preview
         </button>
       )}
-
-      <div className="size-toggle" role="radiogroup" aria-label="Video size">
-        {VIDEO_SIZES.map((size) => (
-          <button
-            key={size}
-            type="button"
-            className={`size-opt${videoSize === size ? ' active' : ''}`}
-            data-size={size}
-            role="radio"
-            aria-checked={videoSize === size}
-            title={`${VIDEO_LABELS[size]} (${size.replace('x', 'x')})`}
-            onClick={() => setVideoSize(size)}
-          >
-            {VIDEO_LABELS[size]}
-          </button>
-        ))}
-      </div>
-
-      <label>
-        Outro length:
-        <input
-          id="end-pause-input"
-          type="range"
-          min="0"
-          max="10"
-          step="0.5"
-          value={endPause}
-          onChange={(event) => setEndPause(event.target.value)}
-        />
-        <span id="end-pause-display">{endPause}s</span>
-      </label>
     </div>
   );
 }

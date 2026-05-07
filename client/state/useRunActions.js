@@ -3,6 +3,8 @@ import { useCallback } from 'react';
 export function useRunActions({
   blueprint,
   currentEndPause,
+  currentStepPause,
+  currentTypingDelay,
   currentVideoSize,
   loadRecordings,
   name,
@@ -23,6 +25,8 @@ export function useRunActions({
       videoSize: previewOnly ? null : currentVideoSize,
       preview: previewOnly || undefined,
       endPause: previewOnly ? undefined : currentEndPause,
+      stepPause: currentStepPause,
+      typingDelay: currentTypingDelay,
     };
 
     if (previewOnly && startFromIndex != null && startFromIndex > 0) {
@@ -39,6 +43,8 @@ export function useRunActions({
   }, [
     blueprint,
     currentEndPause,
+    currentStepPause,
+    currentTypingDelay,
     currentVideoSize,
     loadRecordings,
     name,
@@ -54,6 +60,9 @@ export function useRunActions({
     const { fetchPromise, controller } = startRunRequest('/api/run/batch', {
       names: selectedScripts,
       blueprint,
+      endPause: currentEndPause,
+      stepPause: currentStepPause,
+      typingDelay: currentTypingDelay,
       videoSize: currentVideoSize,
     });
 
@@ -63,7 +72,17 @@ export function useRunActions({
         if (!msg.stopped) loadRecordings();
       },
     });
-  }, [blueprint, currentVideoSize, loadRecordings, selectedScripts, startRunRequest, streamRun]);
+  }, [
+    blueprint,
+    currentEndPause,
+    currentStepPause,
+    currentTypingDelay,
+    currentVideoSize,
+    loadRecordings,
+    selectedScripts,
+    startRunRequest,
+    streamRun,
+  ]);
 
   return {
     runActions,

@@ -26,6 +26,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const EventEmitter = require('events');
 const {
   RECORDING_PLAYGROUND_PORT_MIN,
   RECORDING_PLAYGROUND_PORT_MAX,
@@ -82,6 +83,17 @@ const slots = Array.from(
 // slot finishes booting.
 let readyFlag = true;
 
+// Emits 'change' on every slot state transition and readyFlag flip. SSE
+// subscribers in routes/blueprint.js push the new snapshot to clients on
+// each event so the UI sees pool transitions in ~real time instead of
+// waiting for the next poll.
+const events = new EventEmitter();
+events.setMaxListeners(0);
+
+function emitChange() {
+  events.emit('change', getStatus());
+}
+
 /**
  * Kill whatever is running on `slots[index].port`, then spawn a fresh
  * Playground with the given blueprint. Returns a Promise that resolves when
@@ -125,6 +137,7 @@ function _spawnSlot(index, blueprintPath) {
   slot.proc = null;
   slot.status = 'booting';
   slot.onData = null;
+  emitChange();
 
   console.log(`[Playground Pool] Slot ${index} (port ${slot.port}): booting with ${path.basename(blueprintPath)}...`);
 
@@ -153,15 +166,20 @@ function _spawnSlot(index, blueprintPath) {
     proc.on('close', () => {
       if (slot.proc !== proc) return;
       slot.proc = null;
-      if (slot.status !== 'booting') slot.status = 'idle';
+      if (slot.status !== 'booting') {
+        slot.status = 'idle';
+        emitChange();
+      }
       console.log(`[Playground Pool] Slot ${index} (port ${slot.port}): process closed`);
     });
     slot.status = 'warm';
     readyFlag = true;
+    emitChange();
     console.log(`[Playground Pool] Slot ${index} (port ${slot.port}): warm and ready`);
   })().catch((err) => {
     slot.proc = null;
     slot.status = 'idle';
+    emitChange();
     console.error(`[Playground Pool] Slot ${index} (port ${slot.port}): boot failed —`, err.message);
     throw err;
   });
@@ -205,6 +223,7 @@ async function acquire(blueprintPath, onData = null) {
       if (slot.status !== 'warm') continue;
       slot.status = 'active';
       slot.onData = onData;
+      emitChange();
       console.log('[Playground Pool] Using warm playground', slot.port);
       return slot.port;
     }
@@ -233,6 +252,7 @@ async function acquire(blueprintPath, onData = null) {
     await bootSlot(idx, blueprintPath);
     target.status = 'active';
     target.onData = onData;
+    emitChange();
     return target.port;
   }
 }
@@ -310,6 +330,7 @@ function bootSlotWithRetry(index, blueprintPath, logContext) {
  */
 function resetPool(blueprintPath) {
   readyFlag = false;
+  emitChange();
   console.log(`[Playground Pool] resetPool — rebooting slots with ${path.basename(blueprintPath)}`);
   slots.forEach((slot, index) => {
     if (slot.status === 'active') {
@@ -333,4 +354,4 @@ function getStatus() {
   return { warm, booting, total: slots.length, ready: readyFlag && warm > 0 };
 }
 
-module.exports = { init, acquire, release, resetPool, getStatus };
+module.exports = { init, acquire, release, resetPool, getStatus, events };

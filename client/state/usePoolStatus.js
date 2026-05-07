@@ -1,26 +1,39 @@
 import { useEffect, useState } from 'react';
-import { api } from '../utils/api.js';
 
-const POLL_INTERVAL_MS = 3000;
+const RECONNECT_DELAY_MS = 2000;
 
 export function usePoolStatus() {
   const [status, setStatus] = useState({ warm: 0, booting: 0, total: 0, ready: false });
 
   useEffect(() => {
     let cancelled = false;
+    let source = null;
+    let reconnectTimer = null;
 
-    async function poll() {
-      try {
-        const data = await api.getPoolStatus();
-        if (!cancelled) setStatus(data);
-      } catch {}
+    function connect() {
+      if (cancelled) return;
+      source = new EventSource('/api/pool-status/stream');
+
+      source.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (!cancelled) setStatus(data);
+        } catch {}
+      };
+
+      source.onerror = () => {
+        source?.close();
+        source = null;
+        if (cancelled) return;
+        reconnectTimer = setTimeout(connect, RECONNECT_DELAY_MS);
+      };
     }
 
-    poll();
-    const id = setInterval(poll, POLL_INTERVAL_MS);
+    connect();
     return () => {
       cancelled = true;
-      clearInterval(id);
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      source?.close();
     };
   }, []);
 

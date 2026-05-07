@@ -92,7 +92,7 @@ export function DirectionToolbar() {
         <button
           className="primary"
           type="button"
-          disabled={!hasDirections || !poolReady}
+          disabled={!hasResolvedDirections || !poolReady}
           title={poolLabel ?? (startFromIndex !== null ? 'Record full script (preview start point ignored)' : 'Record')}
           onClick={() => handleRun(false)}
         >
@@ -110,7 +110,7 @@ export function DirectionToolbar() {
         <button
           className="secondary"
           type="button"
-          disabled={!hasDirections || !poolReady}
+          disabled={!hasResolvedDirections || !poolReady}
           title={poolLabel ?? undefined}
           onClick={() => handleRun(true)}
         >

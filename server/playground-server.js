@@ -210,69 +210,58 @@ async function init(defaultBlueprintPath) {
 }
 
 /**
- * Return the port of a warm slot that matches `blueprintPath`.
+ * Hand out a warm slot. Blueprint-agnostic: the caller (save/reset) is
+ * responsible for ensuring slots are warmed with the current blueprint
+ * before recordings are acquired.
  *
  * Resolution order:
- *   Fast   — a slot is already warm with the matching blueprint; return immediately.
- *   Medium — if the pool is already full, a slot is booting with the matching
- *             blueprint; await whichever one finishes first.
- *   Slow   — no matching slot; either allocate a new port (until the range is
- *             full) or reboot the first non-active slot synchronously.
+ *   1. Any warm slot — mark active and return its port.
+ *   2. Pool can grow — push a new slot, kick off its boot, then fall through.
+ *   3. Boots in flight — race them all and retry from step 1.
+ *   4. Pool full, nothing booting — reboot the first non-active slot
+ *      synchronously and return it.
  *
- * Immediately after acquiring, kicks off a background refresh of another
- * slot so it is warm before the next recording is requested.
- *
- * @param {string} blueprintPath
+ * @param {string} blueprintPath  Used only when this call has to reboot a slot itself.
  * @param {((event: {type:string,text:string}) => void)|null} [onData]
  * @returns {Promise<number>}  Port to pass via WP_DIRECTOR_PLAYGROUND_PORT.
  */
 async function acquire(blueprintPath, onData = null) {
-  const hash = hashBlueprint(blueprintPath);
+  while (true) {
+    // 1. Warm slot available — claim it.
+    for (const slot of slots) {
+      if (slot.status !== 'warm') continue;
+      slot.status = 'active';
+      slot.onData = onData;
+      console.log('[Playground Pool] Using warm playground', slot.port);
+      return slot.port;
+    }
 
-  // Fast path — warm slot already has the right blueprint.
-  const warmPort = _claimWarmSlot(hash, blueprintPath, onData, '[Playground Pool] Using warm playground');
-  if (warmPort !== null) return warmPort;
+    // 2. Grow the pool if we can, then fall through to wait for it.
+    if (slots.length < MAX_SLOT_COUNT) {
+      console.log('[Playground Pool] Expanding playground pool ...');
+      const slot = createSlot(RECORDING_PLAYGROUND_PORT_MIN + slots.length);
+      const index = slots.push(slot) - 1;
+      bootSlotWithRetry(index, blueprintPath, `Expanded slot (port ${slot.port})`);
+    }
 
-  // If the pool can still grow, start another candidate boot in the background
-  // before waiting. The first matching slot to become warm wins, whether it is
-  // the new slot or one that was already booting.
-  if (slots.length < MAX_SLOT_COUNT) {
-    console.log('[Playground Pool] Expanding playground pool ...');
-    const slot = createSlot(RECORDING_PLAYGROUND_PORT_MIN + slots.length);
-    const index = slots.push(slot) - 1;
-    bootSlotWithRetry(index, blueprintPath, `Expanded slot (port ${slot.port})`);
+    // 3. Race any in-flight boots and retry.
+    const boots = slots.map(s => s.bootPromise).filter(Boolean);
+    if (boots.length > 0) {
+      console.log('[Playground Pool] Waiting for a playground to boot ...');
+      await Promise.race(boots.map(p => p.catch(() => {})));
+      continue;
+    }
+
+    // 4. No warm, no booting, pool full — reboot the first non-active slot.
+    const targetIndex = slots.findIndex(s => s.status !== 'active');
+    const idx = targetIndex === -1 ? 0 : targetIndex;
+    const target = slots[idx];
+    console.log(`[Playground Pool] Slow path — rebooting slot ${idx} (port ${target.port}) with ${path.basename(blueprintPath)}`);
+    await bootSlot(idx, blueprintPath);
+    target.status = 'active';
+    target.onData = onData;
+    return target.port;
   }
-
-  // Medium path — race any matching boots so whichever finishes first can be
-  // used immediately. This includes a newly expanded slot if one was started.
-  const matchingBoots = slots.filter(
-    s => s.status === 'booting' && s.pendingHash === hash && s.bootPromise
-  );
-  if (matchingBoots.length > 0) {
-    console.log('[Playground Pool] Waiting for a playground to boot ...');
-    await Promise.race(matchingBoots.map(s => s.bootPromise.catch(() => {})));
-    const bootedPort = _claimWarmSlot(hash, blueprintPath, onData, '[Playground Pool] Using booted playground');
-    if (bootedPort !== null) return bootedPort;
-  }
-
-  // Slow path — the pool is full and no matching slot is immediately usable,
-  // so reboot the first non-active slot and wait for it.
-  const targetIndex = slots.findIndex(s => s.status !== 'active');
-  const idx = targetIndex === -1 ? 0 : targetIndex;
-  const target = slots[idx];
-
-  console.log(`[Playground Pool] Slow path — rebooting slot ${idx} (port ${target.port}) with ${path.basename(blueprintPath)}`);
-
-  if (target.status === 'booting') {
-    // Let the current boot finish before overriding (avoids port conflicts).
-    console.log(`[Playground Pool] Slot ${idx} (port ${target.port}): waiting for in-progress boot to finish...`);
-    try { await target.bootPromise; } catch {}
-  }
-
-  await bootSlot(idx, blueprintPath);
-  target.status = 'active';
-  target.onData = onData;
-  return target.port;
 }
 
 /**

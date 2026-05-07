@@ -74,8 +74,7 @@ function register(app) {
   });
 
   app.get('/api/pool-status', (req, res) => {
-    const src = fs.existsSync(GENERATED_BLUEPRINT) ? GENERATED_BLUEPRINT : DEFAULT_BLUEPRINT;
-    res.json(pool.getStatus(src));
+    res.json(pool.getStatus());
   });
 
   app.post('/api/preview-blueprint', async (req, res) => {

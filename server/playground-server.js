@@ -13,19 +13,17 @@
  *   RECORDING_PLAYGROUND_PORT_MIN..RECORDING_PLAYGROUND_PORT_MAX (9406-9410)
  *
  * Typical lifecycle:
- *   1. init()    — on server start; boots the first two slots with the default blueprint.
- *   2. acquire() — before each recording; returns the warm port immediately
- *                  (or expands / waits / reboots on the slow path if the
- *                  blueprint changed). Also kicks off a background refresh of
- *                  another slot.
- *   3. release() — after each recording completes; kills + reboots the used
- *                  slot so it is warm for the run after next.
+ *   1. init()      — on server start; boots the first two slots with the default blueprint.
+ *   2. acquire()   — before each recording; hands out a warm slot, expanding
+ *                    the pool or rebooting on the slow path if needed.
+ *   3. release()   — after each recording; kills + reboots the used slot with
+ *                    the current blueprint so it is warm for the run after next.
+ *   4. resetPool() — after Save/Reset of the blueprint; reboots every non-active slot.
  *
  * The caller (runner.js) passes `WP_DIRECTOR_PLAYGROUND_PORT=<port>` in the
  * Playwright env so playwright.config.js picks up the right baseURL.
  */
 
-const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const {
@@ -51,8 +49,6 @@ const BOOT_RETRY_DELAY_MS = 2_000;
  * @property {number}             port
  * @property {import('child_process').ChildProcess|null} proc
  * @property {SlotStatus}         status
- * @property {string|null}        blueprintHash  Hash of the blueprint the slot is warm with.
- * @property {string|null}        pendingHash    Hash of the blueprint currently being booted.
  * @property {Promise<void>|null} bootPromise
  * @property {((event: {type:string,text:string}) => void)|null} onData
  *   Current log callback. Set by acquire() when a slot is handed out; cleared
@@ -69,8 +65,6 @@ function createSlot(port) {
     port,
     proc: null,
     status: 'idle',
-    blueprintHash: null,
-    pendingHash: null,
     bootPromise: null,
     onData: null,
   };
@@ -89,25 +83,9 @@ const slots = Array.from(
 let readyFlag = true;
 
 /**
- * MD5 hash of the blueprint file contents, used to detect when the active
- * blueprint has changed between runs. Falls back to the path itself if the
- * file cannot be read (e.g. default blueprint not yet written).
- *
- * @param {string} blueprintPath
- * @returns {string}
- */
-function hashBlueprint(blueprintPath) {
-  try {
-    return crypto.createHash('md5').update(fs.readFileSync(blueprintPath)).digest('hex');
-  } catch {
-    return blueprintPath;
-  }
-}
-
-/**
  * Kill whatever is running on `slots[index].port`, then spawn a fresh
- * Playground with the given blueprint. Updates slot status and hash fields
- * throughout. Returns a Promise that resolves when "Ready!" is seen on stdout.
+ * Playground with the given blueprint. Returns a Promise that resolves when
+ * "Ready!" is seen on stdout.
  *
  * Idempotent: if a boot is already in flight for this slot (including the
  * retry-delay window inside bootSlotWithRetry), the existing bootPromise is
@@ -142,12 +120,10 @@ function _spawnSlot(index, blueprintPath) {
   const slot = slots[index];
   const oldProc = slot.proc;
 
-  // Update state synchronously so callers that check status/pendingHash
-  // immediately after calling _spawnSlot see the correct values.
+  // Update state synchronously so callers that check status immediately
+  // after calling _spawnSlot see the correct values.
   slot.proc = null;
   slot.status = 'booting';
-  slot.blueprintHash = null;
-  slot.pendingHash = hashBlueprint(blueprintPath);
   slot.onData = null;
 
   console.log(`[Playground Pool] Slot ${index} (port ${slot.port}): booting with ${path.basename(blueprintPath)}...`);
@@ -177,20 +153,15 @@ function _spawnSlot(index, blueprintPath) {
     proc.on('close', () => {
       if (slot.proc !== proc) return;
       slot.proc = null;
-      slot.pendingHash = null;
-      slot.blueprintHash = null;
       if (slot.status !== 'booting') slot.status = 'idle';
       console.log(`[Playground Pool] Slot ${index} (port ${slot.port}): process closed`);
     });
     slot.status = 'warm';
-    slot.blueprintHash = slot.pendingHash;
-    slot.pendingHash = null;
     readyFlag = true;
     console.log(`[Playground Pool] Slot ${index} (port ${slot.port}): warm and ready`);
   })().catch((err) => {
     slot.proc = null;
     slot.status = 'idle';
-    slot.pendingHash = null;
     console.error(`[Playground Pool] Slot ${index} (port ${slot.port}): boot failed —`, err.message);
     throw err;
   });
@@ -292,8 +263,6 @@ function currentBlueprintPath() {
   return fs.existsSync(GENERATED_BLUEPRINT) ? GENERATED_BLUEPRINT : DEFAULT_BLUEPRINT;
 }
 
-// ── Internal helpers ──────────────────────────────────────────────────────────
-
 /**
  * Boot a slot, retrying once after a short delay if the first attempt fails.
  * Used for background boots only — the slow-path in acquire() propagates
@@ -330,47 +299,6 @@ function bootSlotWithRetry(index, blueprintPath, logContext) {
 }
 
 /**
- * If another slot is not already warm (or booting) with the same blueprint,
- * kick off a background refresh now so it is ready before the next recording.
- *
- * @param {number} usedPort
- * @param {string} blueprintPath
- */
-function _refreshAnother(usedPort, blueprintPath) {
-  const hash = hashBlueprint(blueprintPath);
-  const index = slots.findIndex(s =>
-    s.port !== usedPort &&
-    s.status !== 'active' &&
-    !(s.status === 'warm' && s.blueprintHash === hash) &&
-    !(s.status === 'booting' && s.pendingHash === hash)
-  );
-  if (index === -1) return;
-  const other = slots[index];
-  bootSlotWithRetry(index, blueprintPath, `Slot ${index} (port ${other.port}) background refresh`);
-}
-
-/**
- * Claim a warm slot with the given blueprint hash, mark it active, and kick
- * off background warming for another slot.
- *
- * @param {string} hash
- * @param {string} blueprintPath
- * @param {((event: {type:string,text:string}) => void)|null} onData
- * @param {string} logPrefix
- * @returns {number|null}
- */
-function _claimWarmSlot(hash, blueprintPath, onData, logPrefix) {
-  for (const slot of slots) {
-    if (slot.status !== 'warm' || slot.blueprintHash !== hash) continue;
-    slot.status = 'active';
-    slot.onData = onData;
-    console.log(logPrefix, slot.port);
-    return slot.port;
-  }
-  return null;
-}
-
-/**
  * Reboot every non-active slot with the given blueprint. Called after the
  * UI saves or resets the blueprint — the UI gates Save/Reset behind real
  * form-state changes, so no hash check is needed here.
@@ -393,18 +321,14 @@ function resetPool(blueprintPath) {
 }
 
 /**
- * Return pool status relative to `blueprintPath`.
- *
- * @param {string} blueprintPath
  * @returns {{ warm: number, booting: number, total: number, ready: boolean }}
  */
-function getStatus(blueprintPath) {
-  const hash = hashBlueprint(blueprintPath);
+function getStatus() {
   let warm = 0;
   let booting = 0;
   for (const slot of slots) {
-    if (slot.status === 'warm' && slot.blueprintHash === hash) warm++;
-    else if (slot.status === 'booting' && slot.pendingHash === hash) booting++;
+    if (slot.status === 'warm') warm++;
+    else if (slot.status === 'booting') booting++;
   }
   return { warm, booting, total: slots.length, ready: readyFlag && warm > 0 };
 }

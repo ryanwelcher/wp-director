@@ -91,11 +91,16 @@ header p {
 .blueprint-panel-actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
   justify-content: flex-end;
   margin-top: 0.75rem;
-  padding: 0.75rem 1.25rem 0 0.75rem;
+  padding: 0.75rem 1.25rem 0.75rem 0.75rem;
   border-top: 1px solid #1e2433;
+  position: sticky;
+  bottom: 0;
+  background: #0d1120;
+  z-index: 1;
 }
 
 .blueprint-pool-status {
@@ -199,7 +204,8 @@ header p {
   padding: 8px;
   font-size: 11px;
   font-family: monospace;
-  overflow-x: auto;
+  max-height: 240px;
+  overflow: auto;
   white-space: pre;
   background: var(--color-bg, #1e1e1e);
   color: var(--color-text-muted, #aaa);

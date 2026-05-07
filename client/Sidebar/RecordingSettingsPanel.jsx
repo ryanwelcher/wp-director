@@ -1,6 +1,6 @@
 import { useAppState } from '../context/AppStateContext.jsx';
+import { VIDEO_SIZE_VALUES } from '../utils/actions.js';
 
-const VIDEO_SIZES = ['1280x720', '1920x1080', '3840x2160'];
 const VIDEO_LABELS = {
   '1280x720': '720p',
   '1920x1080': '1080p',
@@ -63,7 +63,7 @@ export function RecordingSettingsPanel() {
             <span className="setting-field-value">{videoSize}</span>
           </div>
           <div className="settings-size-toggle" role="radiogroup" aria-label="Video size">
-            {VIDEO_SIZES.map((size) => (
+            {VIDEO_SIZE_VALUES.map((size) => (
               <button
                 key={size}
                 type="button"

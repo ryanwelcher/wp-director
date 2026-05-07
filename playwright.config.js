@@ -1,8 +1,10 @@
 // @ts-check
 const { defineConfig, devices } = require('@playwright/test');
 const { PLAYWRIGHT_OUTPUT_DIR } = require('./server/config');
+const { videoSizeFromEnv } = require('./server/video-size');
 
 const isPreview = process.env.WP_DIRECTOR_PREVIEW === '1';
+const videoSize = videoSizeFromEnv();
 
 module.exports = defineConfig({
   testDir: './recordings',
@@ -16,10 +18,10 @@ module.exports = defineConfig({
   use: {
     baseURL: `http://127.0.0.1:${process.env.WP_DIRECTOR_PLAYGROUND_PORT ?? 9406}`,
     headless: true,
-    viewport: { width: 1920, height: 1080 },
+    viewport: videoSize,
     video: isPreview ? { mode: 'off' } : {
       mode: 'on',
-      size: { width: 1920, height: 1080 },
+      size: videoSize,
     },
     trace: 'on',    // always record trace for interactive replay
     screenshot: 'on', // capture screenshots on each step
@@ -30,7 +32,7 @@ module.exports = defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'], viewport: { width: 1920, height: 1080 } },
+      use: { ...devices['Desktop Chrome'], viewport: videoSize },
     },
   ],
 });

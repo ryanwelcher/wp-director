@@ -15,6 +15,7 @@ export function DirectionToolbar() {
     runDirections,
     setName,
     startFromIndex,
+    videoSize,
   } = useAppState();
   const { running, runActions, stopRun } = useRunState();
   const saveScriptMutation = useSaveScriptMutation();
@@ -29,6 +30,7 @@ export function DirectionToolbar() {
         endPause: currentEndPause,
         stepPause: currentStepPause,
         typingDelay: currentTypingDelay,
+        videoSize,
       });
       toast.success(`Saved "${scriptName}"`);
     } catch (err) {

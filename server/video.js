@@ -4,11 +4,9 @@
  * Video post-processing: convert Playwright's `video.webm` to MP4 (H.264 + AAC)
  * and optionally scale to a user-chosen size.
  *
- * Playwright records at the project viewport (1920×1080, see playwright.config.js)
- * and outputs WebM per-test. Most downstream tools (Keynote, Slack, QuickTime,
- * social) prefer MP4, so we always convert. If the user picked a non-1080p size
- * in the UI, we also scale with Lanczos to avoid the blocky output of the
- * default bilinear filter.
+ * Playwright outputs WebM per-test. Most downstream tools (Keynote, Slack,
+ * QuickTime, social) prefer MP4, so we always convert. Callers may optionally
+ * pass a target size when they need a scale pass.
  *
  * ffmpeg is shipped via the `ffmpeg-static` npm package — no system install
  * required, which matters for the long-term goal of a distributable app.
@@ -19,6 +17,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 const ffmpegPath = require('ffmpeg-static');
 const { OUTPUT_DIR } = require('./config');
+const { normalizeVideoSize } = require('./video-size');
 
 /**
  * @typedef {Object} VideoFile
@@ -80,7 +79,7 @@ function findVideoFile(dirname) {
  * notify the caller via SSE; the WebM stays in place as a fallback.
  *
  * @param {string} inputPath            Absolute path to the source `video.webm`.
- * @param {VideoSize | null} videoSize  Target size; null or 1920×1080 → no scale.
+ * @param {VideoSize | null} videoSize  Optional target size; null → no scale.
  * @param {Sender} send                 SSE forwarder for ffmpeg output.
  * @returns {Promise<void>}
  */
@@ -89,16 +88,14 @@ function processVideo(inputPath, videoSize, send) {
     if (!fs.existsSync(inputPath)) return resolve();
     const outputPath = path.join(path.dirname(inputPath), 'video.mp4');
 
-    // Skip the scale filter entirely for 1080p (matches Playwright's native size)
-    // to avoid a redundant re-encode pass at identical dimensions.
-    const needsScale = videoSize && !(videoSize.width === 1920 && videoSize.height === 1080);
-    const label = needsScale
-      ? `Converting to MP4 and scaling to ${videoSize.width}×${videoSize.height}`
+    const targetSize = videoSize ? normalizeVideoSize(videoSize, null) : null;
+    const label = targetSize
+      ? `Converting to MP4 and scaling to ${targetSize.width}×${targetSize.height}`
       : 'Converting to MP4';
     send({ type: 'stdout', text: `[ffmpeg] ${label}…\n` });
 
-    const scaleFilter = needsScale
-      ? [`-vf`, `scale=${videoSize.width}:${videoSize.height}:flags=lanczos`]
+    const scaleFilter = targetSize
+      ? [`-vf`, `scale=${targetSize.width}:${targetSize.height}:flags=lanczos`]
       : [];
 
     const ff = spawn(ffmpegPath, [

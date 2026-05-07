@@ -19,6 +19,9 @@ export const WP_SCREENS = {
   profile: 'Profile',
 };
 
+export const DEFAULT_VIDEO_SIZE_VALUE = '1920x1080';
+export const VIDEO_SIZE_VALUES = ['1280x720', DEFAULT_VIDEO_SIZE_VALUE, '3840x2160'];
+
 let nextDirectionId = 1;
 
 export function withDirectionId(direction) {
@@ -91,8 +94,19 @@ export function flattenDirectionActions(actions = []) {
 }
 
 export function videoSizeFromValue(value) {
-  const [width, height] = String(value || '1920x1080').split('x').map(Number);
+  const [width, height] = videoSizeValueFromSize(value).split('x').map(Number);
   return { width, height };
+}
+
+export function videoSizeValueFromSize(value) {
+  if (typeof value === 'string' && VIDEO_SIZE_VALUES.includes(value)) return value;
+
+  if (value && typeof value === 'object') {
+    const candidate = `${Number(value.width)}x${Number(value.height)}`;
+    if (VIDEO_SIZE_VALUES.includes(candidate)) return candidate;
+  }
+
+  return DEFAULT_VIDEO_SIZE_VALUE;
 }
 
 export function endPauseMs(value) {

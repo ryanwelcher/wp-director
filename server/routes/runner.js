@@ -19,7 +19,7 @@
  *   4. Stream stdout/stderr and live screencast frames back to the client as
  *      SSE events.
  *   5. After all scripts finish, run the ffmpeg post-process step to produce
- *      an MP4 (and scale if the user picked a non-1080p size).
+ *      an MP4.
  *   6. Call pool.release() so the used slot is rebooted in the background,
  *      ready for the run after next.
  *
@@ -39,13 +39,13 @@ const {
   STEPS_DIR,
   OUTPUT_DIR,
   PLAYWRIGHT_OUTPUT_DIR,
-  PREVIEW_OUTPUT_DIR,
   SCREENCASTS_DIR,
   DEFAULT_BLUEPRINT,
   GENERATED_BLUEPRINT,
 } = require('../config');
 const pool = require('../playground-server');
 const { processVideo } = require('../video');
+const { normalizeVideoSize, screencastSizeForVideoSize, sizeKey } = require('../video-size');
 const { timestamp, timestampedDirname, uniqueDir } = require('../output-paths');
 const { nameToFilename } = require('./scripts');
 const { runSteps } = require('../../recordings/run-steps');
@@ -108,10 +108,10 @@ function resolveBlueprintPath(blueprint) {
  * @param {object[]} opts.scripts                   Step-definition objects to run, in order.
  * @param {number}   opts.port                      Playground port (from pool.acquire).
  * @param {string}   opts.blueprintPath             Path to the active blueprint file.
- * @param {any}      opts.videoSize                 Target size for ffmpeg scaling.
+ * @param {any}      opts.videoSize                 Target browser viewport/video size.
  * @param {(data: any) => void} opts.send           SSE writer.
  * @param {Object}   [opts.doneExtra]               Extra fields merged into the `done` event.
- * @param {boolean}  [opts.preview]                 Skip ffmpeg conversion when true.
+ * @param {boolean}  [opts.preview]                 Stream live frames only; do not record a video.
  * @returns {Promise<void>}
  */
 async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send, doneExtra = {}, preview = false }) {
@@ -125,13 +125,19 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
   });
 
   currentBrowser = browser;
+  const recordingSize = normalizeVideoSize(videoSize);
+  const screencastSize = screencastSizeForVideoSize(recordingSize);
+  const shouldRecordVideo = !preview;
+  send({ type: 'stdout', text: `[Playwright] Video size: ${sizeKey(recordingSize)}\n` });
 
   /** @type {import('playwright').BrowserContextOptions} */
   const contextOpts = {
     baseURL: `http://127.0.0.1:${port}`,
-    viewport: { width: 1920, height: 1080 },
-    recordVideo: { dir: PLAYWRIGHT_OUTPUT_DIR, size: { width: 1920, height: 1080 } },
+    viewport: recordingSize,
   };
+  if (shouldRecordVideo) {
+    contextOpts.recordVideo = { dir: PLAYWRIGHT_OUTPUT_DIR, size: recordingSize };
+  }
 
   const context = await browser.newContext(contextOpts);
   let latestPreviewVideoPath = null;
@@ -143,16 +149,17 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
       send({ type: 'stdout', text: `[Playwright] Running: ${def.name}\n` });
 
       const page = await context.newPage();
-      const outputSlug = nameToFilename(def.name).replace(/\.json$/i, '');
-      const outputStamp = timestamp();
-      const outputDirname = timestampedDirname(outputSlug, outputStamp);
-      const videoRoot = preview ? PREVIEW_OUTPUT_DIR : OUTPUT_DIR;
-      const videoDir = uniqueDir(path.join(videoRoot, outputDirname));
-      const recordedVideoPath = path.join(videoDir, 'video.webm');
-      fs.mkdirSync(videoDir, { recursive: true });
-      if (preview) fs.writeFileSync(path.join(videoDir, '.wp-director-preview'), '');
-      latestPreviewVideoPath = recordedVideoPath;
-      latestPreviewVideoFilename = `${path.basename(videoDir)}.webm`;
+      let recordedVideoPath = null;
+      if (shouldRecordVideo) {
+        const outputSlug = nameToFilename(def.name).replace(/\.json$/i, '');
+        const outputStamp = timestamp();
+        const outputDirname = timestampedDirname(outputSlug, outputStamp);
+        const videoDir = uniqueDir(path.join(OUTPUT_DIR, outputDirname));
+        recordedVideoPath = path.join(videoDir, 'video.webm');
+        fs.mkdirSync(videoDir, { recursive: true });
+        latestPreviewVideoPath = recordedVideoPath;
+        latestPreviewVideoFilename = `${path.basename(videoDir)}.webm`;
+      }
 
       // Load the site before starting the screencast so the video does not start with a blank screen.
       // Use the blueprint's landingPage if specified; otherwise fall back to the WP admin dashboard.
@@ -163,7 +170,7 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
       await page.screencast.start({
         onFrame: ({ data }) => send({ type: 'screencast', data: data.toString('base64') }),
         quality: 80,
-        size: { width: 1280, height: 720 },
+        size: screencastSize,
       });
       await runSteps(page, def, null, (index, total) => {
         send({ type: 'step-progress', index, total });
@@ -172,8 +179,8 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
 
       const video = page.video();
       await page.close();
-      if (video) await video.saveAs(recordedVideoPath);
-      if (!preview && code === 0) await processVideo(recordedVideoPath, videoSize, send);
+      if (video && recordedVideoPath) await video.saveAs(recordedVideoPath);
+      if (recordedVideoPath && code === 0) await processVideo(recordedVideoPath, null, send);
     }
 
     await context.close();
@@ -230,6 +237,7 @@ function register(app) {
     if (endPause != null) scriptData.endPause = endPause;
     if (stepPause != null) scriptData.stepPause = stepPause;
     if (typingDelay != null) scriptData.typingDelay = typingDelay;
+    if (videoSize != null) scriptData.videoSize = normalizeVideoSize(videoSize);
     fs.writeFileSync(filePath, JSON.stringify(scriptData, null, 2));
 
     sseHeaders(res);

@@ -1,11 +1,16 @@
 import { useCallback, useMemo, useState } from 'react';
-import { endPauseMs, videoSizeFromValue } from '../utils/actions.js';
+import {
+  DEFAULT_VIDEO_SIZE_VALUE,
+  endPauseMs,
+  videoSizeFromValue,
+  videoSizeValueFromSize,
+} from '../utils/actions.js';
 
 const DEFAULT_RUN_SETTINGS = {
   endPause: '2',
   stepPause: '0',
   typingDelay: '100',
-  videoSize: '1920x1080',
+  videoSize: DEFAULT_VIDEO_SIZE_VALUE,
 };
 
 function millisecondsFromValue(value, fallback, max) {
@@ -39,6 +44,7 @@ export function useRunSettingsState() {
     setEndPause(DEFAULT_RUN_SETTINGS.endPause);
     setStepPause(DEFAULT_RUN_SETTINGS.stepPause);
     setTypingDelay(DEFAULT_RUN_SETTINGS.typingDelay);
+    setVideoSize(DEFAULT_RUN_SETTINGS.videoSize);
   }, []);
 
   const loadScriptSettings = useCallback((script) => {
@@ -46,6 +52,7 @@ export function useRunSettingsState() {
     setEndPause(((script.endPause ?? 2000) / 1000).toString());
     setStepPause(((script.stepPause ?? 0) / 1000).toString());
     setTypingDelay((script.typingDelay ?? Number(DEFAULT_RUN_SETTINGS.typingDelay)).toString());
+    setVideoSize(videoSizeValueFromSize(script.videoSize));
   }, []);
 
   return {

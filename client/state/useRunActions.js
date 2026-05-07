@@ -22,7 +22,7 @@ export function useRunActions({
       name: runName,
       actions: runDirections,
       blueprint,
-      videoSize: previewOnly ? null : currentVideoSize,
+      videoSize: previewOnly ? undefined : currentVideoSize,
       preview: previewOnly || undefined,
       endPause: previewOnly ? undefined : currentEndPause,
       stepPause: currentStepPause,

@@ -22,6 +22,7 @@
 const fs = require('fs');
 const path = require('path');
 const { STEPS_DIR, SAFE_FILENAME_RE } = require('../config');
+const { normalizeVideoSize } = require('../video-size');
 
 /**
  * Normalize a user-provided name into a safe on-disk filename.
@@ -54,6 +55,7 @@ function register(app) {
           endPause: def.endPause,
           stepPause: def.stepPause,
           typingDelay: def.typingDelay,
+          videoSize: def.videoSize,
         };
       } catch {
         // Skip malformed files rather than failing the whole listing.
@@ -64,13 +66,14 @@ function register(app) {
   });
 
   app.post('/api/scripts/save', (req, res) => {
-    const { name = `recording-${Date.now()}`, directions = [], endPause, stepPause, typingDelay } = req.body;
+    const { name = `recording-${Date.now()}`, directions = [], endPause, stepPause, typingDelay, videoSize } = req.body;
     if (!fs.existsSync(STEPS_DIR)) fs.mkdirSync(STEPS_DIR);
     const filename = nameToFilename(name);
     const scriptData = { name, directions };
     if (endPause != null) scriptData.endPause = endPause;
     if (stepPause != null) scriptData.stepPause = stepPause;
     if (typingDelay != null) scriptData.typingDelay = typingDelay;
+    if (videoSize != null) scriptData.videoSize = normalizeVideoSize(videoSize);
     fs.writeFileSync(path.join(STEPS_DIR, filename), JSON.stringify(scriptData, null, 2));
     res.json({ filename });
   });

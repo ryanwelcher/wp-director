@@ -101,16 +101,41 @@ function hashBlueprint(blueprintPath) {
  * Playground with the given blueprint. Updates slot status and hash fields
  * throughout. Returns a Promise that resolves when "Ready!" is seen on stdout.
  *
+ * Idempotent: if a boot is already in flight for this slot (including the
+ * retry-delay window inside bootSlotWithRetry), the existing bootPromise is
+ * returned instead of spawning a second `npx @wp-playground/cli`.
+ *
  * @param {number} index         Index into the `slots` array.
  * @param {string} blueprintPath
  * @returns {Promise<void>}
  */
 function bootSlot(index, blueprintPath) {
   const slot = slots[index];
+  if (slot.bootPromise) return slot.bootPromise;
+
+  const promise = _spawnSlot(index, blueprintPath);
+  slot.bootPromise = promise;
+  promise.catch(() => {}).then(() => {
+    if (slot.bootPromise === promise) slot.bootPromise = null;
+  });
+  return promise;
+}
+
+/**
+ * Actual spawn work for a slot. Does NOT manage `slot.bootPromise` — the
+ * caller (bootSlot or bootSlotWithRetry) is responsible for the lock so it
+ * can be held across multiple spawn attempts.
+ *
+ * @param {number} index
+ * @param {string} blueprintPath
+ * @returns {Promise<void>}
+ */
+function _spawnSlot(index, blueprintPath) {
+  const slot = slots[index];
   const oldProc = slot.proc;
 
   // Update state synchronously so callers that check status/pendingHash
-  // immediately after calling bootSlot see the correct values.
+  // immediately after calling _spawnSlot see the correct values.
   slot.proc = null;
   slot.status = 'booting';
   slot.blueprintHash = null;
@@ -119,7 +144,7 @@ function bootSlot(index, blueprintPath) {
 
   console.log(`[Playground Pool] Slot ${index} (port ${slot.port}): booting with ${path.basename(blueprintPath)}...`);
 
-  const promise = (async () => {
+  return (async () => {
     // Wait for the old process to fully exit before binding the same port.
     // killAndWait sends SIGTERM then escalates to SIGKILL after 5s if needed.
     // The outer race enforces a hard 10s ceiling in case even SIGKILL is slow.
@@ -144,7 +169,6 @@ function bootSlot(index, blueprintPath) {
     proc.on('close', () => {
       if (slot.proc !== proc) return;
       slot.proc = null;
-      slot.bootPromise = null;
       slot.pendingHash = null;
       slot.blueprintHash = null;
       if (slot.status !== 'booting') slot.status = 'idle';
@@ -153,19 +177,14 @@ function bootSlot(index, blueprintPath) {
     slot.status = 'warm';
     slot.blueprintHash = slot.pendingHash;
     slot.pendingHash = null;
-    slot.bootPromise = null;
     console.log(`[Playground Pool] Slot ${index} (port ${slot.port}): warm and ready`);
   })().catch((err) => {
     slot.proc = null;
     slot.status = 'idle';
     slot.pendingHash = null;
-    slot.bootPromise = null;
     console.error(`[Playground Pool] Slot ${index} (port ${slot.port}): boot failed —`, err.message);
     throw err;
   });
-
-  slot.bootPromise = promise;
-  return promise;
 }
 
 /**
@@ -246,7 +265,6 @@ async function acquire(blueprintPath, onData = null) {
   await bootSlot(idx, blueprintPath);
   target.status = 'active';
   target.onData = onData;
-  _refreshAnother(target.port, blueprintPath);
   return target.port;
 }
 
@@ -280,18 +298,29 @@ function release(port, blueprintPath) {
  * @param {string} logContext   Short label for error messages.
  * @returns {Promise<void>}
  */
-async function bootSlotWithRetry(index, blueprintPath, logContext) {
-  try {
-    await bootSlot(index, blueprintPath);
-  } catch (err) {
-    console.warn(`[Playground Pool] ${logContext} — first attempt failed (${err.message}), retrying in ${BOOT_RETRY_DELAY_MS}ms...`);
-    await new Promise(r => setTimeout(r, BOOT_RETRY_DELAY_MS));
+function bootSlotWithRetry(index, blueprintPath, logContext) {
+  const slot = slots[index];
+  if (slot.bootPromise) return slot.bootPromise;
+
+  const promise = (async () => {
     try {
-      await bootSlot(index, blueprintPath);
-    } catch (retryErr) {
-      console.error(`[Playground Pool] ${logContext} — retry also failed:`, retryErr.message);
+      await _spawnSlot(index, blueprintPath);
+    } catch (err) {
+      console.warn(`[Playground Pool] ${logContext} — first attempt failed (${err.message}), retrying in ${BOOT_RETRY_DELAY_MS}ms...`);
+      await new Promise(r => setTimeout(r, BOOT_RETRY_DELAY_MS));
+      try {
+        await _spawnSlot(index, blueprintPath);
+      } catch (retryErr) {
+        console.error(`[Playground Pool] ${logContext} — retry also failed:`, retryErr.message);
+      }
     }
-  }
+  })();
+
+  slot.bootPromise = promise;
+  promise.catch(() => {}).then(() => {
+    if (slot.bootPromise === promise) slot.bootPromise = null;
+  });
+  return promise;
 }
 
 /**
@@ -329,7 +358,6 @@ function _claimWarmSlot(hash, blueprintPath, onData, logPrefix) {
     if (slot.status !== 'warm' || slot.blueprintHash !== hash) continue;
     slot.status = 'active';
     slot.onData = onData;
-    _refreshAnother(slot.port, blueprintPath);
     console.log(logPrefix, slot.port);
     return slot.port;
   }

@@ -80,6 +80,12 @@ const slots = Array.from(
   (_, index) => createSlot(RECORDING_PLAYGROUND_PORT_MIN + index)
 );
 
+// Flipped to false at the top of warmAll so /api/pool-status reflects
+// "not ready" in the same tick a Save is processed, before slot state
+// transitions are observable to a poll. Restored to true once at least one
+// slot finishes booting.
+let readyFlag = true;
+
 /**
  * MD5 hash of the blueprint file contents, used to detect when the active
  * blueprint has changed between runs. Falls back to the path itself if the
@@ -177,6 +183,7 @@ function _spawnSlot(index, blueprintPath) {
     slot.status = 'warm';
     slot.blueprintHash = slot.pendingHash;
     slot.pendingHash = null;
+    readyFlag = true;
     console.log(`[Playground Pool] Slot ${index} (port ${slot.port}): warm and ready`);
   })().catch((err) => {
     slot.proc = null;
@@ -376,6 +383,7 @@ function warmAll(blueprintPath) {
   const blueprint = path.basename(blueprintPath);
   console.log(`[Playground Pool] warmAll — re-warming slots with ${blueprint}`);
 
+  let scheduledAny = false;
   slots.forEach((slot, index) => {
     if (slot.status === 'active') {
       console.log(`[Playground Pool] Slot ${index} (port ${slot.port}): skipped (active)`);
@@ -389,8 +397,14 @@ function warmAll(blueprintPath) {
       console.log(`[Playground Pool] Slot ${index} (port ${slot.port}): already booting with this blueprint`);
       return;
     }
+    scheduledAny = true;
     bootSlotWithRetry(index, blueprintPath, `Slot ${index} (port ${slot.port}) warm-all reboot`);
   });
+
+  // Only mark the pool as not-ready if we actually rebooted something. Saving
+  // with no real blueprint changes leaves slots warm — the UI must not be
+  // stuck on "Configuring environment…" in that case.
+  if (scheduledAny) readyFlag = false;
 }
 
 /**
@@ -407,7 +421,7 @@ function getStatus(blueprintPath) {
     if (slot.status === 'warm' && slot.blueprintHash === hash) warm++;
     else if (slot.status === 'booting' && slot.pendingHash === hash) booting++;
   }
-  return { warm, booting, total: slots.length, ready: warm > 0 };
+  return { warm, booting, total: slots.length, ready: readyFlag && warm > 0 };
 }
 
 module.exports = { init, acquire, release, warmAll, getStatus };

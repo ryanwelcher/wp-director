@@ -24,5 +24,5 @@ export function usePoolStatus() {
     };
   }, []);
 
-  return status;
+  return [status, setStatus];
 }

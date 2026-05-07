@@ -12,7 +12,7 @@ import { SectionBadge } from './SectionBadge.jsx';
 
 
 export function BlueprintPanel() {
-  const { blueprint: appBlueprint, defaultBlueprint, setBlueprint, isBlueprintModified, poolStatus } = useAppState();
+  const { blueprint: appBlueprint, defaultBlueprint, setBlueprint, isBlueprintModified, poolStatus, setPoolStatus } = useAppState();
   const { formState, updateForm, loadBlueprint, compiledBlueprint } =
     useBlueprintFormState(appBlueprint);
 
@@ -36,9 +36,14 @@ export function BlueprintPanel() {
     setIsSaving(true);
     setPoolMsgFading(false);
     setPoolMsgVisible(true);
+    setPoolStatus(prev => ({ ...prev, ready: false }));
     try {
       await api.saveBlueprint(compiledBlueprint);
       setBlueprint(compiledBlueprint);
+      try {
+        const fresh = await api.getPoolStatus();
+        setPoolStatus(fresh);
+      } catch {}
     } catch (err) {
       toast.error(errorMessage(err, 'Could not save blueprint'));
     } finally {
@@ -51,11 +56,16 @@ export function BlueprintPanel() {
     if (!window.confirm('Reset all fields to the default blueprint? Your current changes will be lost.')) return;
     setPoolMsgFading(false);
     setPoolMsgVisible(true);
+    setPoolStatus(prev => ({ ...prev, ready: false }));
     try {
       const bp = await api.resetBlueprint();
       const target = bp ?? defaultBlueprint;
       loadBlueprint(target);
       setBlueprint(target);
+      try {
+        const fresh = await api.getPoolStatus();
+        setPoolStatus(fresh);
+      } catch {}
     } catch (err) {
       toast.error(errorMessage(err, 'Could not reset blueprint'));
     }

@@ -68,10 +68,15 @@ export function SavedScriptsPanel() {
               <span className="script-meta">
                 {script.directionCount} direction{script.directionCount !== 1 ? 's' : ''}
               </span>
-              <button className="script-load-btn secondary" type="button" onClick={() => {
-                loadScriptIntoEditor(script);
-                toast.success(`Loaded "${script.name}"`);
-              }}>
+              <button
+                className="script-load-btn secondary"
+                type="button"
+                disabled={running}
+                onClick={() => {
+                  loadScriptIntoEditor(script);
+                  toast.success(`Loaded "${script.name}"`);
+                }}
+              >
                 Load
               </button>
               <button className="script-delete-btn danger" type="button" onClick={() => deleteScript(script)}>

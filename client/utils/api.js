@@ -87,10 +87,10 @@ export const api = {
     return data?.scripts ?? [];
   },
 
-  async saveScript({ name, directions, endPause }) {
+  async saveScript({ name, directions, endPause, stepPause, typingDelay, videoSize }) {
     return requestJSON(
       "/api/scripts/save",
-      postOptions({ name, directions, endPause }),
+      postOptions({ name, directions, endPause, stepPause, typingDelay, videoSize }),
     );
   },
 

@@ -1054,6 +1054,17 @@ header p {
 
 .saved-script-item .script-load-btn:hover { border-color: #6b7280; color: #e2e8f0; }
 
+.saved-script-item .script-load-btn:disabled {
+  border-color: #2d3748;
+  color: #374151;
+  cursor: not-allowed;
+}
+
+.saved-script-item .script-load-btn:disabled:hover {
+  border-color: #2d3748;
+  color: #374151;
+}
+
 .saved-script-item .script-delete-btn {
   background: transparent;
   border: 1px solid #4b1c1c;

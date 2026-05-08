@@ -53,19 +53,21 @@ export function SavedScriptsPanel() {
 
           {savedScripts.map((script) => (
             <div className="saved-script-item" key={script.filename}>
-              <input
-                type="checkbox"
-                className="script-checkbox"
-                checked={selectedScripts.includes(script.name)}
-                onChange={(event) => {
-                  setSelectedScripts((current) => (
-                    event.target.checked
-                      ? [...new Set([...current, script.name])]
-                      : current.filter((name) => name !== script.name)
-                  ));
-                }}
-              />
-              <span className="script-name">{script.name}</span>
+              <label className="script-name" title={script.name}>
+                <input
+                  type="checkbox"
+                  className="script-checkbox"
+                  checked={selectedScripts.includes(script.name)}
+                  onChange={(event) => {
+                    setSelectedScripts((current) => (
+                      event.target.checked
+                        ? [...new Set([...current, script.name])]
+                        : current.filter((name) => name !== script.name)
+                    ));
+                  }}
+                />
+                <span className="script-name-text">{script.name}</span>
+              </label>
               <span className="script-meta">
                 {script.directionCount} direction{script.directionCount !== 1 ? 's' : ''}
               </span>

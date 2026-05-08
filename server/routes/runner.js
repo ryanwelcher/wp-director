@@ -34,7 +34,6 @@
 
 const fs = require('fs');
 const path = require('path');
-const { spawn } = require('child_process');
 const {
   STEPS_DIR,
   OUTPUT_DIR,
@@ -50,10 +49,56 @@ const { timestamp, timestampedDirname, uniqueDir } = require('../output-paths');
 const { nameToFilename } = require('./scripts');
 const { runSteps } = require('../../recordings/run-steps');
 
-/** @type {import('child_process').ChildProcess|null} */
-let currentProc = null;
-let currentBrowser = null;
-let stopRequested = false;
+let currentRun = null;
+
+function runStoppedError() {
+  const err = new Error('Run stopped');
+  err.code = 'RUN_STOPPED';
+  return err;
+}
+
+function throwIfRunStopped(signal) {
+  if (signal?.aborted) throw runStoppedError();
+}
+
+function stopRunControl(run) {
+  if (!run) return false;
+  if (run.stopRequested) return true;
+
+  run.stopRequested = true;
+  if (!run.controller.signal.aborted) run.controller.abort();
+
+  const page = run.page;
+  if (page && !page.isClosed?.()) {
+    page.close().catch(() => {});
+  } else if (run.context) {
+    run.context.close().catch(() => {});
+  }
+
+  return true;
+}
+
+function createRunControl(clientSignal) {
+  const run = {
+    browser: null,
+    context: null,
+    page: null,
+    controller: new AbortController(),
+    stopRequested: false,
+  };
+
+  if (clientSignal?.aborted) {
+    run.stopRequested = true;
+    run.controller.abort();
+  } else {
+    clientSignal?.addEventListener('abort', () => {
+      stopRunControl(run);
+    }, { once: true });
+  }
+
+  currentRun = run;
+  return run;
+}
 
 /**
  * Set the three headers required to keep an SSE stream open.
@@ -90,15 +135,23 @@ function sseSender(res) {
  *
  * @param {import('express').Request} req
  * @param {import('express').Response} res
- * @returns {() => boolean}
+ * @returns {{ isAborted: () => boolean, signal: AbortSignal }}
  */
 function clientAbortedTracker(req, res) {
-  let aborted = false;
-  req.on('aborted', () => { aborted = true; });
+  const controller = new AbortController();
+  const abort = () => {
+    if (!controller.signal.aborted) controller.abort();
+  };
+
+  req.on('aborted', abort);
   res.on('close', () => {
-    if (!res.writableEnded) aborted = true;
+    if (!res.writableEnded) abort();
   });
-  return () => aborted || res.destroyed;
+
+  return {
+    isAborted: () => controller.signal.aborted || res.destroyed,
+    signal: controller.signal,
+  };
 }
 
 /**
@@ -132,19 +185,19 @@ function resolveBlueprintPath(blueprint) {
  * @param {(data: any) => void} opts.send           SSE writer.
  * @param {Object}   [opts.doneExtra]               Extra fields merged into the `done` event.
  * @param {boolean}  [opts.preview]                 Stream live frames only; do not record a video.
+ * @param {() => void} [opts.onInstanceUsed]         Called once the Playground instance is actually touched.
+ * @param {ReturnType<typeof createRunControl>} [opts.run]
  * @returns {Promise<void>}
  */
-async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send, doneExtra = {}, preview = false }) {
+async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send, doneExtra = {}, preview = false, onInstanceUsed = null, run = null }) {
   // IMPORTANT: When running multiple scripts, we are running all of them on the same Playground instance - this may or may not be desired.
   // If we want actions to be executed on the same Playground instance this is fine, but if we want a fresh Playground instance for each script, we need to acquire and release one for each script.
   const { chromium } = require('playwright');
+  const signal = run?.controller.signal;
+  const wasStopped = () => Boolean(run?.stopRequested || signal?.aborted);
 
-  const browser = await chromium.launch({
-    headless: true,
-    slowMo: 500,
-  });
+  throwIfRunStopped(signal);
 
-  currentBrowser = browser;
   const recordingSize = normalizeVideoSize(videoSize);
   const screencastSize = screencastSizeForVideoSize(recordingSize);
   const shouldRecordVideo = !preview;
@@ -159,16 +212,45 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
     contextOpts.recordVideo = { dir: PLAYWRIGHT_OUTPUT_DIR, size: recordingSize };
   }
 
-  const context = await browser.newContext(contextOpts);
+  let browser = null;
+  let context = null;
   let latestPreviewVideoPath = null;
   let latestPreviewVideoFilename = null;
+  let instanceUsed = false;
+  const markInstanceUsed = () => {
+    if (instanceUsed) return;
+    instanceUsed = true;
+    onInstanceUsed?.();
+  };
 
   let code = 0;
   try {
+    browser = await chromium.launch({
+      headless: true,
+      slowMo: 500,
+    });
+    if (run) run.browser = browser;
+    throwIfRunStopped(signal);
+
+    context = await browser.newContext(contextOpts);
+    if (run) run.context = context;
+    const activeContext = context;
+    context.on('close', () => {
+      if (run?.context === activeContext) run.context = null;
+    });
+    throwIfRunStopped(signal);
+
     for (const def of scripts) {
+      throwIfRunStopped(signal);
       send({ type: 'stdout', text: `[Playwright] Running: ${def.name}\n` });
 
       const page = await context.newPage();
+      if (run) run.page = page;
+      page.on('close', () => {
+        if (run?.page === page) run.page = null;
+      });
+      throwIfRunStopped(signal);
+
       let recordedVideoPath = null;
       if (shouldRecordVideo) {
         const outputSlug = nameToFilename(def.name).replace(/\.json$/i, '');
@@ -185,41 +267,67 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
       // Use the blueprint's landingPage if specified; otherwise fall back to the WP admin dashboard.
       const blueprintJson = JSON.parse(fs.readFileSync(blueprintPath, 'utf8'));
       const landingPage = blueprintJson.landingPage || '/wp-admin/';
+      markInstanceUsed();
       await page.goto(landingPage);
+      throwIfRunStopped(signal);
 
       await page.screencast.start({
         onFrame: ({ data }) => send({ type: 'screencast', data: data.toString('base64') }),
         quality: 80,
         size: screencastSize,
       });
+      throwIfRunStopped(signal);
+
       await runSteps(page, def, null, (index, total) => {
         send({ type: 'step-progress', index, total });
       });
+      throwIfRunStopped(signal);
+
       await page.screencast.stop();
 
       const video = page.video();
       await page.close();
+      if (run?.page === page) run.page = null;
       if (video && recordedVideoPath) await video.saveAs(recordedVideoPath);
       if (recordedVideoPath && code === 0) await processVideo(recordedVideoPath, null, send);
     }
 
     await context.close();
+    context = null;
   } catch (err) {
-    send({ type: 'stderr', text: `[Playwright] ${err.message}\n` });
-    code = 1;
-  }
-
-  try {
-    if (typeof browser.isConnected !== 'function' || browser.isConnected()) {
-      await browser.close();
-    }
-  } catch (err) {
-    if (!stopRequested) {
+    if (signal?.aborted || err.code === 'RUN_STOPPED') {
+      if (run) run.stopRequested = true;
+    } else {
       send({ type: 'stderr', text: `[Playwright] ${err.message}\n` });
       code = 1;
     }
   }
-  if (currentBrowser === browser) currentBrowser = null;
+
+  if (context) {
+    try {
+      if (run?.context === context) run.context = null;
+      await context.close();
+    } catch (err) {
+      if (!wasStopped()) {
+        send({ type: 'stderr', text: `[Playwright] ${err.message}\n` });
+        code = 1;
+      }
+    }
+  }
+
+  if (browser) {
+    try {
+      if (typeof browser.isConnected !== 'function' || browser.isConnected()) {
+        await browser.close();
+      }
+    } catch (err) {
+      if (!wasStopped()) {
+        send({ type: 'stderr', text: `[Playwright] ${err.message}\n` });
+        code = 1;
+      }
+    }
+    if (run?.browser === browser) run.browser = null;
+  }
 
   if (latestPreviewVideoPath && latestPreviewVideoFilename && fs.existsSync(latestPreviewVideoPath)) {
     const publicPath = path.join(SCREENCASTS_DIR, latestPreviewVideoFilename);
@@ -228,18 +336,12 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
     send({ type: 'screencastVideo', uri: `/screencasts/${latestPreviewVideoFilename}` });
   }
 
-  send({ type: 'done', code, ...(stopRequested ? { stopped: true } : {}), ...doneExtra });
+  send({ type: 'done', code, ...(wasStopped() ? { stopped: true } : {}), ...doneExtra });
 }
 
 function register(app) {
   app.post('/api/stop', (req, res) => {
-    if (currentProc) {
-      stopRequested = true;
-      currentProc.kill('SIGTERM');
-      res.json({ ok: true });
-    } else if (currentBrowser) {
-      stopRequested = true;
-      currentBrowser.close().catch(() => {});
+    if (stopRunControl(currentRun)) {
       res.json({ ok: true });
     } else {
       res.json({ ok: false, reason: 'no process running' });
@@ -273,22 +375,24 @@ function register(app) {
 
     sseHeaders(res);
     const send = sseSender(res);
-    const clientAborted = clientAbortedTracker(req, res);
+    const clientAbort = clientAbortedTracker(req, res);
 
     const blueprintPath = resolveBlueprintPath(blueprint);
 
     let port;
+    let instanceUsed = false;
     try {
-      port = await pool.acquire( blueprintPath, send );
+      port = await pool.acquire(blueprintPath, send, { signal: clientAbort.signal });
       send({ type: 'playground-acquired', port });
     } catch (err) {
+      if (err.code === 'POOL_ACQUIRE_CANCELLED' || clientAbort.isAborted()) return;
       send({ type: 'stderr', text: `[Playground] Failed to acquire instance: ${err.message}\n` });
       send({ type: 'done', code: 1 });
       return;
     }
 
-    if (clientAborted() || res.writableEnded) {
-      pool.release(port);
+    if (clientAbort.isAborted() || res.writableEnded) {
+      pool.release(port, { used: false });
       if (!res.destroyed && !res.writableEnded) res.end();
       return;
     }
@@ -296,8 +400,8 @@ function register(app) {
     const runDef = { ...scriptData };
     if (startFrom != null && startFrom > 0) runDef.startFrom = startFrom;
 
+    const run = createRunControl(clientAbort.signal);
     try {
-      stopRequested = false;
       await runPlaywrightApi({
         scripts: [runDef],
         port,
@@ -306,13 +410,19 @@ function register(app) {
         send,
         doneExtra: preview ? {} : { file: filePath },
         preview,
+        onInstanceUsed: () => { instanceUsed = true; },
+        run,
       });
     } catch (err) {
-      send({ type: 'stderr', text: `[Runner] ${err.message}\n` });
-      send({ type: 'done', code: 1, ...(stopRequested ? { stopped: true } : {}) });
+      if (err.code === 'RUN_STOPPED' || run.controller.signal.aborted) {
+        send({ type: 'done', code: 1, stopped: true });
+      } else {
+        send({ type: 'stderr', text: `[Runner] ${err.message}\n` });
+        send({ type: 'done', code: 1, ...(run.stopRequested ? { stopped: true } : {}) });
+      }
     } finally {
-      pool.release(port);
-      stopRequested = false;
+      if (currentRun === run) currentRun = null;
+      pool.release(port, { used: instanceUsed });
       if (!res.destroyed && !res.writableEnded) res.end();
     }
   });
@@ -324,22 +434,24 @@ function register(app) {
 
     sseHeaders(res);
     const send = sseSender(res);
-    const clientAborted = clientAbortedTracker(req, res);
+    const clientAbort = clientAbortedTracker(req, res);
 
     const blueprintPath = resolveBlueprintPath(blueprint);
 
     let port;
+    let instanceUsed = false;
     try {
-      port = await pool.acquire(blueprintPath, send);
+      port = await pool.acquire(blueprintPath, send, { signal: clientAbort.signal });
       send({ type: 'playground-acquired', port });
     } catch (err) {
+      if (err.code === 'POOL_ACQUIRE_CANCELLED' || clientAbort.isAborted()) return;
       send({ type: 'stderr', text: `[Playground] Failed to start: ${err.message}\n` });
       send({ type: 'done', code: 1 });
       return;
     }
 
-    if (clientAborted() || res.writableEnded) {
-      pool.release(port);
+    if (clientAbort.isAborted() || res.writableEnded) {
+      pool.release(port, { used: false });
       if (!res.destroyed && !res.writableEnded) res.end();
       return;
     }
@@ -356,15 +468,27 @@ function register(app) {
         ...(typingDelay != null ? { typingDelay } : {}),
       }));
 
+    const run = createRunControl(clientAbort.signal);
     try {
-      stopRequested = false;
-      await runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send });
+      await runPlaywrightApi({
+        scripts,
+        port,
+        blueprintPath,
+        videoSize,
+        send,
+        onInstanceUsed: () => { instanceUsed = true; },
+        run,
+      });
     } catch (err) {
-      send({ type: 'stderr', text: `[Runner] ${err.message}\n` });
-      send({ type: 'done', code: 1, ...(stopRequested ? { stopped: true } : {}) });
+      if (err.code === 'RUN_STOPPED' || run.controller.signal.aborted) {
+        send({ type: 'done', code: 1, stopped: true });
+      } else {
+        send({ type: 'stderr', text: `[Runner] ${err.message}\n` });
+        send({ type: 'done', code: 1, ...(run.stopRequested ? { stopped: true } : {}) });
+      }
     } finally {
-      pool.release(port);
-      stopRequested = false;
+      if (currentRun === run) currentRun = null;
+      pool.release(port, { used: instanceUsed });
       if (!res.destroyed && !res.writableEnded) res.end();
     }
   });

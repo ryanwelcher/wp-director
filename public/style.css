@@ -45,6 +45,7 @@ header p {
 /* Sidebar sections share a common summary style */
 .sidebar-content > details {
   border-bottom: 1px solid #1e2433;
+  flex: 0 0 auto;
 }
 
 #blueprint-section summary {
@@ -97,10 +98,7 @@ header p {
   margin-top: 0;
   padding: 0.75rem 1.25rem 0.75rem 0.75rem;
   border-top: 1px solid #1e2433;
-  position: sticky;
-  bottom: 0;
   background: #111827;
-  z-index: 1;
 }
 
 .blueprint-pool-indicators {

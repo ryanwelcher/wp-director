@@ -17,6 +17,7 @@ export function SavedScriptsPanel() {
   const { recordAll, running } = useRunState();
   const deleteScriptMutation = useDeleteScriptMutation();
   const partiallySelected = selectedScripts.length > 0 && selectedScripts.length < savedScripts.length;
+  const poolLabel = poolStatus.ready ? undefined : `Playground warming up (${poolStatus.warm}/${poolStatus.total} ready). The run will start when an instance is available.`;
   const setSelectAllRef = useCallback((node) => {
     if (node) node.indeterminate = partiallySelected;
   }, [partiallySelected]);
@@ -102,8 +103,8 @@ export function SavedScriptsPanel() {
             id="record-all-btn"
             className="primary"
             type="button"
-            disabled={selectedScripts.length === 0 || running || !poolStatus.ready}
-            title={poolStatus.ready ? undefined : `Playground warming up (${poolStatus.warm}/${poolStatus.total} ready)…`}
+            disabled={selectedScripts.length === 0 || running}
+            title={poolLabel}
             onClick={handleRecordAll}
           >
             &#9654; Record All

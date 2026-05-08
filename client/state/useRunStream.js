@@ -20,6 +20,9 @@ export function useRunStream({
   stopPreview,
 }) {
   const abortControllerRef = useRef(null);
+  const onDoneRef = useRef(null);
+  const runIdRef = useRef(0);
+  const stoppedRunIdRef = useRef(null);
   const [running, setRunning] = useState(false);
   const [activeStepIndex, setActiveStepIndex] = useState(null);
   const { mutateAsync: startRun } = useMutation({
@@ -46,12 +49,14 @@ export function useRunStream({
     };
   }, [startRun]);
 
-  const markRunStopped = useCallback((onDone) => {
+  const markRunStopped = useCallback((onDone = onDoneRef.current, runId = runIdRef.current) => {
+    if (runId !== runIdRef.current || stoppedRunIdRef.current === runId) return;
+    stoppedRunIdRef.current = runId;
     stopPreview();
     setRunning(false);
     setActiveStepIndex(null);
     markStopped();
-    onDone({ stopped: true });
+    onDone?.({ stopped: true });
   }, [markStopped, stopPreview]);
 
   const handleRunMessage = useCallback((msg) => {
@@ -70,7 +75,11 @@ export function useRunStream({
 
   const streamRun = useCallback(async (fetchPromise, { controller, onDone }) => {
     let receivedDone = false;
+    const runId = runIdRef.current + 1;
 
+    runIdRef.current = runId;
+    onDoneRef.current = onDone;
+    stoppedRunIdRef.current = null;
     startLog();
     setRunning(true);
     setActiveStepIndex(null);
@@ -83,11 +92,15 @@ export function useRunStream({
       }
 
       await readSSE(res, (msg) => {
+        if (runId !== runIdRef.current) return;
         handleRunMessage(msg);
         if (msg.type !== 'done') return;
 
         receivedDone = true;
         clearRunAbortController(controller);
+        onDoneRef.current = null;
+
+        if (stoppedRunIdRef.current === runId) return;
         stopPreview();
         setRunning(false);
         setActiveStepIndex(null);
@@ -99,14 +112,18 @@ export function useRunStream({
       });
 
       if (!receivedDone) {
+        if (runId !== runIdRef.current || stoppedRunIdRef.current === runId) return;
         throw new Error('Run stream ended before completion');
       }
     } catch (err) {
+      if (runId !== runIdRef.current) return;
+
       if (isAbortError(err)) {
-        if (!receivedDone) markRunStopped(onDone);
+        if (!receivedDone) markRunStopped(onDone, runId);
         return;
       }
 
+      if (stoppedRunIdRef.current === runId) return;
       setRunning(false);
       setActiveStepIndex(null);
       stopPreview();
@@ -116,6 +133,7 @@ export function useRunStream({
       throw err;
     } finally {
       clearRunAbortController(controller);
+      if (runId === runIdRef.current && abortControllerRef.current === null) onDoneRef.current = null;
     }
   }, [
     clearRunAbortController,
@@ -130,9 +148,11 @@ export function useRunStream({
   ]);
 
   const stopRun = useCallback(() => {
+    const runId = runIdRef.current;
+    markRunStopped(undefined, runId);
     abortControllerRef.current?.abort();
     sendStopRun();
-  }, [sendStopRun]);
+  }, [markRunStopped, sendStopRun]);
 
   return {
     running,

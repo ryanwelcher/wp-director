@@ -20,7 +20,7 @@ export function AppStateProvider({ children }) {
   } = useRunSettingsState();
   const blueprintState = useBlueprintState();
   const collections = useServerCollections();
-  const [poolStatus, setPoolStatus] = usePoolStatus();
+  const poolStatus = usePoolStatus();
 
   const clearDirections = useCallback(() => {
     clearDirectionState();
@@ -41,7 +41,6 @@ export function AppStateProvider({ children }) {
     clearDirections,
     loadScriptIntoEditor,
     poolStatus,
-    setPoolStatus,
   };
 
   return (

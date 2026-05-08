@@ -7,6 +7,8 @@ const IDLE_PREVIEW = {
   videoSrc: '',
   poster: '',
   title: '',
+  playgroundPort: null,
+  isLive: false,
 };
 
 export function useRunPreview() {
@@ -15,24 +17,37 @@ export function useRunPreview() {
 
   const startPreview = useCallback(() => {
     lastScreencastVideoRef.current = '';
-    setPreview({ mode: 'connecting', imageSrc: '', recordedAt: null, videoSrc: '', poster: '', title: '' });
+    setPreview({ mode: 'connecting', imageSrc: '', recordedAt: null, videoSrc: '', poster: '', title: '', playgroundPort: null, isLive: false });
   }, []);
 
   const stopPreview = useCallback(() => {
     const videoSrc = lastScreencastVideoRef.current;
     setPreview((current) => (
       videoSrc
-        ? { mode: 'video', imageSrc: '', recordedAt: null, videoSrc, poster: current.imageSrc, title: '' }
-        : IDLE_PREVIEW
+        ? (
+          current.mode === 'video' && current.videoSrc === videoSrc
+            ? current
+            : { mode: 'video', imageSrc: '', recordedAt: null, videoSrc, poster: current.imageSrc, title: '', playgroundPort: null, isLive: false }
+        )
+        : (current.mode === 'image' ? { ...current, isLive: false, playgroundPort: null } : IDLE_PREVIEW)
     ));
   }, []);
 
   const showPreviewVideo = useCallback((videoSrc, { recordedAt = null, title = '' } = {}) => {
     lastScreencastVideoRef.current = videoSrc;
-    setPreview({ mode: 'video', imageSrc: '', recordedAt, videoSrc, poster: '', title });
+    setPreview({ mode: 'video', imageSrc: '', recordedAt, videoSrc, poster: '', title, playgroundPort: null, isLive: false });
   }, []);
 
   const handlePreviewMessage = useCallback((msg) => {
+    if (msg.type === 'playground-acquired') {
+      setPreview((current) => (
+        current.mode === 'connecting'
+          ? { ...current, playgroundPort: msg.port ?? null }
+          : current
+      ));
+      return;
+    }
+
     if (msg.type === 'screencast') {
       setPreview({
         mode: 'image',
@@ -41,12 +56,24 @@ export function useRunPreview() {
         videoSrc: '',
         poster: '',
         title: '',
+        playgroundPort: null,
+        isLive: true,
       });
       return;
     }
 
     if (msg.type === 'screencastVideo') {
       lastScreencastVideoRef.current = msg.uri;
+      setPreview((current) => ({
+        mode: 'video',
+        imageSrc: '',
+        recordedAt: null,
+        videoSrc: msg.uri,
+        poster: current.imageSrc,
+        title: '',
+        playgroundPort: null,
+        isLive: false,
+      }));
     }
   }, []);
 

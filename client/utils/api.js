@@ -124,10 +124,6 @@ export const api = {
     return requestJSON("/api/save-blueprint", postOptions({ blueprint }));
   },
 
-  async getPoolStatus({ signal } = {}) {
-    return requestJSON("/api/pool-status", { signal });
-  },
-
   async resetBlueprint() {
     const data = await requestJSON("/api/reset-blueprint", postOptions({}));
     return data?.blueprint ?? null;

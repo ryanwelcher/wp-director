@@ -71,7 +71,6 @@ export function BlueprintPanel() {
 
   async function handleSave() {
     setIsSaving(true);
-    setPoolStatus(prev => ({ ...prev, ready: false }));
     try {
       await api.saveBlueprint(compiledBlueprint);
       setBlueprint(compiledBlueprint);
@@ -90,7 +89,6 @@ export function BlueprintPanel() {
     if (!defaultBlueprint) return;
     if (!window.confirm('Reset all fields to the default blueprint? Your current changes will be lost.')) return;
     setIsSaving(true);
-    setPoolStatus(prev => ({ ...prev, ready: false }));
     try {
       const bp = await api.resetBlueprint();
       const target = bp ?? defaultBlueprint;

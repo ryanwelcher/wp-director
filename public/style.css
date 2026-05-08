@@ -45,6 +45,7 @@ header p {
 /* Sidebar sections share a common summary style */
 .sidebar-content > details {
   border-bottom: 1px solid #1e2433;
+  flex: 0 0 auto;
 }
 
 #blueprint-section summary {
@@ -85,7 +86,7 @@ header p {
 .badge.hidden { display: none; }
 
 .blueprint-body {
-  padding: 0.25rem 0 0.5rem;
+  padding: 0;
 }
 
 .blueprint-panel-actions {
@@ -94,13 +95,10 @@ header p {
   flex-wrap: wrap;
   gap: 0.5rem;
   justify-content: flex-end;
-  margin-top: 0.75rem;
+  margin-top: 0;
   padding: 0.75rem 1.25rem 0.75rem 0.75rem;
   border-top: 1px solid #1e2433;
-  position: sticky;
-  bottom: 0;
-  background: #0d1120;
-  z-index: 1;
+  background: #111827;
 }
 
 .blueprint-pool-indicators {
@@ -236,7 +234,6 @@ header p {
 
 #blueprint-section .bfs-collapsible[open] > .bfs-summary {
   color: #e2e8f0;
-  margin-bottom: 0.75rem;
 }
 
 .bfs-json-preview {
@@ -247,7 +244,7 @@ header p {
   max-height: 240px;
   overflow: auto;
   white-space: pre;
-  background: var(--color-bg, #1e1e1e);
+  background: var(--color-bg, #080c14);
   color: var(--color-text-muted, #aaa);
   border-radius: 4px;
 }
@@ -265,7 +262,8 @@ header p {
 
 .blueprint-form-section {
   border-top: 1px solid #1e2433;
-  padding: 0.35rem 0;
+  background: #0d1120;
+  padding: 0.5rem 0;
 }
 
 .blueprint-form-section:first-of-type { border-top: none; }
@@ -283,7 +281,6 @@ header p {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  margin-top: 1rem;
   padding: 0 0.5rem;
 }
 
@@ -543,7 +540,7 @@ header p {
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
-  padding: 0 1.5rem 1rem;
+  padding: 0.75rem 1.5rem 1rem;
 }
 
 .setting-field {
@@ -1203,6 +1200,16 @@ header p {
   height: 100%;
 }
 
+.sidebar-content > details[open] > .blueprint-body,
+.sidebar-content > details[open] > .recording-settings-body,
+.sidebar-content > details[open] > .recordings-body,
+.sidebar-content > details[open] > .saved-scripts-body,
+.sidebar-content > details[open] > .directions-body {
+  background: #111827;
+  border-top: 1px solid #1e2433;
+  box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.04);
+}
+
 #log-panel {
   border-top: 1px solid #1e2433;
 }
@@ -1275,7 +1282,7 @@ header p {
 #recordings-section[open] summary { color: #94a3b8; }
 
 .recordings-body {
-  padding: 0 1.5rem 1rem;
+  padding: 0.75rem 1.5rem 1rem;
 }
 
 .recording-item {
@@ -1401,7 +1408,7 @@ header p {
 #saved-scripts-section[open] summary { color: #94a3b8; }
 
 .saved-scripts-body {
-  padding: 0 1.5rem 1rem;
+  padding: 0.75rem 1.5rem 1rem;
 }
 
 .saved-script-item {
@@ -1637,7 +1644,7 @@ header p {
 #directions-section[open] summary { color: #94a3b8; }
 
 .directions-body {
-  padding: 0 1.5rem 1rem;
+  padding: 0.75rem 1.5rem 1rem;
 }
 
 .direction-item {

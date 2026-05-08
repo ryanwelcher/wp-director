@@ -9,6 +9,7 @@ import { SectionBadge } from './SectionBadge.jsx';
 export function SavedScriptsPanel() {
   const {
     loadScriptIntoEditor,
+    poolStatus,
     savedScripts,
     selectedScripts,
     setSelectedScripts,
@@ -101,7 +102,8 @@ export function SavedScriptsPanel() {
             id="record-all-btn"
             className="primary"
             type="button"
-            disabled={selectedScripts.length === 0 || running}
+            disabled={selectedScripts.length === 0 || running || !poolStatus.ready}
+            title={poolStatus.ready ? undefined : `Playground warming up (${poolStatus.warm}/${poolStatus.total} ready)…`}
             onClick={handleRecordAll}
           >
             &#9654; Record All

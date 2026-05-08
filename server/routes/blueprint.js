@@ -27,6 +27,7 @@ const {
   PREVIEW_PLAYGROUND_PORT,
 } = require('../config');
 const { killPreviewPlayground, startPreviewPlayground } = require('../playground');
+const pool = require('../playground-server');
 
 function register(app) {
   app.get('/api/default-blueprint', (req, res) => {
@@ -46,6 +47,61 @@ function register(app) {
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
+  });
+
+  app.post('/api/save-blueprint', (req, res) => {
+    const { blueprint } = req.body;
+    if (!blueprint) return res.status(400).json({ error: 'blueprint required' });
+
+    try {
+      fs.writeFileSync(GENERATED_BLUEPRINT, JSON.stringify(blueprint, null, 2));
+      pool.resetPool(GENERATED_BLUEPRINT);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/reset-blueprint', (req, res) => {
+    try {
+      const defaultContent = fs.readFileSync(DEFAULT_BLUEPRINT, 'utf8');
+      fs.writeFileSync(GENERATED_BLUEPRINT, defaultContent);
+      pool.resetPool(GENERATED_BLUEPRINT);
+      res.json({ blueprint: JSON.parse(defaultContent) });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/pool-status', (req, res) => {
+    res.json(pool.getStatus());
+  });
+
+  // SSE stream of pool status. Sends the current snapshot on connect, then
+  // one event per state transition. Replaces the 3 s poll so the UI sees
+  // pool changes within ~100 ms instead of up to 3 s late.
+  app.get('/api/pool-status/stream', (req, res) => {
+    res.set({
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    });
+    res.flushHeaders?.();
+
+    const send = (status) => {
+      res.write(`data: ${JSON.stringify(status)}\n\n`);
+    };
+
+    send(pool.getStatus());
+    pool.events.on('change', send);
+
+    const heartbeat = setInterval(() => res.write(': ping\n\n'), 30_000);
+
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      pool.events.off('change', send);
+    });
   });
 
   app.post('/api/preview-blueprint', async (req, res) => {

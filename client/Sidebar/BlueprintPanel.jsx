@@ -1,61 +1,90 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import { useAppState } from '../context/AppStateContext.jsx';
+import { blueprintToForm, useBlueprintFormState } from '../state/useBlueprintFormState.js';
 import { errorMessage } from '../utils/actions.js';
-import { usePreviewBlueprintMutation } from '../utils/apiHooks.js';
+import { api } from '../utils/api.js';
+import { EnvironmentSection } from '../blueprint/EnvironmentSection.jsx';
+import { SiteSettingsSection } from '../blueprint/SiteSettingsSection.jsx';
+import { SlugListSection } from '../blueprint/SlugListSection.jsx';
+import { ContentSection } from '../blueprint/ContentSection.jsx';
 import { SectionBadge } from './SectionBadge.jsx';
 
-function formatBlueprint(blueprint) {
-  return blueprint ? JSON.stringify(blueprint, null, 2) : '';
-}
 
 export function BlueprintPanel() {
-  const {
-    blueprint,
-    defaultBlueprint,
-    isBlueprintModified,
-    setBlueprint,
-  } = useAppState();
-  const [draftOverride, setDraftOverride] = useState(null);
-  const [error, setError] = useState('');
-  const previewBlueprintMutation = usePreviewBlueprintMutation();
-  const testing = previewBlueprintMutation.isPending;
-  const draft = draftOverride ?? formatBlueprint(blueprint);
+  const { blueprint: appBlueprint, defaultBlueprint, setBlueprint, isBlueprintModified, poolStatus, setPoolStatus } = useAppState();
+  const { formState, updateForm, loadBlueprint, compiledBlueprint } =
+    useBlueprintFormState(appBlueprint);
 
-  function editBlueprint(value) {
-    setDraftOverride(value);
+  const [isSaving, setIsSaving] = useState(false);
 
-    if (!value.trim()) {
-      setBlueprint(defaultBlueprint);
-      setError('');
-      return;
+  // Compare on form-state (not compiled JSON) so incidental key-order / shape
+  // differences in the on-disk blueprint don't make the form look "dirty".
+  const savedForm = useMemo(() => blueprintToForm(appBlueprint), [appBlueprint]);
+  const defaultForm = useMemo(() => blueprintToForm(defaultBlueprint), [defaultBlueprint]);
+  const hasUnsavedChanges = useMemo(
+    () => JSON.stringify(formState) !== JSON.stringify(savedForm),
+    [formState, savedForm],
+  );
+  const isAtDefault = useMemo(
+    () => JSON.stringify(formState) === JSON.stringify(defaultForm),
+    [formState, defaultForm],
+  );
+
+  const [poolMsgVisible, setPoolMsgVisible] = useState(!poolStatus.ready);
+  const [poolMsgFading, setPoolMsgFading] = useState(false);
+
+  useEffect(() => {
+    if (!poolStatus.ready) {
+      setPoolMsgFading(false);
+      setPoolMsgVisible(true);
+    } else if (poolMsgVisible) {
+      setPoolMsgFading(true);
+      const t = setTimeout(() => setPoolMsgVisible(false), 600);
+      return () => clearTimeout(t);
     }
+  }, [poolStatus.ready]);
 
+  async function handleSave() {
+    setIsSaving(true);
+    setPoolMsgFading(false);
+    setPoolMsgVisible(true);
+    setPoolStatus(prev => ({ ...prev, ready: false }));
     try {
-      setBlueprint(JSON.parse(value));
-      setError('');
+      await api.saveBlueprint(compiledBlueprint);
+      setBlueprint(compiledBlueprint);
+      try {
+        const fresh = await api.getPoolStatus();
+        setPoolStatus(fresh);
+      } catch {}
     } catch (err) {
-      setError(errorMessage(err, 'Invalid JSON'));
+      toast.error(errorMessage(err, 'Could not save blueprint'));
+    } finally {
+      setIsSaving(false);
     }
   }
 
-  async function testBlueprint() {
-    if (!blueprint) return;
-
+  async function handleReset() {
+    if (!defaultBlueprint) return;
+    if (!window.confirm('Reset all fields to the default blueprint? Your current changes will be lost.')) return;
+    setIsSaving(true);
+    setPoolMsgFading(false);
+    setPoolMsgVisible(true);
+    setPoolStatus(prev => ({ ...prev, ready: false }));
     try {
-      const data = await previewBlueprintMutation.mutateAsync(blueprint);
-      window.open(data.url, '_blank');
+      const bp = await api.resetBlueprint();
+      const target = bp ?? defaultBlueprint;
+      loadBlueprint(target);
+      setBlueprint(target);
+      try {
+        const fresh = await api.getPoolStatus();
+        setPoolStatus(fresh);
+      } catch {}
     } catch (err) {
-      const message = errorMessage(err, 'Failed to start preview');
-      setError(message);
-      toast.error(message);
+      toast.error(errorMessage(err, 'Could not reset blueprint'));
+    } finally {
+      setIsSaving(false);
     }
-  }
-
-  function resetBlueprint() {
-    setBlueprint(defaultBlueprint);
-    setDraftOverride(null);
-    setError('');
   }
 
   return (
@@ -65,25 +94,56 @@ export function BlueprintPanel() {
         <SectionBadge hidden={!isBlueprintModified}>custom</SectionBadge>
       </summary>
       <div className="blueprint-body">
-        <div className="blueprint-toolbar">
-          <button className="secondary" type="button" disabled={testing} onClick={testBlueprint}>
-            {testing ? 'Starting...' : '\u25B6 Test in Playground'}
+        <EnvironmentSection formState={formState} updateForm={updateForm} />
+        <SiteSettingsSection formState={formState} updateForm={updateForm} />
+        <SlugListSection
+          title="Plugins" sectionId="section-plugins"
+          items={formState.plugins} onUpdate={(plugins) => updateForm({ plugins })}
+          itemType="plugin" inputId="bf-plugin-slug"
+          inputPlaceholder="WordPress.org plugin slug"
+        />
+        <SlugListSection
+          title="Themes" sectionId="section-themes"
+          items={formState.themes} onUpdate={(themes) => updateForm({ themes })}
+          itemType="theme" inputId="bf-theme-slug"
+          inputPlaceholder="WordPress.org theme slug"
+        />
+        <ContentSection formState={formState} updateForm={updateForm} />
+
+        <section className="blueprint-form-section">
+          <details className="bfs-collapsible">
+            <summary className="bfs-summary">JSON</summary>
+            <pre className="bfs-json-preview">
+              {JSON.stringify(compiledBlueprint, null, 2)}
+            </pre>
+          </details>
+        </section>
+
+        <div className="blueprint-panel-actions">
+          {poolMsgVisible && (
+            <p
+              className={`blueprint-pool-status${poolMsgFading ? ' blueprint-pool-status--fading' : ''}`}
+              role="status"
+            >
+              Configuring environment…
+            </p>
+          )}
+          <button
+            type="button"
+            className="bp-action-btn bp-action-btn--ghost"
+            onClick={handleReset}
+            disabled={!defaultBlueprint || isAtDefault || isSaving}
+          >
+            Reset
           </button>
-          <button className="secondary" type="button" onClick={resetBlueprint}>
-            Reset to default
+          <button
+            type="button"
+            className="bp-action-btn bp-action-btn--primary"
+            onClick={handleSave}
+            disabled={isSaving || !hasUnsavedChanges}
+          >
+            {isSaving ? 'Saving…' : 'Save'}
           </button>
-        </div>
-        <div className="blueprint-editor">
-          <textarea
-            id="blueprint-preview"
-            spellCheck="false"
-            className={error ? 'invalid' : ''}
-            value={draft}
-            onChange={(event) => editBlueprint(event.target.value)}
-          />
-          <p id="blueprint-error" className={`json-error${error ? '' : ' hidden'}`}>
-            {error}
-          </p>
         </div>
       </div>
     </details>

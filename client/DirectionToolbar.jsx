@@ -12,6 +12,7 @@ export function DirectionToolbar() {
     currentStepPause,
     currentTypingDelay,
     name,
+    poolStatus,
     runDirections,
     setName,
     startFromIndex,
@@ -20,6 +21,8 @@ export function DirectionToolbar() {
   const { running, runActions, stopRun } = useRunState();
   const saveScriptMutation = useSaveScriptMutation();
   const hasResolvedDirections = runDirections.length > 0;
+  const poolReady = poolStatus.ready;
+  const poolLabel = poolReady ? null : `Playground warming up (${poolStatus.warm}/${poolStatus.total} ready)…`;
 
   async function saveScript() {
     const scriptName = name.trim() || `recording-${Date.now()}`;
@@ -84,8 +87,8 @@ export function DirectionToolbar() {
         <button
           className="primary"
           type="button"
-          disabled={!hasResolvedDirections}
-          title={startFromIndex !== null ? 'Record full script (preview start point ignored)' : 'Record'}
+          disabled={!hasResolvedDirections || !poolReady}
+          title={poolLabel ?? (startFromIndex !== null ? 'Record full script (preview start point ignored)' : 'Record')}
           onClick={() => handleRun(false)}
         >
           &#9654; Record
@@ -99,7 +102,13 @@ export function DirectionToolbar() {
       )}
 
       {!running && (
-        <button className="secondary" type="button" disabled={!hasResolvedDirections} onClick={() => handleRun(true)}>
+        <button
+          className="secondary"
+          type="button"
+          disabled={!hasResolvedDirections || !poolReady}
+          title={poolLabel ?? undefined}
+          onClick={() => handleRun(true)}
+        >
           &#9654; Preview
         </button>
       )}

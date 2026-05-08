@@ -1,4 +1,5 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -42,7 +43,7 @@ header p {
 }
 
 /* Sidebar sections share a common summary style */
-.sidebar-content details {
+.sidebar-content > details {
   border-bottom: 1px solid #1e2433;
 }
 
@@ -67,8 +68,8 @@ header p {
   font-size: 0.6rem;
   transition: transform 0.15s;
 }
-#blueprint-section[open] summary::before { transform: rotate(90deg); }
-#blueprint-section[open] summary { color: #94a3b8; }
+#blueprint-section[open] > summary::before { transform: rotate(90deg); }
+#blueprint-section[open] > summary { color: #94a3b8; }
 
 .badge {
   background: #1e3a5f;
@@ -84,51 +85,393 @@ header p {
 .badge.hidden { display: none; }
 
 .blueprint-body {
-  padding: 0 1.5rem 1rem;
+  padding: 0.25rem 0 0.5rem;
 }
 
-.blueprint-toolbar {
+.blueprint-panel-actions {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
   justify-content: flex-end;
-  margin-bottom: 0.6rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem 1.25rem 0.75rem 0.75rem;
+  border-top: 1px solid #1e2433;
+  position: sticky;
+  bottom: 0;
+  background: #0d1120;
+  z-index: 1;
 }
 
-.blueprint-toolbar button.secondary {
-  background: transparent;
-  border: 1px solid #374151;
+.blueprint-pool-status {
+  animation: bps-fade-in 0.5s ease forwards, bps-pulse 2s ease-in-out 0.5s infinite;
+  color: #f59e0b;
+  font-size: 0.8rem;
+  margin: 0 auto 0 0;
+}
+
+.blueprint-pool-status--fading {
+  animation: bps-fade-out 0.6s ease forwards;
+}
+
+@keyframes bps-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes bps-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes bps-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.bp-action-btn {
   border-radius: 6px;
-  color: #94a3b8;
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 500;
-  padding: 0.4rem 0.8rem;
-  transition: border-color 0.15s, color 0.15s;
+  padding: 0.4rem 0.9rem;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
   white-space: nowrap;
 }
-.blueprint-toolbar button.secondary:hover { border-color: #6b7280; color: #e2e8f0; }
 
-.blueprint-editor { position: relative; }
+.bp-action-btn:disabled { cursor: not-allowed; opacity: 0.45; }
 
-#blueprint-preview {
-  background: #111827;
-  border: 1px solid #1e2433;
-  border-radius: 6px;
-  color: #fbbf24;
-  font-family: 'Menlo', 'Monaco', monospace;
-  font-size: 0.78rem;
-  height: 180px;
-  line-height: 1.6;
-  outline: none;
-  padding: 0.75rem 1rem;
-  resize: vertical;
-  white-space: pre;
-  width: 100%;
-  transition: border-color 0.15s;
+.bp-action-btn--ghost {
+  background: transparent;
+  border: 1px solid #374151;
+  color: #94a3b8;
 }
 
-#blueprint-preview:focus { border-color: #6366f1; }
-#blueprint-preview.invalid { border-color: #ef4444; }
+.bp-action-btn--ghost:hover:not(:disabled) {
+  background: #1a2035;
+  border-color: #6b7280;
+  color: #e2e8f0;
+}
+
+.bp-action-btn--primary {
+  background: #6366f1;
+  border: 1px solid transparent;
+  color: #fff;
+}
+
+.bp-action-btn--primary:hover:not(:disabled) { background: #4f46e5; }
+
+/* ── Collapsible blueprint form sections ─────────────────── */
+
+.bfs-collapsible {
+  padding: 0 0.75rem;
+}
+
+.bfs-summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 0.5rem;
+  list-style: none;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.1rem 0;
+  user-select: none;
+}
+
+.bfs-summary::-webkit-details-marker { display: none; }
+
+.bfs-summary::before {
+  content: '▶';
+  color: #475569;
+  font-size: 0.55rem;
+  transition: transform 0.15s;
+  flex-shrink: 0;
+}
+
+#blueprint-section .bfs-collapsible[open] > .bfs-summary::before {
+  transform: rotate(90deg);
+}
+
+#blueprint-section .bfs-collapsible[open] > .bfs-summary {
+  color: #e2e8f0;
+  margin-bottom: 0.75rem;
+}
+
+.bfs-json-preview {
+  margin: 0;
+  padding: 8px;
+  font-size: 11px;
+  font-family: monospace;
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre;
+  background: var(--color-bg, #1e1e1e);
+  color: var(--color-text-muted, #aaa);
+  border-radius: 4px;
+}
+
+.blueprint-notice {
+  background: #1e3a5f;
+  border: 1px solid #2d5a8e;
+  border-radius: 6px;
+  color: #7dd3fc;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1rem;
+}
+
+.blueprint-form-section {
+  border-top: 1px solid #1e2433;
+  padding: 0.35rem 0;
+}
+
+.blueprint-form-section:first-of-type { border-top: none; }
+
+
+.blueprint-form-section-placeholder {
+  color: #4b5563;
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+/* ── Blueprint form fields ───────────────────────────────── */
+
+.bf-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 0 0.5rem;
+}
+
+.bf-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.bf-field-pair {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr 1fr;
+}
+
+.bf-label {
+  color: #94a3b8;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.bf-input,
+.bf-select {
+  appearance: none;
+  background: #111827;
+  border: 1px solid #2d3748;
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 0.88rem;
+  outline: none;
+  padding: 0.45rem 0.75rem;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+
+.bf-input:focus,
+.bf-select:focus { border-color: #6366f1; }
+
+.bf-input::placeholder { color: #4b5563; }
+
+.bf-input-number { width: 8rem; }
+
+.bf-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%2394a3b8' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+  background-position: right 0.7rem center;
+  background-repeat: no-repeat;
+  padding-right: 2rem;
+}
+
+.bf-select option { background: #1a2035; }
+
+/* Landing page: text input + preset select side by side */
+.bf-landing-page-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.bf-landing-page-row .bf-input { flex: 1; min-width: 0; }
+
+.bf-select-preset { width: auto; flex-shrink: 0; }
+
+/* Networking toggle */
+.bf-toggle-row {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 0.25rem 0;
+  user-select: none;
+}
+
+.bf-toggle-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.bf-toggle-title {
+  color: #e2e8f0;
+  font-size: 0.88rem;
+}
+
+.bf-help {
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
+.bf-toggle {
+  display: inline-block;
+  flex-shrink: 0;
+  height: 22px;
+  position: relative;
+  width: 40px;
+}
+
+.bf-toggle input {
+  height: 0;
+  opacity: 0;
+  position: absolute;
+  width: 0;
+}
+
+.bf-toggle-track {
+  background: #374151;
+  border-radius: 11px;
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+  transition: background 0.2s;
+}
+
+.bf-toggle-track::after {
+  background: #fff;
+  border-radius: 50%;
+  content: '';
+  height: 16px;
+  left: 3px;
+  position: absolute;
+  top: 3px;
+  transition: transform 0.2s;
+  width: 16px;
+}
+
+.bf-toggle input:checked ~ .bf-toggle-track { background: #6366f1; }
+
+.bf-toggle input:checked ~ .bf-toggle-track::after { transform: translateX(18px); }
+
+.bf-toggle input:focus-visible ~ .bf-toggle-track {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+/* ── Blueprint Plugins / Themes sections ─────────────────── */
+
+.bf-slug-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.bf-slug-row .bf-input { flex: 1; min-width: 0; }
+
+.bf-add-btn {
+  padding: 0.5rem 1rem;
+  background: #6366f1;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.bf-add-btn:hover:not(:disabled) { background: #4f46e5; }
+.bf-add-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.bf-input-warn { border-color: #f59e0b !important; }
+
+.bf-warn {
+  color: #f59e0b;
+  font-size: 0.82rem;
+  margin: 0.25rem 0 0;
+}
+
+.bf-item-list {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.bf-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #1a2035;
+  border: 1px solid #2d3748;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+}
+
+.bf-item-slug {
+  flex: 1;
+  font-size: 0.875rem;
+  color: #e2e8f0;
+  font-family: monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bf-item-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.bf-item-toggle-label {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  user-select: none;
+}
+
+.bf-remove-btn {
+  padding: 0.25rem 0.6rem;
+  background: transparent;
+  color: #f87171;
+  border: 1px solid #f87171;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.bf-remove-btn:hover {
+  background: #f87171;
+  color: #fff;
+}
 
 /* ── Recording settings section ─────────────────────────── */
 

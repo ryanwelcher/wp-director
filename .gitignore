@@ -14,3 +14,5 @@ scripts/*.json
 /public/screencasts/*
 !/public/screencasts/.gitkeep
 .DS_Store
+plans/
+prd/

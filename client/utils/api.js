@@ -12,7 +12,11 @@ function responseMessage(res, text, data) {
   const fallback = `Request failed (${res.status})`;
   const trimmed = text.trim();
 
-  return data?.error || data?.message || (trimmed && !trimmed.startsWith('<') ? trimmed : fallback);
+  return (
+    data?.error ||
+    data?.message ||
+    (trimmed && !trimmed.startsWith("<") ? trimmed : fallback)
+  );
 }
 
 export async function responseErrorMessage(res) {
@@ -35,7 +39,7 @@ async function readJSONResponse(res) {
   }
 
   if (text && data === null) {
-    throw new Error('Invalid JSON response');
+    throw new Error("Invalid JSON response");
   }
 
   return data;
@@ -47,8 +51,8 @@ async function requestJSON(url, options = {}) {
 
 function postOptions(body, options = {}) {
   return {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options,
     body: JSON.stringify(body),
   };
@@ -56,43 +60,46 @@ function postOptions(body, options = {}) {
 
 export const queryKeys = {
   blueprint: {
-    default: ['blueprint', 'default'],
-    current: ['blueprint', 'current'],
+    default: ["blueprint", "default"],
+    current: ["blueprint", "current"],
   },
   directions: {
-    all: ['directions'],
-    detail: (filename) => ['directions', filename],
+    all: ["directions"],
+    detail: (filename) => ["directions", filename],
   },
-  recordings: ['recordings'],
-  scripts: ['scripts'],
+  recordings: ["recordings"],
+  scripts: ["scripts"],
 };
 
 export const api = {
   async getDefaultBlueprint({ signal } = {}) {
-    const data = await requestJSON('/api/default-blueprint', { signal });
+    const data = await requestJSON("/api/default-blueprint", { signal });
     return data?.blueprint ?? null;
   },
 
   async getCurrentBlueprint({ signal } = {}) {
-    const data = await requestJSON('/api/current-blueprint', { signal });
+    const data = await requestJSON("/api/current-blueprint", { signal });
     return data?.blueprint ?? null;
   },
 
   async listScripts({ signal } = {}) {
-    const data = await requestJSON('/api/scripts', { signal });
+    const data = await requestJSON("/api/scripts", { signal });
     return data?.scripts ?? [];
   },
 
   async saveScript({ name, directions, endPause, stepPause, typingDelay, videoSize }) {
-    return requestJSON('/api/scripts/save', postOptions({ name, directions, endPause, stepPause, typingDelay, videoSize }));
+    return requestJSON(
+      "/api/scripts/save",
+      postOptions({ name, directions, endPause, stepPause, typingDelay, videoSize }),
+    );
   },
 
   async deleteScript(filename) {
-    return requestJSON(`/api/scripts/${filename}`, { method: 'DELETE' });
+    return requestJSON(`/api/scripts/${filename}`, { method: "DELETE" });
   },
 
   async listDirections({ signal } = {}) {
-    const data = await requestJSON('/api/directions', { signal });
+    const data = await requestJSON("/api/directions", { signal });
     return data?.directions ?? [];
   },
 
@@ -101,28 +108,43 @@ export const api = {
   },
 
   async saveDirection({ name, actions }) {
-    return requestJSON('/api/directions/save', postOptions({ name, actions }));
+    return requestJSON("/api/directions/save", postOptions({ name, actions }));
   },
 
   async deleteDirection(filename) {
-    return requestJSON(`/api/directions/${filename}`, { method: 'DELETE' });
+    return requestJSON(`/api/directions/${filename}`, { method: "DELETE" });
   },
 
   async listRecordings({ signal } = {}) {
-    const data = await requestJSON('/api/recordings', { signal });
+    const data = await requestJSON("/api/recordings", { signal });
     return data?.recordings ?? [];
   },
 
+  async saveBlueprint(blueprint) {
+    return requestJSON("/api/save-blueprint", postOptions({ blueprint }));
+  },
+
+  async getPoolStatus({ signal } = {}) {
+    return requestJSON("/api/pool-status", { signal });
+  },
+
+  async resetBlueprint() {
+    const data = await requestJSON("/api/reset-blueprint", postOptions({}));
+    return data?.blueprint ?? null;
+  },
+
   async deleteRecording(dirname) {
-    return requestJSON(`/api/recordings/${encodeURIComponent(dirname)}`, { method: 'DELETE' });
+    return requestJSON(`/api/recordings/${encodeURIComponent(dirname)}`, {
+      method: "DELETE",
+    });
   },
 
   async previewBlueprint(blueprint) {
-    return requestJSON('/api/preview-blueprint', postOptions({ blueprint }));
+    return requestJSON("/api/preview-blueprint", postOptions({ blueprint }));
   },
 
   async translateCommand({ command, history }) {
-    return requestJSON('/api/translate', postOptions({ command, history }));
+    return requestJSON("/api/translate", postOptions({ command, history }));
   },
 
   startRun(endpoint, body, signal) {
@@ -130,6 +152,6 @@ export const api = {
   },
 
   async stopRun() {
-    return requestJSON('/api/stop', postOptions({}));
+    return requestJSON("/api/stop", postOptions({}));
   },
 };

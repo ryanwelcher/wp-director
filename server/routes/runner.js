@@ -267,7 +267,7 @@ function register(app) {
       preview,
     });
 
-    pool.release(port, blueprintPath);
+    pool.release(port);
     if (!res.destroyed && !res.writableEnded) res.end();
   });
 
@@ -304,7 +304,7 @@ function register(app) {
 
     await runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send });
 
-    pool.release(port, blueprintPath);
+    pool.release(port);
     if (!res.destroyed && !res.writableEnded) res.end();
   });
 }

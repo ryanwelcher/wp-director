@@ -17,12 +17,16 @@
  *   use the literal IP (the Playwright config does).
  */
 
+const path = require('path');
 const { spawn } = require('child_process');
 const {
   ROOT,
   PREVIEW_PLAYGROUND_PORT,
   PLAYGROUND_READY_TIMEOUT_MS,
 } = require('./config');
+
+// How long to wait after SIGTERM before escalating to SIGKILL.
+const KILL_GRACE_MS = 5_000;
 
 /** @type {import('child_process').ChildProcess | null} */
 let previewProc = null;
@@ -41,6 +45,30 @@ let previewProc = null;
 function killProcess(proc) {
   if (!proc) return;
   try { proc.kill('SIGTERM'); } catch {}
+}
+
+/**
+ * Send SIGTERM, wait up to KILL_GRACE_MS, then escalate to SIGKILL if needed.
+ * Resolves when the process has fully exited.
+ *
+ * @param {import('child_process').ChildProcess | null | undefined} proc
+ * @returns {Promise<void>}
+ */
+async function killAndWait(proc) {
+  if (!proc) return;
+  if (proc.exitCode !== null) return;
+
+  return new Promise((resolve) => {
+    proc.once('close', resolve);
+    try { proc.kill('SIGTERM'); } catch { resolve(); return; }
+
+    const escalate = setTimeout(() => {
+      console.warn('[Playground] SIGTERM grace period expired — sending SIGKILL');
+      try { proc.kill('SIGKILL'); } catch {}
+    }, KILL_GRACE_MS);
+
+    proc.once('close', () => clearTimeout(escalate));
+  });
 }
 
 /**
@@ -64,25 +92,52 @@ function startPlayground({ port, blueprintPath, onData = null }) {
       { stdio: ['ignore', 'pipe', 'pipe'], cwd: ROOT }
     );
 
+    let settled = false;
+
+    function settle(fn, value) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      server.removeListener('close', onEarlyClose);
+      fn(value);
+    }
+
     const timeout = setTimeout(
-      () => reject(new Error(`WP Playground did not start within ${PLAYGROUND_READY_TIMEOUT_MS / 1000}s`)),
+      () => settle(reject, new Error(`WP Playground did not start within ${PLAYGROUND_READY_TIMEOUT_MS / 1000}s`)),
       PLAYGROUND_READY_TIMEOUT_MS
     );
 
+    // Accumulate output so onEarlyClose and the stdout handler can both read them.
+    let stdoutBuf = '';
+    let stderrBuf = '';
+
+    // Fail fast if the process exits before signaling ready.
+    function onEarlyClose(code) {
+      const out = stdoutBuf.trim();
+      const err = stderrBuf.trim();
+      const detail = [out, err].filter(Boolean).join('\n');
+      settle(reject, new Error(`WP Playground exited prematurely (code ${code}) before signaling ready${detail ? `\n${detail}` : ''}`));
+    }
+
+    server.once('close', onEarlyClose);
+
     server.stdout.on('data', (data) => {
-      const text = data.toString();
-      onData?.({ type: 'stdout', text: `[WP Playground] ${text}` });
-      if (text.includes('Ready!')) {
-        clearTimeout(timeout);
-        resolve(server);
+      const chunk = data.toString();
+      onData?.({ type: 'stdout', text: `[WP Playground] ${chunk}` });
+      stdoutBuf += chunk;
+      if (!settled && stdoutBuf.includes('Ready!')) {
+        settle(resolve, server);
       }
     });
 
+    // Accumulate stderr so it can be included in early-exit error messages.
     server.stderr.on('data', (data) => {
-      onData?.({ type: 'stderr', text: `[WP Playground] ${data}` });
+      const chunk = data.toString();
+      stderrBuf += chunk;
+      onData?.({ type: 'stderr', text: `[WP Playground] ${chunk}` });
     });
 
-    server.on('error', (err) => { clearTimeout(timeout); reject(err); });
+    server.on('error', (err) => settle(reject, err));
   });
 }
 
@@ -118,5 +173,6 @@ module.exports = {
   killPreviewPlayground,
   startPreviewPlayground,
   killProcess,
+  killAndWait,
   startPlayground,
 };

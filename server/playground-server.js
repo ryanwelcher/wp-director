@@ -13,28 +13,35 @@
  *   RECORDING_PLAYGROUND_PORT_MIN..RECORDING_PLAYGROUND_PORT_MAX (9406-9410)
  *
  * Typical lifecycle:
- *   1. init()    — on server start; boots the first two slots with the default blueprint.
- *   2. acquire() — before each recording; returns the warm port immediately
- *                  (or expands / waits / reboots on the slow path if the
- *                  blueprint changed). Also kicks off a background refresh of
- *                  another slot.
- *   3. release() — after each recording completes; kills + reboots the used
- *                  slot so it is warm for the run after next.
+ *   1. init()      — on server start; boots the first two slots with the default blueprint.
+ *   2. acquire()   — before each recording; hands out a warm slot, expanding
+ *                    the pool or rebooting on the slow path if needed.
+ *   3. release()   — after each recording; kills + reboots the used slot with
+ *                    the current blueprint so it is warm for the run after next.
+ *   4. resetPool() — after Save/Reset of the blueprint; reboots every non-active slot.
  *
  * The caller (runner.js) passes `WP_DIRECTOR_PLAYGROUND_PORT=<port>` in the
  * Playwright env so playwright.config.js picks up the right baseURL.
  */
 
-const crypto = require('crypto');
 const fs = require('fs');
+const path = require('path');
+const EventEmitter = require('events');
 const {
   RECORDING_PLAYGROUND_PORT_MIN,
   RECORDING_PLAYGROUND_PORT_MAX,
+  DEFAULT_BLUEPRINT,
+  GENERATED_BLUEPRINT,
 } = require('./config');
-const { killProcess, startPlayground } = require('./playground');
+const { killAndWait, startPlayground } = require('./playground');
 
 const INITIAL_SLOT_COUNT = 2;
 const MAX_SLOT_COUNT = RECORDING_PLAYGROUND_PORT_MAX - RECORDING_PLAYGROUND_PORT_MIN + 1;
+
+// Hard deadline for killing an old process (covers SIGTERM grace + SIGKILL landing time).
+const OLD_PROC_KILL_TIMEOUT_MS = 10_000;
+// Delay before retrying a failed background boot (gives the OS time to release the port).
+const BOOT_RETRY_DELAY_MS = 2_000;
 
 /**
  * @typedef {'idle'|'booting'|'warm'|'active'} SlotStatus
@@ -43,8 +50,6 @@ const MAX_SLOT_COUNT = RECORDING_PLAYGROUND_PORT_MAX - RECORDING_PLAYGROUND_PORT
  * @property {number}             port
  * @property {import('child_process').ChildProcess|null} proc
  * @property {SlotStatus}         status
- * @property {string|null}        blueprintHash  Hash of the blueprint the slot is warm with.
- * @property {string|null}        pendingHash    Hash of the blueprint currently being booted.
  * @property {Promise<void>|null} bootPromise
  * @property {((event: {type:string,text:string}) => void)|null} onData
  *   Current log callback. Set by acquire() when a slot is handed out; cleared
@@ -61,8 +66,6 @@ function createSlot(port) {
     port,
     proc: null,
     status: 'idle',
-    blueprintHash: null,
-    pendingHash: null,
     bootPromise: null,
     onData: null,
   };
@@ -74,26 +77,31 @@ const slots = Array.from(
   (_, index) => createSlot(RECORDING_PLAYGROUND_PORT_MIN + index)
 );
 
-/**
- * MD5 hash of the blueprint file contents, used to detect when the active
- * blueprint has changed between runs. Falls back to the path itself if the
- * file cannot be read (e.g. default blueprint not yet written).
- *
- * @param {string} blueprintPath
- * @returns {string}
- */
-function hashBlueprint(blueprintPath) {
-  try {
-    return crypto.createHash('md5').update(fs.readFileSync(blueprintPath)).digest('hex');
-  } catch {
-    return blueprintPath;
-  }
+// Flipped to false at the top of resetPool so /api/pool-status reflects
+// "not ready" in the same tick a Save is processed, before slot state
+// transitions are observable to a poll. Restored to true once at least one
+// slot finishes booting.
+let readyFlag = true;
+
+// Emits 'change' on every slot state transition and readyFlag flip. SSE
+// subscribers in routes/blueprint.js push the new snapshot to clients on
+// each event so the UI sees pool transitions in ~real time instead of
+// waiting for the next poll.
+const events = new EventEmitter();
+events.setMaxListeners(0);
+
+function emitChange() {
+  events.emit('change', getStatus());
 }
 
 /**
  * Kill whatever is running on `slots[index].port`, then spawn a fresh
- * Playground with the given blueprint. Updates slot status and hash fields
- * throughout. Returns a Promise that resolves when "Ready!" is seen on stdout.
+ * Playground with the given blueprint. Returns a Promise that resolves when
+ * "Ready!" is seen on stdout.
+ *
+ * Idempotent: if a boot is already in flight for this slot (including the
+ * retry-delay window inside bootSlotWithRetry), the existing bootPromise is
+ * returned instead of spawning a second `npx @wp-playground/cli`.
  *
  * @param {number} index         Index into the `slots` array.
  * @param {string} blueprintPath
@@ -101,41 +109,80 @@ function hashBlueprint(blueprintPath) {
  */
 function bootSlot(index, blueprintPath) {
   const slot = slots[index];
-  killProcess(slot.proc);
+  if (slot.bootPromise) return slot.bootPromise;
+
+  const promise = _spawnSlot(index, blueprintPath);
+  slot.bootPromise = promise;
+  promise.catch(() => {}).then(() => {
+    if (slot.bootPromise === promise) slot.bootPromise = null;
+  });
+  return promise;
+}
+
+/**
+ * Actual spawn work for a slot. Does NOT manage `slot.bootPromise` — the
+ * caller (bootSlot or bootSlotWithRetry) is responsible for the lock so it
+ * can be held across multiple spawn attempts.
+ *
+ * @param {number} index
+ * @param {string} blueprintPath
+ * @returns {Promise<void>}
+ */
+function _spawnSlot(index, blueprintPath) {
+  const slot = slots[index];
+  const oldProc = slot.proc;
+
+  // Update state synchronously so callers that check status immediately
+  // after calling _spawnSlot see the correct values.
   slot.proc = null;
   slot.status = 'booting';
-  slot.blueprintHash = null;
-  slot.pendingHash = hashBlueprint(blueprintPath);
-  slot.onDone = null;
+  slot.onData = null;
+  emitChange();
 
-  // Pass a dynamic wrapper so the process's stdout/stderr listeners always
-  // delegate to slot.onData — even after acquire() swaps in a new callback.
-  const promise = startPlayground({ port: slot.port, blueprintPath, onData: (e) => slots[index]?.onData?.(e) })
-    .then((proc) => {
-      slot.proc = proc;
-      proc.on('close', () => {
-        if (slot.proc !== proc) return;
-        slot.proc = null;
-        slot.bootPromise = null;
-        slot.pendingHash = null;
-        slot.blueprintHash = null;
-        if (slot.status !== 'booting') slot.status = 'idle';
-      });
-      slot.status = 'warm';
-      slot.blueprintHash = slot.pendingHash;
-      slot.pendingHash = null;
-      slot.bootPromise = null;
-    })
-    .catch((err) => {
+  console.log(`[Playground Pool] Slot ${index} (port ${slot.port}): booting with ${path.basename(blueprintPath)}...`);
+
+  return (async () => {
+    // Wait for the old process to fully exit before binding the same port.
+    // killAndWait sends SIGTERM then escalates to SIGKILL after 5s if needed.
+    // The outer race enforces a hard 10s ceiling in case even SIGKILL is slow.
+    if (oldProc) {
+      await Promise.race([
+        killAndWait(oldProc),
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error(`Slot ${index}: old process did not exit within ${OLD_PROC_KILL_TIMEOUT_MS}ms`)),
+            OLD_PROC_KILL_TIMEOUT_MS
+          )
+        ),
+      ]);
+      console.log(`[Playground Pool] Slot ${index} (port ${slot.port}): old process exited, starting new one...`);
+    }
+
+    // Pass a dynamic wrapper so the process's stdout/stderr listeners always
+    // delegate to slot.onData — even after acquire() swaps in a new callback.
+    const proc = await startPlayground({ port: slot.port, blueprintPath, onData: (e) => slots[index]?.onData?.(e) });
+
+    slot.proc = proc;
+    proc.on('close', () => {
+      if (slot.proc !== proc) return;
       slot.proc = null;
-      slot.status = 'idle';
-      slot.pendingHash = null;
-      slot.bootPromise = null;
-      throw err;
+      if (slot.status !== 'booting') {
+        slot.status = 'idle';
+        emitChange();
+      }
+      console.log(`[Playground Pool] Slot ${index} (port ${slot.port}): process closed`);
     });
-
-  slot.bootPromise = promise;
-  return promise;
+    slot.status = 'warm';
+    readyFlag = true;
+    emitChange();
+    console.log(`[Playground Pool] Slot ${index} (port ${slot.port}): warm and ready`);
+  })().catch((err) => {
+    slot.proc = null;
+    slot.status = 'idle';
+    emitChange();
+    console.error(`[Playground Pool] Slot ${index} (port ${slot.port}): boot failed —`, err.message);
+    throw err;
+  });
 }
 
 /**
@@ -147,143 +194,164 @@ function bootSlot(index, blueprintPath) {
  * @returns {Promise<void>}
  */
 async function init(defaultBlueprintPath) {
-  bootSlot(1, defaultBlueprintPath).catch((err) => {
-    console.error('[Playground Pool] Recording slot 1 (port', slots[1]?.port, ') failed to start:', err.message);
-  });
+  console.log(`[Playground Pool] Initialising with ${path.basename(defaultBlueprintPath)} (${INITIAL_SLOT_COUNT} slots)`);
+  bootSlotWithRetry(1, defaultBlueprintPath, `Slot 1 (port ${slots[1]?.port}) init`);
   await bootSlot(0, defaultBlueprintPath);
+  console.log('[Playground Pool] Ready');
 }
 
 /**
- * Return the port of a warm slot that matches `blueprintPath`.
+ * Hand out a warm slot. Blueprint-agnostic: the caller (save/reset) is
+ * responsible for ensuring slots are warmed with the current blueprint
+ * before recordings are acquired.
  *
  * Resolution order:
- *   Fast   — a slot is already warm with the matching blueprint; return immediately.
- *   Medium — if the pool is already full, a slot is booting with the matching
- *             blueprint; await whichever one finishes first.
- *   Slow   — no matching slot; either allocate a new port (until the range is
- *             full) or reboot the first non-active slot synchronously.
+ *   1. Any warm slot — mark active and return its port.
+ *   2. Pool can grow — push a new slot, kick off its boot, then fall through.
+ *   3. Boots in flight — race them all and retry from step 1.
+ *   4. Pool full, nothing booting — reboot the first non-active slot
+ *      synchronously and return it.
  *
- * Immediately after acquiring, kicks off a background refresh of another
- * slot so it is warm before the next recording is requested.
- *
- * @param {string} blueprintPath
+ * @param {string} blueprintPath  Used only when this call has to reboot a slot itself.
  * @param {((event: {type:string,text:string}) => void)|null} [onData]
  * @returns {Promise<number>}  Port to pass via WP_DIRECTOR_PLAYGROUND_PORT.
  */
 async function acquire(blueprintPath, onData = null) {
-  const hash = hashBlueprint(blueprintPath);
+  while (true) {
+    // 1. Warm slot available — claim it.
+    for (const slot of slots) {
+      if (slot.status !== 'warm') continue;
+      slot.status = 'active';
+      slot.onData = onData;
+      emitChange();
+      console.log('[Playground Pool] Using warm playground', slot.port);
+      return slot.port;
+    }
 
-  // Fast path — warm slot already has the right blueprint.
-  const warmPort = _claimWarmSlot(hash, blueprintPath, onData, '[Playground Pool] Using warm playground');
-  if (warmPort !== null) return warmPort;
+    // 2. Grow the pool if we can, then fall through to wait for it.
+    if (slots.length < MAX_SLOT_COUNT) {
+      console.log('[Playground Pool] Expanding playground pool ...');
+      const slot = createSlot(RECORDING_PLAYGROUND_PORT_MIN + slots.length);
+      const index = slots.push(slot) - 1;
+      bootSlotWithRetry(index, blueprintPath, `Expanded slot (port ${slot.port})`);
+    }
 
-  // If the pool can still grow, start another candidate boot in the background
-  // before waiting. The first matching slot to become warm wins, whether it is
-  // the new slot or one that was already booting.
-  if (slots.length < MAX_SLOT_COUNT) {
-    console.log('[Playground Pool] Expanding playground pool ...');
-    const slot = createSlot(RECORDING_PLAYGROUND_PORT_MIN + slots.length);
-    const index = slots.push(slot) - 1;
-    bootSlot(index, blueprintPath).catch((err) => {
-      console.error('[Playground Pool] Expanded slot failed to start (port', slot.port, '):', err.message);
-    });
+    // 3. Race any in-flight boots and retry.
+    const boots = slots.map(s => s.bootPromise).filter(Boolean);
+    if (boots.length > 0) {
+      console.log('[Playground Pool] Waiting for a playground to boot ...');
+      await Promise.race(boots.map(p => p.catch(() => {})));
+      continue;
+    }
+
+    // 4. No warm, no booting, pool full — reboot the first non-active slot.
+    const targetIndex = slots.findIndex(s => s.status !== 'active');
+    const idx = targetIndex === -1 ? 0 : targetIndex;
+    const target = slots[idx];
+    console.log(`[Playground Pool] Slow path — rebooting slot ${idx} (port ${target.port}) with ${path.basename(blueprintPath)}`);
+    await bootSlot(idx, blueprintPath);
+    target.status = 'active';
+    target.onData = onData;
+    emitChange();
+    return target.port;
   }
-
-  // Medium path — race any matching boots so whichever finishes first can be
-  // used immediately. This includes a newly expanded slot if one was started.
-  const matchingBoots = slots.filter(
-    s => s.status === 'booting' && s.pendingHash === hash && s.bootPromise
-  );
-  if (matchingBoots.length > 0) {
-    console.log('[Playground Pool] Waiting for a playground to boot ...');
-    await Promise.race(matchingBoots.map(s => s.bootPromise.catch(() => {})));
-    const bootedPort = _claimWarmSlot(hash, blueprintPath, onData, '[Playground Pool] Using booted playground');
-    if (bootedPort !== null) return bootedPort;
-  }
-
-  // Slow path — the pool is full and no matching slot is immediately usable,
-  // so reboot the first non-active slot and wait for it.
-  const targetIndex = slots.findIndex(s => s.status !== 'active');
-  const idx = targetIndex === -1 ? 0 : targetIndex;
-  const target = slots[idx];
-
-  if (target.status === 'booting') {
-    // Let the current boot finish before overriding (avoids port conflicts).
-    try { await target.bootPromise; } catch {}
-  }
-
-  await bootSlot(idx, blueprintPath);
-  target.status = 'active';
-  target.onData = onData;
-  _refreshAnother(target.port, blueprintPath);
-  console.log('[Playground Pool] Rebooting playground', target.port);
-  return target.port;
 }
 
 /**
  * Mark the slot at `port` as done and start rebooting it in the background
- * so it is warm for the run after next. Should be called after the recording
- * that used this port has completed.
+ * with the *current* blueprint so it is warm for the run after next.
  *
- * @param {number} port          Port returned by acquire().
- * @param {string} blueprintPath Blueprint the recording ran with.
+ * @param {number} port  Port returned by acquire().
  */
-function release(port, blueprintPath) {
+function release(port) {
   const index = slots.findIndex(s => s.port === port);
   if (index === -1) return;
-  console.log('[Playground Pool] Releasing playground', port);
+  console.log(`[Playground Pool] Slot ${index} (port ${port}): released — rebooting for next run`);
   // Clear onData so the background reboot's log output doesn't leak into
   // the just-finished request's SSE stream.
   slots[index].onData = null;
-  bootSlot(index, blueprintPath).catch((err) => {
-    console.error('[Playground Pool] Post-recording slot refresh failed (port', port, '):', err.message);
-  });
-}
-
-// ── Internal helpers ──────────────────────────────────────────────────────────
-
-/**
- * If another slot is not already warm (or booting) with the same blueprint,
- * kick off a background refresh now so it is ready before the next recording.
- *
- * @param {number} usedPort
- * @param {string} blueprintPath
- */
-function _refreshAnother(usedPort, blueprintPath) {
-  const hash = hashBlueprint(blueprintPath);
-  const index = slots.findIndex(s =>
-    s.port !== usedPort &&
-    s.status !== 'active' &&
-    !(s.status === 'warm' && s.blueprintHash === hash) &&
-    !(s.status === 'booting' && s.pendingHash === hash)
-  );
-  if (index === -1) return;
-  const other = slots[index];
-  bootSlot(index, blueprintPath).catch((err) => {
-    console.error('[Playground Pool] Background slot refresh failed (port', other.port, '):', err.message);
-  });
+  bootSlotWithRetry(index, currentBlueprintPath(), `Slot ${index} (port ${port}) post-release reboot`);
 }
 
 /**
- * Claim a warm slot with the given blueprint hash, mark it active, and kick
- * off background warming for another slot.
+ * Resolve the active blueprint at call time — the UI-customised generated
+ * blueprint if one exists, otherwise the bundled default.
  *
- * @param {string} hash
- * @param {string} blueprintPath
- * @param {((event: {type:string,text:string}) => void)|null} onData
- * @param {string} logPrefix
- * @returns {number|null}
+ * @returns {string}
  */
-function _claimWarmSlot(hash, blueprintPath, onData, logPrefix) {
+function currentBlueprintPath() {
+  return fs.existsSync(GENERATED_BLUEPRINT) ? GENERATED_BLUEPRINT : DEFAULT_BLUEPRINT;
+}
+
+/**
+ * Boot a slot, retrying once after a short delay if the first attempt fails.
+ * Used for background boots only — the slow-path in acquire() propagates
+ * errors directly to the caller and does not use this wrapper.
+ *
+ * @param {number} index
+ * @param {string} blueprintPath
+ * @param {string} logContext   Short label for error messages.
+ * @returns {Promise<void>}
+ */
+function bootSlotWithRetry(index, blueprintPath, logContext) {
+  const slot = slots[index];
+  if (slot.bootPromise) return slot.bootPromise;
+
+  const promise = (async () => {
+    try {
+      await _spawnSlot(index, blueprintPath);
+    } catch (err) {
+      console.warn(`[Playground Pool] ${logContext} — first attempt failed (${err.message}), retrying in ${BOOT_RETRY_DELAY_MS}ms...`);
+      await new Promise(r => setTimeout(r, BOOT_RETRY_DELAY_MS));
+      try {
+        await _spawnSlot(index, blueprintPath);
+      } catch (retryErr) {
+        console.error(`[Playground Pool] ${logContext} — retry also failed:`, retryErr.message);
+      }
+    }
+  })();
+
+  slot.bootPromise = promise;
+  promise.catch(() => {}).then(() => {
+    if (slot.bootPromise === promise) slot.bootPromise = null;
+  });
+  return promise;
+}
+
+/**
+ * Reboot every non-active slot with the given blueprint. Called after the
+ * UI saves or resets the blueprint — the UI gates Save/Reset behind real
+ * form-state changes, so no hash check is needed here.
+ *
+ * Active slots keep running their current recording; they pick up the new
+ * blueprint when they reboot via release().
+ *
+ * @param {string} blueprintPath
+ */
+function resetPool(blueprintPath) {
+  readyFlag = false;
+  emitChange();
+  console.log(`[Playground Pool] resetPool — rebooting slots with ${path.basename(blueprintPath)}`);
+  slots.forEach((slot, index) => {
+    if (slot.status === 'active') {
+      console.log(`[Playground Pool] Slot ${index} (port ${slot.port}): skipped (active)`);
+      return;
+    }
+    bootSlotWithRetry(index, blueprintPath, `Slot ${index} (port ${slot.port}) resetPool reboot`);
+  });
+}
+
+/**
+ * @returns {{ warm: number, booting: number, total: number, ready: boolean }}
+ */
+function getStatus() {
+  let warm = 0;
+  let booting = 0;
   for (const slot of slots) {
-    if (slot.status !== 'warm' || slot.blueprintHash !== hash) continue;
-    slot.status = 'active';
-    slot.onData = onData;
-    _refreshAnother(slot.port, blueprintPath);
-    console.log(logPrefix, slot.port);
-    return slot.port;
+    if (slot.status === 'warm') warm++;
+    else if (slot.status === 'booting') booting++;
   }
-  return null;
+  return { warm, booting, total: slots.length, ready: readyFlag && warm > 0 };
 }
 
-module.exports = { init, acquire, release };
+module.exports = { init, acquire, release, resetPool, getStatus, events };

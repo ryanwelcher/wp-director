@@ -85,6 +85,7 @@ const slots = Array.from(
 // slot finishes booting.
 let readyFlag = true;
 let blueprintGeneration = 0;
+let expansionBootPromise = null;
 
 // Emits 'change' on every slot state transition and readyFlag flip. SSE
 // subscribers in routes/blueprint.js push the new snapshot to clients on
@@ -257,8 +258,8 @@ async function init(defaultBlueprintPath) {
  *
  * Resolution order:
  *   1. Any warm slot — mark active and return its port.
- *   2. Any boot in flight — wait for it instead of expanding per request.
- *   3. Pool can grow — add one slot and wait for it.
+ *   2. Pool can grow — add one slot and wait for the next pool change.
+ *   3. Any boot in flight — wait for it instead of expanding per request.
  *   4. Idle/crashed slot — reboot it and wait.
  *   5. Pool full and all slots active — wait for a release.
  *
@@ -284,20 +285,28 @@ async function acquire(blueprintPath, onData = null, options = {}) {
       return slot.port;
     }
 
-    // 2. Existing boot work wins. This keeps repeated Preview/Stop clicks
-    // from expanding the pool while one instance is already warming.
-    if (slots.some(s => s.bootPromise)) {
-      console.log('[Playground Pool] Waiting for a playground to boot ...');
+    // 2. Grow by one when a run is waiting and no slot is immediately usable.
+    // Only one expansion boot may be in flight at a time; regular slot reboots
+    // should not block the pool from growing, but repeated wait-loop wakeups
+    // should not fan out to every remaining port either.
+    if (slots.length < MAX_SLOT_COUNT && !expansionBootPromise) {
+      console.log('[Playground Pool] Expanding playground pool ...');
+      const slot = createSlot(RECORDING_PLAYGROUND_PORT_MIN + slots.length);
+      const index = slots.push(slot) - 1;
+      const promise = bootSlotWithRetry(index, blueprintPath, `Expanded slot (port ${slot.port})`);
+      expansionBootPromise = promise;
+      promise.finally(() => {
+        if (expansionBootPromise === promise) expansionBootPromise = null;
+      });
       await waitForPoolChange(signal);
       continue;
     }
 
-    // 3. Grow by one only when there is no warm or booting instance.
-    if (slots.length < MAX_SLOT_COUNT) {
-      console.log('[Playground Pool] Expanding playground pool ...');
-      const slot = createSlot(RECORDING_PLAYGROUND_PORT_MIN + slots.length);
-      const index = slots.push(slot) - 1;
-      bootSlotWithRetry(index, blueprintPath, `Expanded slot (port ${slot.port})`);
+    // 3. Existing boot work wins after one expansion has been started. This
+    // keeps repeated Preview/Stop clicks from expanding the pool while the new
+    // instance is already warming.
+    if (slots.some(s => s.bootPromise)) {
+      console.log('[Playground Pool] Waiting for a playground to boot ...');
       await waitForPoolChange(signal);
       continue;
     }

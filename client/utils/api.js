@@ -83,8 +83,8 @@ export const api = {
     return data?.scripts ?? [];
   },
 
-  async saveScript({ name, directions, endPause }) {
-    return requestJSON('/api/scripts/save', postOptions({ name, directions, endPause }));
+  async saveScript({ name, directions, endPause, stepPause, typingDelay, videoSize }) {
+    return requestJSON('/api/scripts/save', postOptions({ name, directions, endPause, stepPause, typingDelay, videoSize }));
   },
 
   async deleteScript(filename) {

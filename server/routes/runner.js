@@ -38,6 +38,7 @@ const {
   STEPS_DIR,
   OUTPUT_DIR,
   PLAYWRIGHT_OUTPUT_DIR,
+  PREVIEW_OUTPUT_DIR,
   SCREENCASTS_DIR,
   DEFAULT_BLUEPRINT,
   GENERATED_BLUEPRINT,
@@ -184,7 +185,7 @@ function resolveBlueprintPath(blueprint) {
  * @param {any}      opts.videoSize                 Target browser viewport/video size.
  * @param {(data: any) => void} opts.send           SSE writer.
  * @param {Object}   [opts.doneExtra]               Extra fields merged into the `done` event.
- * @param {boolean}  [opts.preview]                 Stream live frames only; do not record a video.
+ * @param {boolean}  [opts.preview]                 Stream live frames and skip saving a recording entry.
  * @param {() => void} [opts.onInstanceUsed]         Called once the Playground instance is actually touched.
  * @param {ReturnType<typeof createRunControl>} [opts.run]
  * @returns {Promise<void>}
@@ -200,7 +201,7 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
 
   const recordingSize = normalizeVideoSize(videoSize);
   const screencastSize = screencastSizeForVideoSize(recordingSize);
-  const shouldRecordVideo = !preview;
+  const shouldSaveRecording = !preview;
   send({ type: 'stdout', text: `[Playwright] Video size: ${sizeKey(recordingSize)}\n` });
 
   /** @type {import('playwright').BrowserContextOptions} */
@@ -208,9 +209,7 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
     baseURL: `http://127.0.0.1:${port}`,
     viewport: recordingSize,
   };
-  if (shouldRecordVideo) {
-    contextOpts.recordVideo = { dir: PLAYWRIGHT_OUTPUT_DIR, size: recordingSize };
-  }
+  contextOpts.recordVideo = { dir: PLAYWRIGHT_OUTPUT_DIR, size: recordingSize };
 
   let browser = null;
   let context = null;
@@ -252,16 +251,15 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
       throwIfRunStopped(signal);
 
       let recordedVideoPath = null;
-      if (shouldRecordVideo) {
-        const outputSlug = nameToFilename(def.name).replace(/\.json$/i, '');
-        const outputStamp = timestamp();
-        const outputDirname = timestampedDirname(outputSlug, outputStamp);
-        const videoDir = uniqueDir(path.join(OUTPUT_DIR, outputDirname));
-        recordedVideoPath = path.join(videoDir, 'video.webm');
-        fs.mkdirSync(videoDir, { recursive: true });
-        latestPreviewVideoPath = recordedVideoPath;
-        latestPreviewVideoFilename = `${path.basename(videoDir)}.webm`;
-      }
+      const outputSlug = nameToFilename(def.name).replace(/\.json$/i, '');
+      const outputStamp = timestamp();
+      const outputDirname = timestampedDirname(shouldSaveRecording ? outputSlug : `preview-${outputSlug}`, outputStamp);
+      const outputRoot = shouldSaveRecording ? OUTPUT_DIR : PREVIEW_OUTPUT_DIR;
+      const videoDir = uniqueDir(path.join(outputRoot, outputDirname));
+      recordedVideoPath = path.join(videoDir, 'video.webm');
+      fs.mkdirSync(videoDir, { recursive: true });
+      latestPreviewVideoPath = recordedVideoPath;
+      latestPreviewVideoFilename = `${path.basename(videoDir)}.webm`;
 
       // Load the site before starting the screencast so the video does not start with a blank screen.
       // Use the blueprint's landingPage if specified; otherwise fall back to the WP admin dashboard.
@@ -289,7 +287,9 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
       await page.close();
       if (run?.page === page) run.page = null;
       if (video && recordedVideoPath) await video.saveAs(recordedVideoPath);
-      if (recordedVideoPath && code === 0) await processVideo(recordedVideoPath, null, send);
+      if (shouldSaveRecording && recordedVideoPath && code === 0) {
+        await processVideo(recordedVideoPath, null, send);
+      }
     }
 
     await context.close();

@@ -3,7 +3,7 @@ import { formatTimestamp } from './utils/formatters.js';
 
 export function PreviewPanel() {
   const { preview } = useRunState();
-  const isPolling = preview.mode === 'connecting' || preview.mode === 'image';
+  const isPolling = preview.mode === 'connecting' || (preview.mode === 'image' && preview.isLive);
   const heading = preview.mode === 'video' && preview.title ? `Recording: ${preview.title}` : 'Live Preview';
   const connectingLabel = preview.playgroundPort
     ? `Connecting to browser on port ${preview.playgroundPort}...`

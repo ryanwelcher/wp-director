@@ -39,6 +39,15 @@ export function SavedScriptsPanel() {
     }
   }
 
+  async function handleLoadScript(script) {
+    try {
+      await loadScriptIntoEditor(script);
+      toast.success(`Loaded "${script.name}"`);
+    } catch (err) {
+      toast.error(errorMessage(err, 'Load failed'));
+    }
+  }
+
   const allSelected = savedScripts.length > 0 && selectedScripts.length === savedScripts.length;
 
   return (
@@ -73,10 +82,7 @@ export function SavedScriptsPanel() {
                 className="script-load-btn secondary"
                 type="button"
                 disabled={running}
-                onClick={() => {
-                  loadScriptIntoEditor(script);
-                  toast.success(`Loaded "${script.name}"`);
-                }}
+                onClick={() => handleLoadScript(script)}
               >
                 Load
               </button>

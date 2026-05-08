@@ -4,14 +4,13 @@
  *
  * At collection time this file reads every `*.json` from `scripts/` and
  * registers one Playwright `test()` per file, keyed by `def.name`. Supports
- * two on-disk formats:
+ * the current `directions` key plus legacy `actions`:
  *
- *  - Grouped (modern): `{ name, directions: [{ label, actions[] }, ...] }`
- *  - Flat (legacy):    `{ name, actions: [ actionObj, ... ] }`
+ *  - Current: `{ name, directions: [{ label, actions[] }, ...], blueprint, recordingSettings }`
+ *  - Legacy:  `{ name, actions: [ actionObj, ... ] }`
  *
- * Both are normalised to a flat `actionObj[]` before execution. The test
- * name is used as the `--grep` pattern by `/api/run` and `/api/run/batch`,
- * so only the targeted recording runs when invoked from the UI.
+ * Older root settings are intentionally ignored by `run-steps.js`; missing
+ * `recordingSettings` values use current defaults.
  *
  * Step execution is handled by `run-steps.js`.
  */

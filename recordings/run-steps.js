@@ -471,13 +471,16 @@ async function runSteps(page, def, runner = null, onStepStart = null) {
   const frameStack = [page];
   const ctx = () => frameStack[frameStack.length - 1];
   const sidebar = page.getByRole('region', { name: 'Editor settings' });
+  const recordingSettings = def.recordingSettings && typeof def.recordingSettings === 'object'
+    ? def.recordingSettings
+    : {};
   const settings = {
-    stepPause: settingMilliseconds(def.stepPause, DEFAULT_STEP_PAUSE),
-    typingDelay: settingMilliseconds(def.typingDelay, DEFAULT_TYPING_DELAY, 1000),
+    stepPause: settingMilliseconds(recordingSettings.stepPause, DEFAULT_STEP_PAUSE),
+    typingDelay: settingMilliseconds(recordingSettings.typingDelay, DEFAULT_TYPING_DELAY, 1000),
   };
 
-  // Support grouped direction format plus legacy flat actions/steps formats.
-  const allActions = def.actions ?? def.directions ?? def.steps ?? [];
+  // Support grouped direction format plus legacy flat actions.
+  const allActions = def.actions ?? def.directions ?? [];
   const total = allActions.length;
 
   // Preserve original indices through the startFrom filter so the UI can
@@ -505,7 +508,7 @@ async function runSteps(page, def, runner = null, onStepStart = null) {
     }
   }
 
-  await page.waitForTimeout(def.endPause ?? DEFAULT_END_PAUSE);
+  await page.waitForTimeout(settingMilliseconds(recordingSettings.endPause, DEFAULT_END_PAUSE));
 }
 
 module.exports = { runStep, runSteps };

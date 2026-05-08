@@ -4,6 +4,7 @@ import { useDirectionsState } from '../state/useDirectionsState.js';
 import { usePoolStatus } from '../state/usePoolStatus.js';
 import { useRunSettingsState } from '../state/useRunSettingsState.js';
 import { useServerCollections } from '../state/useServerCollections.js';
+import { api } from '../utils/api.js';
 
 const AppStateContext = createContext(null);
 
@@ -27,10 +28,15 @@ export function AppStateProvider({ children }) {
     resetScriptSettings();
   }, [clearDirectionState, resetScriptSettings]);
 
-  const loadScriptIntoEditor = useCallback((script) => {
-    replaceDirections(script.directions ?? script.actions ?? script.steps ?? []);
+  const loadScriptIntoEditor = useCallback(async (script) => {
+    if (script.blueprint) {
+      await api.saveBlueprint(script.blueprint);
+      blueprintState.setBlueprint(script.blueprint);
+    }
+
+    replaceDirections(script.directions ?? script.actions ?? []);
     loadScriptSettings(script);
-  }, [loadScriptSettings, replaceDirections]);
+  }, [blueprintState, loadScriptSettings, replaceDirections]);
 
   const value = {
     ...directionsState,

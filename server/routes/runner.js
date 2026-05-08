@@ -47,7 +47,7 @@ const pool = require('../playground-server');
 const { processVideo } = require('../video');
 const { normalizeVideoSize, screencastSizeForVideoSize, sizeKey } = require('../video-size');
 const { timestamp, timestampedDirname, uniqueDir } = require('../output-paths');
-const { nameToFilename } = require('./scripts');
+const { nameToFilename, normalizeRecordingSettings, scriptForRun } = require('./scripts');
 const { runSteps } = require('../../recordings/run-steps');
 
 let currentRun = null;
@@ -366,11 +366,13 @@ function register(app) {
     if (!fs.existsSync(STEPS_DIR)) fs.mkdirSync(STEPS_DIR);
     const filename = nameToFilename(name);
     const filePath = path.join(STEPS_DIR, filename);
-    const scriptData = { name, actions };
-    if (endPause != null) scriptData.endPause = endPause;
-    if (stepPause != null) scriptData.stepPause = stepPause;
-    if (typingDelay != null) scriptData.typingDelay = typingDelay;
-    if (videoSize != null) scriptData.videoSize = normalizeVideoSize(videoSize);
+    const recordingSettings = normalizeRecordingSettings({ endPause, stepPause, typingDelay, videoSize });
+    const scriptData = {
+      name,
+      actions,
+      blueprint,
+      recordingSettings,
+    };
     fs.writeFileSync(filePath, JSON.stringify(scriptData, null, 2));
 
     sseHeaders(res);
@@ -397,7 +399,7 @@ function register(app) {
       return;
     }
 
-    const runDef = { ...scriptData };
+    const runDef = scriptForRun(scriptData);
     if (startFrom != null && startFrom > 0) runDef.startFrom = startFrom;
 
     const run = createRunControl(clientAbort.signal);
@@ -461,12 +463,8 @@ function register(app) {
       .filter(f => f.endsWith('.json'))
       .map(f => JSON.parse(fs.readFileSync(path.join(STEPS_DIR, f), 'utf8')))
       .filter(def => nameSet.has(def.name))
-      .map((def) => ({
-        ...def,
-        ...(endPause != null ? { endPause } : {}),
-        ...(stepPause != null ? { stepPause } : {}),
-        ...(typingDelay != null ? { typingDelay } : {}),
-      }));
+      .map((def) => scriptForRun(def, { endPause, stepPause, typingDelay, videoSize }));
+    const batchVideoSize = videoSize ?? scripts[0]?.videoSize;
 
     const run = createRunControl(clientAbort.signal);
     try {
@@ -474,7 +472,7 @@ function register(app) {
         scripts,
         port,
         blueprintPath,
-        videoSize,
+        videoSize: batchVideoSize,
         send,
         onInstanceUsed: () => { instanceUsed = true; },
         run,

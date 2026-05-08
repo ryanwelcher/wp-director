@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 // The runPHP step that dismisses the block-editor welcome guide — always internal.
 // Detected by a unique substring rather than an exact string match so whitespace
@@ -201,6 +201,11 @@ export function formToBlueprint(form, schema) {
 export function useBlueprintFormState(initialBlueprint) {
   const schemaRef = useRef(initialBlueprint?.$schema ?? null);
   const [formState, setFormState] = useState(() => blueprintToForm(initialBlueprint));
+
+  useEffect(() => {
+    schemaRef.current = initialBlueprint?.$schema ?? null;
+    setFormState(blueprintToForm(initialBlueprint));
+  }, [initialBlueprint]);
 
   const compiledBlueprint = useMemo(
     () => formToBlueprint(formState, schemaRef.current),

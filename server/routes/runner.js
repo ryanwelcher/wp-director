@@ -53,6 +53,7 @@ const { runSteps } = require('../../recordings/run-steps');
 /** @type {import('child_process').ChildProcess|null} */
 let currentProc = null;
 let currentBrowser = null;
+let stopRequested = false;
 
 /**
  * Set the three headers required to keep an SSE stream open.
@@ -79,6 +80,25 @@ function sseSender(res) {
     if (closed || res.destroyed || res.writableEnded) return;
     res.write(`data: ${JSON.stringify(data)}\n\n`);
   };
+}
+
+/**
+ * Track whether the run response was aborted before the server could start
+ * streaming. `req.close` is not reliable here because it can fire after the
+ * POST body has simply been consumed; use request aborts and premature
+ * response closes instead.
+ *
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @returns {() => boolean}
+ */
+function clientAbortedTracker(req, res) {
+  let aborted = false;
+  req.on('aborted', () => { aborted = true; });
+  res.on('close', () => {
+    if (!res.writableEnded) aborted = true;
+  });
+  return () => aborted || res.destroyed;
 }
 
 /**
@@ -189,8 +209,17 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
     code = 1;
   }
 
-  await browser.close();
-  currentBrowser = null;
+  try {
+    if (typeof browser.isConnected !== 'function' || browser.isConnected()) {
+      await browser.close();
+    }
+  } catch (err) {
+    if (!stopRequested) {
+      send({ type: 'stderr', text: `[Playwright] ${err.message}\n` });
+      code = 1;
+    }
+  }
+  if (currentBrowser === browser) currentBrowser = null;
 
   if (latestPreviewVideoPath && latestPreviewVideoFilename && fs.existsSync(latestPreviewVideoPath)) {
     const publicPath = path.join(SCREENCASTS_DIR, latestPreviewVideoFilename);
@@ -199,16 +228,18 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
     send({ type: 'screencastVideo', uri: `/screencasts/${latestPreviewVideoFilename}` });
   }
 
-  send({ type: 'done', code, ...doneExtra });
+  send({ type: 'done', code, ...(stopRequested ? { stopped: true } : {}), ...doneExtra });
 }
 
 function register(app) {
   app.post('/api/stop', (req, res) => {
     if (currentProc) {
+      stopRequested = true;
       currentProc.kill('SIGTERM');
       res.json({ ok: true });
     } else if (currentBrowser) {
-      currentBrowser.close();
+      stopRequested = true;
+      currentBrowser.close().catch(() => {});
       res.json({ ok: true });
     } else {
       res.json({ ok: false, reason: 'no process running' });
@@ -242,6 +273,7 @@ function register(app) {
 
     sseHeaders(res);
     const send = sseSender(res);
+    const clientAborted = clientAbortedTracker(req, res);
 
     const blueprintPath = resolveBlueprintPath(blueprint);
 
@@ -254,21 +286,34 @@ function register(app) {
       return;
     }
 
+    if (clientAborted() || res.writableEnded) {
+      pool.release(port);
+      if (!res.destroyed && !res.writableEnded) res.end();
+      return;
+    }
+
     const runDef = { ...scriptData };
     if (startFrom != null && startFrom > 0) runDef.startFrom = startFrom;
 
-    await runPlaywrightApi({
-      scripts: [runDef],
-      port,
-      blueprintPath,
-      videoSize,
-      send,
-      doneExtra: preview ? {} : { file: filePath },
-      preview,
-    });
-
-    pool.release(port);
-    if (!res.destroyed && !res.writableEnded) res.end();
+    try {
+      stopRequested = false;
+      await runPlaywrightApi({
+        scripts: [runDef],
+        port,
+        blueprintPath,
+        videoSize,
+        send,
+        doneExtra: preview ? {} : { file: filePath },
+        preview,
+      });
+    } catch (err) {
+      send({ type: 'stderr', text: `[Runner] ${err.message}\n` });
+      send({ type: 'done', code: 1, ...(stopRequested ? { stopped: true } : {}) });
+    } finally {
+      pool.release(port);
+      stopRequested = false;
+      if (!res.destroyed && !res.writableEnded) res.end();
+    }
   });
 
   // Batch run: load all saved step files, filter to the requested names, run in order.
@@ -278,6 +323,7 @@ function register(app) {
 
     sseHeaders(res);
     const send = sseSender(res);
+    const clientAborted = clientAbortedTracker(req, res);
 
     const blueprintPath = resolveBlueprintPath(blueprint);
 
@@ -287,6 +333,12 @@ function register(app) {
     } catch (err) {
       send({ type: 'stderr', text: `[Playground] Failed to start: ${err.message}\n` });
       send({ type: 'done', code: 1 });
+      return;
+    }
+
+    if (clientAborted() || res.writableEnded) {
+      pool.release(port);
+      if (!res.destroyed && !res.writableEnded) res.end();
       return;
     }
 
@@ -302,10 +354,17 @@ function register(app) {
         ...(typingDelay != null ? { typingDelay } : {}),
       }));
 
-    await runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send });
-
-    pool.release(port);
-    if (!res.destroyed && !res.writableEnded) res.end();
+    try {
+      stopRequested = false;
+      await runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send });
+    } catch (err) {
+      send({ type: 'stderr', text: `[Runner] ${err.message}\n` });
+      send({ type: 'done', code: 1, ...(stopRequested ? { stopped: true } : {}) });
+    } finally {
+      pool.release(port);
+      stopRequested = false;
+      if (!res.destroyed && !res.writableEnded) res.end();
+    }
   });
 }
 

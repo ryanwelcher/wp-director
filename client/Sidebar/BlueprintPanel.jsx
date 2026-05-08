@@ -48,7 +48,7 @@ function inferredPoolSlots(poolStatus) {
 }
 
 export function BlueprintPanel() {
-  const { blueprint: appBlueprint, defaultBlueprint, setBlueprint, isBlueprintModified, poolStatus, setPoolStatus } = useAppState();
+  const { blueprint: appBlueprint, defaultBlueprint, setBlueprint, isBlueprintModified, poolStatus } = useAppState();
   const { formState, updateForm, loadBlueprint, compiledBlueprint } =
     useBlueprintFormState(appBlueprint);
 
@@ -74,10 +74,6 @@ export function BlueprintPanel() {
     try {
       await api.saveBlueprint(compiledBlueprint);
       setBlueprint(compiledBlueprint);
-      try {
-        const fresh = await api.getPoolStatus();
-        setPoolStatus(fresh);
-      } catch {}
     } catch (err) {
       toast.error(errorMessage(err, 'Could not save blueprint'));
     } finally {
@@ -94,10 +90,6 @@ export function BlueprintPanel() {
       const target = bp ?? defaultBlueprint;
       loadBlueprint(target);
       setBlueprint(target);
-      try {
-        const fresh = await api.getPoolStatus();
-        setPoolStatus(fresh);
-      } catch {}
     } catch (err) {
       toast.error(errorMessage(err, 'Could not reset blueprint'));
     } finally {

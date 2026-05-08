@@ -82,7 +82,6 @@ const slots = Array.from(
 // transitions are observable to a poll. Restored to true once at least one
 // slot finishes booting.
 let readyFlag = true;
-let statusVersion = 0;
 
 // Emits 'change' on every slot state transition and readyFlag flip. SSE
 // subscribers in routes/blueprint.js push the new snapshot to clients on
@@ -92,7 +91,6 @@ const events = new EventEmitter();
 events.setMaxListeners(0);
 
 function emitChange() {
-  statusVersion += 1;
   events.emit('change', getStatus());
 }
 
@@ -349,7 +347,6 @@ function resetPool(blueprintPath) {
  *   booting: number,
  *   total: number,
  *   ready: boolean,
- *   version: number,
  *   slots: Array<{ index: number, port: number, status: SlotStatus }>
  * }}
  */
@@ -365,7 +362,6 @@ function getStatus() {
     booting,
     total: slots.length,
     ready: readyFlag && warm > 0,
-    version: statusVersion,
     slots: slots.map((slot, index) => ({
       index,
       port: slot.port,

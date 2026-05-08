@@ -280,6 +280,7 @@ function register(app) {
     let port;
     try {
       port = await pool.acquire( blueprintPath, send );
+      send({ type: 'playground-acquired', port });
     } catch (err) {
       send({ type: 'stderr', text: `[Playground] Failed to acquire instance: ${err.message}\n` });
       send({ type: 'done', code: 1 });
@@ -330,6 +331,7 @@ function register(app) {
     let port;
     try {
       port = await pool.acquire(blueprintPath, send);
+      send({ type: 'playground-acquired', port });
     } catch (err) {
       send({ type: 'stderr', text: `[Playground] Failed to start: ${err.message}\n` });
       send({ type: 'done', code: 1 });

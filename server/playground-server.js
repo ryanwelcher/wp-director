@@ -342,7 +342,13 @@ function resetPool(blueprintPath) {
 }
 
 /**
- * @returns {{ warm: number, booting: number, total: number, ready: boolean }}
+ * @returns {{
+ *   warm: number,
+ *   booting: number,
+ *   total: number,
+ *   ready: boolean,
+ *   slots: Array<{ index: number, port: number, status: SlotStatus }>
+ * }}
  */
 function getStatus() {
   let warm = 0;
@@ -351,7 +357,17 @@ function getStatus() {
     if (slot.status === 'warm') warm++;
     else if (slot.status === 'booting') booting++;
   }
-  return { warm, booting, total: slots.length, ready: readyFlag && warm > 0 };
+  return {
+    warm,
+    booting,
+    total: slots.length,
+    ready: readyFlag && warm > 0,
+    slots: slots.map((slot, index) => ({
+      index,
+      port: slot.port,
+      status: slot.status,
+    })),
+  };
 }
 
 module.exports = { init, acquire, release, resetPool, getStatus, events };

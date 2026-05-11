@@ -5,6 +5,7 @@ import { errorMessage } from '../utils/actions.js';
 import { formatFileSize, formatTimestamp } from '../utils/formatters.js';
 import { useDeleteRecordingMutation } from '../utils/apiHooks.js';
 import { SectionBadge } from './SectionBadge.jsx';
+import { TrashIcon } from './TrashIcon.jsx';
 
 function DownloadIcon() {
   return (
@@ -19,16 +20,6 @@ function PreviewIcon() {
   return (
     <svg className="recording-action-icon" aria-hidden="true" viewBox="0 0 24 24">
       <path d="M8 5v14l11-7z" fill="currentColor" />
-    </svg>
-  );
-}
-
-function DeleteIcon() {
-  return (
-    <svg className="recording-action-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none">
-      <path d="M4 7h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M10 11v6m4-6v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path d="M6 7l1 14h10l1-14M9 7V4h6v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -94,14 +85,14 @@ export function RecordingsPanel() {
                     <DownloadIcon />
                   </a>
                   <button
-                    className="recording-delete-btn recording-action-btn danger"
+                    className="recording-delete-btn sidebar-delete-icon-btn recording-action-btn danger"
                     type="button"
                     aria-label={`Delete ${recording.name}`}
                     title="Delete"
                     disabled={deleteRecordingMutation.isPending && deleteRecordingMutation.variables === recording.dirname}
                     onClick={() => deleteRecording(recording)}
                   >
-                    <DeleteIcon />
+                    <TrashIcon />
                   </button>
                 </span>
               </div>

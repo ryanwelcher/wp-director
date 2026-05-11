@@ -5,6 +5,7 @@ import { useRunState } from '../context/RunContext.jsx';
 import { errorMessage } from '../utils/actions.js';
 import { useDeleteScriptMutation } from '../utils/apiHooks.js';
 import { SectionBadge } from './SectionBadge.jsx';
+import { TrashIcon } from './TrashIcon.jsx';
 
 export function SavedScriptsPanel() {
   const {
@@ -88,8 +89,14 @@ export function SavedScriptsPanel() {
               >
                 Load
               </button>
-              <button className="script-delete-btn danger" type="button" onClick={() => deleteScript(script)}>
-                Delete
+              <button
+                className="script-delete-btn sidebar-delete-icon-btn danger"
+                type="button"
+                aria-label={`Delete ${script.name}`}
+                title="Delete"
+                onClick={() => deleteScript(script)}
+              >
+                <TrashIcon />
               </button>
             </div>
           ))}

@@ -85,6 +85,34 @@ header p {
 
 .badge.hidden { display: none; }
 
+.sidebar-delete-icon-btn {
+  align-items: center;
+  background: transparent;
+  border: 1px solid #4b1c1c;
+  border-radius: 5px;
+  color: #f87171;
+  cursor: pointer;
+  display: inline-flex;
+  height: 1.75rem;
+  justify-content: center;
+  padding: 0;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  width: 1.75rem;
+}
+
+.sidebar-delete-icon-btn:hover {
+  background: #4b1c1c;
+  border-color: #ef4444;
+}
+
+.sidebar-delete-icon-btn:disabled,
+.sidebar-delete-icon-btn:disabled:hover {
+  background: transparent;
+  border-color: #2d3748;
+  color: #374151;
+  cursor: not-allowed;
+}
+
 .blueprint-body {
   padding: 0;
 }
@@ -1327,8 +1355,7 @@ header p {
 }
 
 .recording-preview-btn,
-.recording-download-btn,
-.recording-delete-btn {
+.recording-download-btn {
   align-items: center;
   background: transparent;
   border: 1px solid #374151;
@@ -1354,25 +1381,13 @@ header p {
 .recording-preview-btn:hover,
 .recording-download-btn:hover { border-color: #6b7280; color: #e2e8f0; }
 
-.recording-delete-btn {
-  border-color: #4b1c1c;
-  color: #f87171;
-}
-
-.recording-delete-btn:hover {
-  background: #4b1c1c;
-  border-color: #ef4444;
-}
-
-.recording-preview-btn:disabled,
-.recording-delete-btn:disabled {
+.recording-preview-btn:disabled {
   border-color: #2d3748;
   color: #374151;
   cursor: not-allowed;
 }
 
-.recording-preview-btn:disabled:hover,
-.recording-delete-btn:disabled:hover {
+.recording-preview-btn:disabled:hover {
   background: transparent;
   border-color: #2d3748;
   color: #374151;
@@ -1480,18 +1495,8 @@ header p {
 }
 
 .saved-script-item .script-delete-btn {
-  background: transparent;
-  border: 1px solid #4b1c1c;
-  border-radius: 5px;
-  color: #f87171;
-  cursor: pointer;
-  font-size: 0.78rem;
   grid-area: delete;
-  padding: 0.2rem 0.6rem;
-  transition: border-color 0.15s, background 0.15s;
 }
-
-.saved-script-item .script-delete-btn:hover { background: #4b1c1c; border-color: #ef4444; }
 
 .saved-scripts-footer {
   align-items: center;
@@ -1679,20 +1684,6 @@ header p {
 }
 
 .direction-item .direction-insert-btn:hover { border-color: #6b7280; color: #e2e8f0; }
-
-.direction-item .direction-delete-btn {
-  background: transparent;
-  border: 1px solid #4b1c1c;
-  border-radius: 5px;
-  color: #f87171;
-  cursor: pointer;
-  font-size: 0.78rem;
-  padding: 0.2rem 0.6rem;
-  transition: border-color 0.15s, background 0.15s;
-  white-space: nowrap;
-}
-
-.direction-item .direction-delete-btn:hover { background: #4b1c1c; border-color: #ef4444; }
 
 .direction-item .direction-builtin-badge {
   font-size: 0.8rem;

@@ -3,6 +3,7 @@ import { useAppState } from '../context/AppStateContext.jsx';
 import { errorMessage } from '../utils/actions.js';
 import { useDeleteDirectionMutation } from '../utils/apiHooks.js';
 import { SectionBadge } from './SectionBadge.jsx';
+import { TrashIcon } from './TrashIcon.jsx';
 
 export function DirectionLibraryPanel() {
   const { libraryEntries } = useAppState();
@@ -36,8 +37,14 @@ export function DirectionLibraryPanel() {
               {entry.builtin ? (
                 <span className="direction-builtin-badge" title="Built-in direction">&#128274;</span>
               ) : (
-                <button className="direction-delete-btn danger" type="button" onClick={() => deleteDirection(entry)}>
-                  Delete
+                <button
+                  className="direction-delete-btn sidebar-delete-icon-btn danger"
+                  type="button"
+                  aria-label={`Delete ${entry.name}`}
+                  title="Delete"
+                  onClick={() => deleteDirection(entry)}
+                >
+                  <TrashIcon />
                 </button>
               )}
             </div>

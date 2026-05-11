@@ -1948,7 +1948,7 @@ header p {
   flex-direction: column;
   min-width: 200px;
   max-width: 280px;
-  max-height: 280px;
+  max-height: min(360px, calc(100vh - 120px));
   overflow-y: auto;
   padding: 0.3rem 0;
 }

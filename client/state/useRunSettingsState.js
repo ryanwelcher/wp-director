@@ -6,7 +6,7 @@ import {
   videoSizeValueFromSize,
 } from '../utils/actions.js';
 
-const DEFAULT_RUN_SETTINGS = {
+export const DEFAULT_RUN_SETTINGS = {
   endPause: '2',
   stepPause: '0',
   typingDelay: '100',
@@ -49,10 +49,13 @@ export function useRunSettingsState() {
 
   const loadScriptSettings = useCallback((script) => {
     setName(script.name);
-    setEndPause(((script.endPause ?? 2000) / 1000).toString());
-    setStepPause(((script.stepPause ?? 0) / 1000).toString());
-    setTypingDelay((script.typingDelay ?? Number(DEFAULT_RUN_SETTINGS.typingDelay)).toString());
-    setVideoSize(videoSizeValueFromSize(script.videoSize));
+    if (!script.recordingSettings) return;
+
+    const { endPause, stepPause, typingDelay, videoSize } = script.recordingSettings;
+    if (endPause != null) setEndPause((endPause / 1000).toString());
+    if (stepPause != null) setStepPause((stepPause / 1000).toString());
+    if (typingDelay != null) setTypingDelay(typingDelay.toString());
+    if (videoSize != null) setVideoSize(videoSizeValueFromSize(videoSize));
   }, []);
 
   return {

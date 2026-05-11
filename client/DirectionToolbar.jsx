@@ -6,17 +6,18 @@ import { useSaveScriptMutation } from './utils/apiHooks.js';
 
 export function DirectionToolbar() {
   const {
+    blueprint,
     cleanDirections,
     clearDirections,
     currentEndPause,
     currentStepPause,
     currentTypingDelay,
+    currentVideoSize,
     name,
     poolStatus,
     runDirections,
     setName,
     startFromIndex,
-    videoSize,
   } = useAppState();
   const { running, runActions, stopRun } = useRunState();
   const saveScriptMutation = useSaveScriptMutation();
@@ -29,10 +30,13 @@ export function DirectionToolbar() {
       await saveScriptMutation.mutateAsync({
         name: scriptName,
         directions: cleanDirections,
-        endPause: currentEndPause,
-        stepPause: currentStepPause,
-        typingDelay: currentTypingDelay,
-        videoSize,
+        blueprint,
+        recordingSettings: {
+          endPause: currentEndPause,
+          stepPause: currentStepPause,
+          typingDelay: currentTypingDelay,
+          videoSize: currentVideoSize,
+        },
       });
       toast.success(`Saved "${scriptName}"`);
     } catch (err) {

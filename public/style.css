@@ -709,6 +709,54 @@ header p {
   max-height: calc(100vh - 220px);
 }
 
+#directions-panel,
+#steps-json-view,
+.blueprint-body--embedded,
+.blueprint-body--embedded .bfs-json-preview {
+  scrollbar-color: #334155 #0b1020;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+#directions-panel::-webkit-scrollbar,
+#steps-json-view::-webkit-scrollbar,
+.blueprint-body--embedded::-webkit-scrollbar,
+.blueprint-body--embedded .bfs-json-preview::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+
+#directions-panel::-webkit-scrollbar-track,
+#steps-json-view::-webkit-scrollbar-track,
+.blueprint-body--embedded::-webkit-scrollbar-track,
+.blueprint-body--embedded .bfs-json-preview::-webkit-scrollbar-track {
+  background: #0b1020;
+  border-radius: 999px;
+}
+
+#directions-panel::-webkit-scrollbar-thumb,
+#steps-json-view::-webkit-scrollbar-thumb,
+.blueprint-body--embedded::-webkit-scrollbar-thumb,
+.blueprint-body--embedded .bfs-json-preview::-webkit-scrollbar-thumb {
+  background: #263449;
+  border: 2px solid #0b1020;
+  border-radius: 999px;
+}
+
+#directions-panel::-webkit-scrollbar-thumb:hover,
+#steps-json-view::-webkit-scrollbar-thumb:hover,
+.blueprint-body--embedded::-webkit-scrollbar-thumb:hover,
+.blueprint-body--embedded .bfs-json-preview::-webkit-scrollbar-thumb:hover {
+  background: #3a4b66;
+}
+
+#directions-panel::-webkit-scrollbar-corner,
+#steps-json-view::-webkit-scrollbar-corner,
+.blueprint-body--embedded::-webkit-scrollbar-corner,
+.blueprint-body--embedded .bfs-json-preview::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 .panel-header {
   display: flex;
   align-items: center;

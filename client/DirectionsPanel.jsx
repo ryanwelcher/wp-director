@@ -154,123 +154,125 @@ export function DirectionsPanel() {
         )}
       </div>
 
-      <div
-        id="script-panel-directions"
-        className="script-settings-tab-panel"
-        role="tabpanel"
-        aria-labelledby="script-tab-directions"
-        hidden={activeTab !== 'directions'}
-      >
-        {directionsView === 'actions' && (
-          <>
-            <ul id="step-list">
-              {directions.map((direction, index) => {
-                const isStartFrom = startFromIndex === index;
-                const isAlwaysRun = alwaysRunIndices.has(index);
-                const isSkipped = startFromIndex !== null && index < startFromIndex && !isAlwaysRun;
+      <div className="script-settings-scroll">
+        <div
+          id="script-panel-directions"
+          className="script-settings-tab-panel"
+          role="tabpanel"
+          aria-labelledby="script-tab-directions"
+          hidden={activeTab !== 'directions'}
+        >
+          {directionsView === 'actions' && (
+            <>
+              <ul id="step-list">
+                {directions.map((direction, index) => {
+                  const isStartFrom = startFromIndex === index;
+                  const isAlwaysRun = alwaysRunIndices.has(index);
+                  const isSkipped = startFromIndex !== null && index < startFromIndex && !isAlwaysRun;
 
-                return (
-                  <DirectionGroup
-                    key={direction._id ?? index}
-                    direction={direction}
-                    dragging={draggingIndex === index}
-                    dragOver={dragOverIndex === index}
-                    index={index}
-                    isAlwaysRun={isAlwaysRun}
-                    isActiveStep={activeStepIndex === index}
-                    isSkipped={isSkipped}
-                    isStartFrom={isStartFrom}
-                    itemRef={activeStepIndex === index ? activeDirectionRef : null}
-                    onDragStart={(event) => {
-                      if (event.target.tagName === 'INPUT') {
+                  return (
+                    <DirectionGroup
+                      key={direction._id ?? index}
+                      direction={direction}
+                      dragging={draggingIndex === index}
+                      dragOver={dragOverIndex === index}
+                      index={index}
+                      isAlwaysRun={isAlwaysRun}
+                      isActiveStep={activeStepIndex === index}
+                      isSkipped={isSkipped}
+                      isStartFrom={isStartFrom}
+                      itemRef={activeStepIndex === index ? activeDirectionRef : null}
+                      onDragStart={(event) => {
+                        if (event.target.tagName === 'INPUT') {
+                          event.preventDefault();
+                          return;
+                        }
+                        draggingIndexRef.current = index;
+                        setDraggingIndex(index);
+                        event.dataTransfer.effectAllowed = 'move';
+                        event.dataTransfer.setData('text/plain', String(index));
+                      }}
+                      onDragEnd={() => {
+                        draggingIndexRef.current = null;
+                        setDraggingIndex(null);
+                        setDragOverIndex(null);
+                      }}
+                      onDragOver={(event) => {
                         event.preventDefault();
-                        return;
-                      }
-                      draggingIndexRef.current = index;
-                      setDraggingIndex(index);
-                      event.dataTransfer.effectAllowed = 'move';
-                      event.dataTransfer.setData('text/plain', String(index));
-                    }}
-                    onDragEnd={() => {
-                      draggingIndexRef.current = null;
-                      setDraggingIndex(null);
-                      setDragOverIndex(null);
-                    }}
-                    onDragOver={(event) => {
-                      event.preventDefault();
-                      event.dataTransfer.dropEffect = 'move';
-                      if (draggingIndexRef.current !== null && draggingIndexRef.current !== index) {
-                        setDragOverIndex(index);
-                      }
-                    }}
-                    onDragLeave={() => {
-                      setDragOverIndex((current) => (current === index ? null : current));
-                    }}
-                    onDrop={(event) => {
-                      event.preventDefault();
-                      const from = draggingIndexRef.current;
-                      if (from !== null && from !== index) {
-                        reorderDirections(from, index);
-                      }
-                      draggingIndexRef.current = null;
-                      setDraggingIndex(null);
-                      setDragOverIndex(null);
-                    }}
-                    onLabelChange={(label) => updateDirectionLabel(index, label)}
-                    onMenu={(event) => {
-                      event.stopPropagation();
-                      setPicker(null);
-                      setMenu({ index, position: menuPosition(event.currentTarget) });
-                    }}
-                    onToggleAlwaysRun={() => toggleAlwaysRun(index)}
-                    onToggleStartFrom={() => toggleStartFrom(index)}
-                  />
-                );
-              })}
-            </ul>
+                        event.dataTransfer.dropEffect = 'move';
+                        if (draggingIndexRef.current !== null && draggingIndexRef.current !== index) {
+                          setDragOverIndex(index);
+                        }
+                      }}
+                      onDragLeave={() => {
+                        setDragOverIndex((current) => (current === index ? null : current));
+                      }}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        const from = draggingIndexRef.current;
+                        if (from !== null && from !== index) {
+                          reorderDirections(from, index);
+                        }
+                        draggingIndexRef.current = null;
+                        setDraggingIndex(null);
+                        setDragOverIndex(null);
+                      }}
+                      onLabelChange={(label) => updateDirectionLabel(index, label)}
+                      onMenu={(event) => {
+                        event.stopPropagation();
+                        setPicker(null);
+                        setMenu({ index, position: menuPosition(event.currentTarget) });
+                      }}
+                      onToggleAlwaysRun={() => toggleAlwaysRun(index)}
+                      onToggleStartFrom={() => toggleStartFrom(index)}
+                    />
+                  );
+                })}
+              </ul>
 
-            {!hasDirections && <p id="empty-hint" className="hint">Type a command above, or insert a direction below.</p>}
+              {!hasDirections && <p id="empty-hint" className="hint">Type a command above, or insert a direction below.</p>}
 
-            <div id="direction-insert-bottom">
-              <button
-                className="direction-insert-plus direction-insert-plus--bottom"
-                title="Insert direction"
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setMenu(null);
-                  setPicker({ anchorIndex: null, position: pickerPosition(event.currentTarget) });
-                }}
-              >
-                + Insert direction
-              </button>
-            </div>
-          </>
-        )}
+              <div id="direction-insert-bottom">
+                <button
+                  className="direction-insert-plus direction-insert-plus--bottom"
+                  title="Insert direction"
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setMenu(null);
+                    setPicker({ anchorIndex: null, position: pickerPosition(event.currentTarget) });
+                  }}
+                >
+                  + Insert direction
+                </button>
+              </div>
+            </>
+          )}
 
-        {directionsView === 'json' && (
-          <pre id="steps-json-view">{JSON.stringify(cleanDirections, null, 2)}</pre>
-        )}
-      </div>
+          {directionsView === 'json' && (
+            <pre id="steps-json-view">{JSON.stringify(cleanDirections, null, 2)}</pre>
+          )}
+        </div>
 
-      <div
-        id="script-panel-blueprint"
-        className="script-settings-tab-panel"
-        role="tabpanel"
-        aria-labelledby="script-tab-blueprint"
-        hidden={activeTab !== 'blueprint'}
-      >
-        <BlueprintPanel embedded />
-      </div>
+        <div
+          id="script-panel-blueprint"
+          className="script-settings-tab-panel"
+          role="tabpanel"
+          aria-labelledby="script-tab-blueprint"
+          hidden={activeTab !== 'blueprint'}
+        >
+          <BlueprintPanel embedded />
+        </div>
 
-      <div
-        id="script-panel-recording"
-        className="script-settings-tab-panel"
-        role="tabpanel"
-        aria-labelledby="script-tab-recording"
-        hidden={activeTab !== 'recording'}
-      >
-        <RecordingSettingsPanel embedded />
+        <div
+          id="script-panel-recording"
+          className="script-settings-tab-panel"
+          role="tabpanel"
+          aria-labelledby="script-tab-recording"
+          hidden={activeTab !== 'recording'}
+        >
+          <RecordingSettingsPanel embedded />
+        </div>
       </div>
 
       {activeTab === 'directions' && menu && directions[menu.index] && (

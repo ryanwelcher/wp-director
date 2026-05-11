@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import { useState, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import { useAppState } from '../context/AppStateContext.jsx';
@@ -95,7 +96,7 @@ export function BlueprintPanel() {
         </button>
         <button
           type="button"
-          className={`bp-action-btn bp-action-btn--primary${isApplying ? ' is-loading' : ''}`}
+          className={clsx('bp-action-btn bp-action-btn--primary', isApplying && 'is-loading')}
           onClick={handleApply}
           disabled={isApplying || !hasUnappliedChanges}
         >

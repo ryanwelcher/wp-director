@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import { useState } from 'react';
 
 export function SlugListSection({ title, sectionId, items, onUpdate, itemType, inputId, inputPlaceholder }) {
@@ -31,7 +32,7 @@ export function SlugListSection({ title, sectionId, items, onUpdate, itemType, i
           <input
             id={inputId}
             type="text"
-            className={`bf-input${isDuplicate && slugTrimmed ? ' bf-input-warn' : ''}`}
+            className={clsx('bf-input', isDuplicate && slugTrimmed && 'bf-input-warn')}
             value={slugInput}
             onChange={(e) => setSlugInput(e.target.value)}
             onKeyDown={handleKeyDown}

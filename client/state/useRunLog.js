@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import { useCallback, useState } from 'react';
 
 export function useRunLog() {
@@ -24,7 +25,7 @@ export function useRunLog() {
     setLogText((current) => `${current}\n--- Done (exit ${code}) ---\n`);
     setLogBadge({
       text: code === 0 ? 'complete' : 'failed',
-      className: `badge${code === 0 ? ' badge-pass' : ' badge-fail'}`,
+      className: clsx('badge', code === 0 ? 'badge-pass' : 'badge-fail'),
     });
   }, []);
 

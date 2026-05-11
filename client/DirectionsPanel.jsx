@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import { useCallback, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useAppState } from './context/AppStateContext.jsx';
@@ -110,7 +111,7 @@ export function DirectionsPanel() {
         <div className="script-settings-tabs" role="tablist" aria-label="Script settings">
           <button
             id="script-tab-directions"
-            className={`script-settings-tab${activeTab === 'directions' ? ' active' : ''}`}
+            className={clsx('script-settings-tab', activeTab === 'directions' && 'active')}
             type="button"
             role="tab"
             aria-selected={activeTab === 'directions'}
@@ -121,7 +122,7 @@ export function DirectionsPanel() {
           </button>
           <button
             id="script-tab-blueprint"
-            className={`script-settings-tab${activeTab === 'blueprint' ? ' active' : ''}`}
+            className={clsx('script-settings-tab', activeTab === 'blueprint' && 'active')}
             type="button"
             role="tab"
             aria-selected={activeTab === 'blueprint'}
@@ -129,11 +130,11 @@ export function DirectionsPanel() {
             onClick={() => selectTab('blueprint')}
           >
             Blueprint
-            <PoolStatusIndicators className="blueprint-pool-indicators--tab" />
+            <PoolStatusIndicators tab />
           </button>
           <button
             id="script-tab-recording"
-            className={`script-settings-tab${activeTab === 'recording' ? ' active' : ''}`}
+            className={clsx('script-settings-tab', activeTab === 'recording' && 'active')}
             type="button"
             role="tab"
             aria-selected={activeTab === 'recording'}
@@ -156,7 +157,7 @@ export function DirectionsPanel() {
           <div className="directions-view-switcher">
             <div className="directions-view-toggle" role="group" aria-label="Directions view">
               <button
-                className={`directions-view-toggle-btn${directionsView === 'actions' ? ' active' : ''}`}
+                className={clsx('directions-view-toggle-btn', directionsView === 'actions' && 'active')}
                 type="button"
                 aria-pressed={directionsView === 'actions'}
                 onClick={() => setDirectionsView('actions')}
@@ -164,7 +165,7 @@ export function DirectionsPanel() {
                 Actions
               </button>
               <button
-                className={`directions-view-toggle-btn${directionsView === 'json' ? ' active' : ''}`}
+                className={clsx('directions-view-toggle-btn', directionsView === 'json' && 'active')}
                 type="button"
                 aria-pressed={directionsView === 'json'}
                 onClick={() => setDirectionsView('json')}

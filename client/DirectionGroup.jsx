@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import { describePlain } from './utils/actions.js';
 
 export function DirectionGroup({
@@ -25,17 +26,17 @@ export function DirectionGroup({
   const isTranslating = translationStatus === 'pending';
   const isTranslationError = translationStatus === 'error';
   const isResolved = !translationStatus || translationStatus === 'resolved';
-  const className = [
+  const className = clsx(
     'direction-group',
-    dragging ? 'dragging' : '',
-    dragOver ? 'drag-over' : '',
-    isActiveStep ? 'active-step' : '',
-    isStartFrom ? 'start-from' : '',
-    isSkipped ? 'skipped' : '',
-    isAlwaysRun ? 'always-run' : '',
-    isTranslating ? 'is-translating' : '',
-    isTranslationError ? 'has-translation-error' : '',
-  ].filter(Boolean).join(' ');
+    dragging && 'dragging',
+    dragOver && 'drag-over',
+    isActiveStep && 'active-step',
+    isStartFrom && 'start-from',
+    isSkipped && 'skipped',
+    isAlwaysRun && 'always-run',
+    isTranslating && 'is-translating',
+    isTranslationError && 'has-translation-error',
+  );
 
   return (
     <li

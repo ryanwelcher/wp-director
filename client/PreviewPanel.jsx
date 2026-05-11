@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import { useRunState } from './context/RunContext.jsx';
 import { formatTimestamp } from './utils/formatters.js';
 
@@ -13,7 +14,7 @@ export function PreviewPanel() {
     : null;
 
   return (
-    <div className={`panel${isPolling ? ' polling' : ''}`} id="preview-panel">
+    <div className={clsx('panel', isPolling && 'polling')} id="preview-panel">
       <div className="preview-heading">
         <h2>{heading}</h2>
         {recordingTimestamp && <span className="preview-heading-timestamp">{recordingTimestamp}</span>}

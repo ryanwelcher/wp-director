@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppState } from './context/AppStateContext.jsx';
@@ -9,6 +10,14 @@ const SLOT_STATUS_LABELS = {
   warm: 'Ready and warm',
 };
 
+const SLOT_STATUS_CLASS_NAMES = {
+  active: 'blueprint-pool-indicator blueprint-pool-indicator--active',
+  booting: 'blueprint-pool-indicator blueprint-pool-indicator--booting',
+  idle: 'blueprint-pool-indicator blueprint-pool-indicator--idle',
+  warm: 'blueprint-pool-indicator blueprint-pool-indicator--warm',
+  unknown: 'blueprint-pool-indicator blueprint-pool-indicator--unknown',
+};
+
 function statusLabel(status) {
   return SLOT_STATUS_LABELS[status] ?? 'Unknown';
 }
@@ -18,8 +27,8 @@ function poolSlotTitle(slot) {
   return `Playground ${slot.index + 1}${port}: ${statusLabel(slot.status)}`;
 }
 
-function poolSlotClass(status) {
-  return SLOT_STATUS_LABELS[status] ? status : 'unknown';
+function poolSlotClassName(status) {
+  return SLOT_STATUS_CLASS_NAMES[status] ?? SLOT_STATUS_CLASS_NAMES.unknown;
 }
 
 function inferredPoolSlots(poolStatus = {}) {
@@ -38,7 +47,7 @@ function inferredPoolSlots(poolStatus = {}) {
   }));
 }
 
-export function PoolStatusIndicators({ className = '' } = {}) {
+export function PoolStatusIndicators({ tab = false } = {}) {
   const { poolStatus } = useAppState();
   const [poolTooltip, setPoolTooltip] = useState(null);
   const poolSlots = useMemo(() => inferredPoolSlots(poolStatus ?? {}), [poolStatus]);
@@ -63,13 +72,13 @@ export function PoolStatusIndicators({ className = '' } = {}) {
 
   return (
     <>
-      <span className={`blueprint-pool-indicators${className ? ` ${className}` : ''}`} aria-label="Playground pool status">
+      <span className={clsx('blueprint-pool-indicators', tab && 'blueprint-pool-indicators--tab')} aria-label="Playground pool status">
         {poolSlots.map((slot) => {
           const title = poolSlotTitle(slot);
           return (
             <span
               key={slot.port ?? slot.index}
-              className={`blueprint-pool-indicator blueprint-pool-indicator--${poolSlotClass(slot.status)}`}
+              className={poolSlotClassName(slot.status)}
               aria-label={title}
               role="img"
               onMouseEnter={(event) => showPoolTooltip(title, event.currentTarget)}

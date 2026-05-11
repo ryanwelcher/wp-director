@@ -1,6 +1,8 @@
-export function SectionBadge({ children, hidden = false, className = '' }) {
+import clsx from 'clsx';
+
+export function SectionBadge({ children, hidden = false }) {
   return (
-    <span className={`badge${className ? ` ${className}` : ''}${hidden ? ' hidden' : ''}`}>
+    <span className={clsx('badge', hidden && 'hidden')}>
       {children}
     </span>
   );

@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import { toast } from 'react-toastify';
 import { useAppState } from '../context/AppStateContext.jsx';
 import { errorMessage } from '../utils/actions.js';
@@ -28,7 +29,7 @@ export function DirectionLibraryPanel() {
           {!libraryEntries.length && <p className="hint">No directions yet.</p>}
 
           {libraryEntries.map((entry) => (
-            <div className={`direction-item${entry.builtin ? ' direction-item--builtin' : ''}`} key={entry.filename}>
+            <div className={clsx('direction-item', entry.builtin && 'direction-item--builtin')} key={entry.filename}>
               <span className="direction-name">{entry.name}</span>
               <span className="direction-meta">
                 {entry.directionCount} step{entry.directionCount !== 1 ? 's' : ''}

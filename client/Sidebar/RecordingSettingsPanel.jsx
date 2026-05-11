@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import { useAppState } from '../context/AppStateContext.jsx';
 import { VIDEO_SIZE_VALUES } from '../utils/actions.js';
 
@@ -63,7 +64,7 @@ export function RecordingSettingsPanel() {
             <button
               key={size}
               type="button"
-              className={`settings-size-opt${videoSize === size ? ' active' : ''}`}
+              className={clsx('settings-size-opt', videoSize === size && 'active')}
               role="radio"
               aria-checked={videoSize === size}
               title={`${VIDEO_LABELS[size]} (${size})`}

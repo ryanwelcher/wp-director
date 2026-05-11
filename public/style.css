@@ -36,41 +36,11 @@ header p {
   margin-top: 0.2rem;
 }
 
-/* ── Blueprint section ───────────────────────────────────── */
-
-#blueprint-section {
-  border-bottom: 1px solid #1e2433;
-}
-
 /* Sidebar sections share a common summary style */
 .sidebar-content > details {
   border-bottom: 1px solid #1e2433;
   flex: 0 0 auto;
 }
-
-#blueprint-section summary {
-  align-items: center;
-  cursor: pointer;
-  display: flex;
-  gap: 0.6rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  list-style: none;
-  padding: 0.7rem 1.5rem;
-  text-transform: uppercase;
-  color: #64748b;
-  user-select: none;
-}
-
-#blueprint-section summary::-webkit-details-marker { display: none; }
-#blueprint-section summary::before {
-  content: '▶';
-  font-size: 0.6rem;
-  transition: transform 0.15s;
-}
-#blueprint-section[open] > summary::before { transform: rotate(90deg); }
-#blueprint-section[open] > summary { color: #94a3b8; }
 
 .badge {
   background: #1e3a5f;
@@ -258,12 +228,13 @@ header p {
   flex-shrink: 0;
 }
 
-#blueprint-section .bfs-collapsible[open] > .bfs-summary::before {
+.blueprint-body .bfs-collapsible[open] > .bfs-summary::before {
   transform: rotate(90deg);
 }
 
-#blueprint-section .bfs-collapsible[open] > .bfs-summary {
+.blueprint-body .bfs-collapsible[open] > .bfs-summary {
   color: #e2e8f0;
+  margin-bottom: 0.75rem;
 }
 
 .bfs-json-preview {
@@ -1379,7 +1350,6 @@ header p {
   height: 100%;
 }
 
-.sidebar-content > details[open] > .blueprint-body,
 .sidebar-content > details[open] > .recording-settings-body,
 .sidebar-content > details[open] > .recordings-body,
 .sidebar-content > details[open] > .saved-scripts-body,

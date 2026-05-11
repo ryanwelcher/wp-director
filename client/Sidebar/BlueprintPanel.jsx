@@ -8,10 +8,9 @@ import { EnvironmentSection } from '../blueprint/EnvironmentSection.jsx';
 import { SiteSettingsSection } from '../blueprint/SiteSettingsSection.jsx';
 import { SlugListSection } from '../blueprint/SlugListSection.jsx';
 import { ContentSection } from '../blueprint/ContentSection.jsx';
-import { SectionBadge } from './SectionBadge.jsx';
 
-export function BlueprintPanel({ embedded = false } = {}) {
-  const { blueprint: appBlueprint, defaultBlueprint, setBlueprint, isBlueprintModified } = useAppState();
+export function BlueprintPanel() {
+  const { blueprint: appBlueprint, defaultBlueprint, setBlueprint } = useAppState();
   const { formState, updateForm, loadBlueprint, compiledBlueprint } =
     useBlueprintFormState(appBlueprint);
 
@@ -58,8 +57,8 @@ export function BlueprintPanel({ embedded = false } = {}) {
     }
   }
 
-  const content = (
-    <div className={`blueprint-body${embedded ? ' blueprint-body--embedded' : ''}`}>
+  return (
+    <div className="blueprint-body blueprint-body--embedded">
       <EnvironmentSection formState={formState} updateForm={updateForm} />
       <SiteSettingsSection formState={formState} updateForm={updateForm} />
       <SlugListSection
@@ -104,17 +103,5 @@ export function BlueprintPanel({ embedded = false } = {}) {
         </button>
       </div>
     </div>
-  );
-
-  if (embedded) return content;
-
-  return (
-    <details id="blueprint-section">
-      <summary>
-        <span>Environment / Blueprint</span>
-        <SectionBadge hidden={!isBlueprintModified}>custom</SectionBadge>
-      </summary>
-      {content}
-    </details>
   );
 }

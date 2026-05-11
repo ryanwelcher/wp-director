@@ -273,7 +273,7 @@ export function DirectionsPanel() {
           aria-labelledby="script-tab-blueprint"
           hidden={activeTab !== 'blueprint'}
         >
-          <BlueprintPanel embedded />
+          <BlueprintPanel />
         </div>
 
         <div

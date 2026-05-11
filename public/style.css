@@ -113,7 +113,11 @@ header p {
   display: flex;
   flex-shrink: 0;
   gap: 0.35rem;
-  margin: 0 auto 0 0;
+  margin: 0;
+}
+
+.blueprint-pool-indicators--tab {
+  gap: 0.25rem;
 }
 
 .blueprint-pool-indicator {
@@ -731,13 +735,16 @@ header p {
 }
 
 .script-settings-tab {
+  align-items: center;
   background: transparent;
   border: 1px solid #2d3748;
   border-radius: 6px;
   color: #64748b;
   cursor: pointer;
+  display: inline-flex;
   font-size: 0.72rem;
   font-weight: 600;
+  gap: 0.45rem;
   letter-spacing: 0.05em;
   padding: 0.32rem 0.65rem;
   text-transform: uppercase;

@@ -4,6 +4,7 @@ import { useAppState } from './context/AppStateContext.jsx';
 import { DirectionGroup } from './DirectionGroup.jsx';
 import { DirectionMenu } from './DirectionMenu.jsx';
 import { DirectionPicker } from './DirectionPicker.jsx';
+import { PoolStatusIndicators } from './PoolStatusIndicators.jsx';
 import { BlueprintPanel } from './Sidebar/BlueprintPanel.jsx';
 import { RecordingSettingsPanel } from './Sidebar/RecordingSettingsPanel.jsx';
 import { directionsForJSON, errorMessage, flattenDirectionActions } from './utils/actions.js';
@@ -128,6 +129,7 @@ export function DirectionsPanel() {
             onClick={() => selectTab('blueprint')}
           >
             Blueprint
+            <PoolStatusIndicators className="blueprint-pool-indicators--tab" />
           </button>
           <button
             id="script-tab-recording"

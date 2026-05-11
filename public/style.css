@@ -293,13 +293,6 @@ header p {
 
 .blueprint-form-section:first-of-type { border-top: none; }
 
-
-.blueprint-form-section-placeholder {
-  color: #4b5563;
-  font-size: 0.85rem;
-  font-style: italic;
-}
-
 /* ── Blueprint form fields ───────────────────────────────── */
 
 .bf-fields {
@@ -507,20 +500,6 @@ header p {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.bf-item-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.bf-item-toggle-label {
-  font-size: 0.8rem;
-  color: #94a3b8;
-  user-select: none;
 }
 
 .bf-remove-btn {
@@ -764,13 +743,6 @@ header p {
   background: transparent;
 }
 
-.panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.75rem;
-}
-
 .script-settings-header {
   align-items: center;
   container-name: script-settings;
@@ -850,10 +822,6 @@ header p {
   .script-settings-tab .blueprint-pool-indicators--tab {
     margin-left: 0;
   }
-}
-
-.panel-header h2 {
-  margin-bottom: 0;
 }
 
 .panel h2 {
@@ -1133,36 +1101,6 @@ header p {
   border-radius: 3px 3px 0 0;
 }
 
-.direction-toggle {
-  background: none;
-  border: none;
-  color: #475569;
-  cursor: pointer;
-  font-size: 0.65rem;
-  line-height: 1;
-  padding: 0.2rem 0.3rem;
-  border-radius: 3px;
-  transition: color 0.15s, background 0.15s;
-  flex-shrink: 0;
-}
-
-.direction-toggle:hover { color: #94a3b8; background: #252d3d; }
-
-.direction-delete {
-  background: none;
-  border: none;
-  color: #374151;
-  cursor: pointer;
-  font-size: 0.7rem;
-  line-height: 1;
-  padding: 0.2rem 0.3rem;
-  border-radius: 3px;
-  transition: color 0.15s, background 0.15s;
-  flex-shrink: 0;
-}
-
-.direction-delete:hover { color: #f87171; background: #2d1f1f; }
-
 .direction-inner-list {
   list-style: none;
   border-top: 1px solid #232d40;
@@ -1201,35 +1139,6 @@ header p {
   text-transform: none;
   letter-spacing: 0;
 }
-
-#json-preview {
-  background: #111827;
-  border: 1px solid #1e2433;
-  border-radius: 6px;
-  color: #86efac;
-  font-family: 'Menlo', 'Monaco', monospace;
-  font-size: 0.78rem;
-  line-height: 1.6;
-  outline: none;
-  padding: 0.75rem 1rem;
-  resize: none;
-  white-space: pre;
-  width: 100%;
-  height: calc(100% - 2rem);
-  min-height: 200px;
-  transition: border-color 0.15s;
-}
-
-#json-preview:focus { border-color: #6366f1; }
-#json-preview.invalid { border-color: #ef4444; }
-
-.json-error {
-  color: #f87171;
-  font-size: 0.78rem;
-  margin-top: 0.4rem;
-}
-
-.json-error.hidden { display: none; }
 
 .direction-bar {
   align-items: center;
@@ -1844,20 +1753,6 @@ header p {
   white-space: nowrap;
 }
 
-.direction-item .direction-insert-btn {
-  background: transparent;
-  border: 1px solid #374151;
-  border-radius: 5px;
-  color: #94a3b8;
-  cursor: pointer;
-  font-size: 0.78rem;
-  padding: 0.2rem 0.6rem;
-  transition: border-color 0.15s, color 0.15s;
-  white-space: nowrap;
-}
-
-.direction-item .direction-insert-btn:hover { border-color: #6b7280; color: #e2e8f0; }
-
 .direction-item .direction-delete-btn {
   background: transparent;
   border: 1px solid #4b1c1c;
@@ -1879,47 +1774,6 @@ header p {
 }
 
 .direction-item--builtin .direction-name { color: #94a3b8; }
-
-.direction-save {
-  background: none;
-  border: none;
-  color: #374151;
-  cursor: pointer;
-  font-size: 0.75rem;
-  line-height: 1;
-  padding: 0.2rem 0.3rem;
-  border-radius: 3px;
-  transition: color 0.15s, background 0.15s;
-  flex-shrink: 0;
-}
-
-.direction-save:hover { color: #60a5fa; background: #1a2535; }
-
-/* ── Direction insert button (per action) ────────────────────────────────────── */
-.direction-insert {
-  background: none;
-  border: 1px solid #2d3a50;
-  border-radius: 50%;
-  color: #4b6080;
-  cursor: pointer;
-  font-size: 0.75rem;
-  font-weight: 600;
-  line-height: 1;
-  width: 1.1rem;
-  height: 1.1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  flex-shrink: 0;
-  transition: border-color 0.15s, color 0.15s, background 0.15s;
-}
-
-.direction-insert:hover {
-  border-color: #60a5fa;
-  color: #60a5fa;
-  background: #1a2535;
-}
 
 /* ── Bottom insert button ────────────────────────────────────────────────────── */
 #direction-insert-bottom {

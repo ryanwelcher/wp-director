@@ -14,37 +14,37 @@ export function BlueprintPanel() {
   const { formState, updateForm, loadBlueprint, compiledBlueprint } =
     useBlueprintFormState(appBlueprint);
 
-  const [isSaving, setIsSaving] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
 
   // Compare on form-state (not compiled JSON) so incidental key-order / shape
   // differences in the on-disk blueprint don't make the form look "dirty".
-  const savedForm = useMemo(() => blueprintToForm(appBlueprint), [appBlueprint]);
+  const appliedForm = useMemo(() => blueprintToForm(appBlueprint), [appBlueprint]);
   const defaultForm = useMemo(() => blueprintToForm(defaultBlueprint), [defaultBlueprint]);
-  const hasUnsavedChanges = useMemo(
-    () => JSON.stringify(formState) !== JSON.stringify(savedForm),
-    [formState, savedForm],
+  const hasUnappliedChanges = useMemo(
+    () => JSON.stringify(formState) !== JSON.stringify(appliedForm),
+    [formState, appliedForm],
   );
   const isAtDefault = useMemo(
     () => JSON.stringify(formState) === JSON.stringify(defaultForm),
     [formState, defaultForm],
   );
 
-  async function handleSave() {
-    setIsSaving(true);
+  async function handleApply() {
+    setIsApplying(true);
     try {
       await api.saveBlueprint(compiledBlueprint);
       setBlueprint(compiledBlueprint);
     } catch (err) {
-      toast.error(errorMessage(err, 'Could not save blueprint'));
+      toast.error(errorMessage(err, 'Could not apply blueprint'));
     } finally {
-      setIsSaving(false);
+      setIsApplying(false);
     }
   }
 
   async function handleReset() {
     if (!defaultBlueprint) return;
     if (!window.confirm('Reset all fields to the default blueprint? Your current changes will be lost.')) return;
-    setIsSaving(true);
+    setIsApplying(true);
     try {
       const bp = await api.resetBlueprint();
       const target = bp ?? defaultBlueprint;
@@ -53,7 +53,7 @@ export function BlueprintPanel() {
     } catch (err) {
       toast.error(errorMessage(err, 'Could not reset blueprint'));
     } finally {
-      setIsSaving(false);
+      setIsApplying(false);
     }
   }
 
@@ -89,17 +89,17 @@ export function BlueprintPanel() {
           type="button"
           className="bp-action-btn bp-action-btn--ghost"
           onClick={handleReset}
-          disabled={!defaultBlueprint || isAtDefault || isSaving}
+          disabled={!defaultBlueprint || isAtDefault || isApplying}
         >
           Reset
         </button>
         <button
           type="button"
-          className="bp-action-btn bp-action-btn--primary"
-          onClick={handleSave}
-          disabled={isSaving || !hasUnsavedChanges}
+          className={`bp-action-btn bp-action-btn--primary${isApplying ? ' is-loading' : ''}`}
+          onClick={handleApply}
+          disabled={isApplying || !hasUnappliedChanges}
         >
-          {isSaving ? 'Saving…' : 'Save'}
+          Apply
         </button>
       </div>
     </div>

@@ -171,7 +171,9 @@ header p {
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 500;
+  overflow: hidden;
   padding: 0.4rem 0.9rem;
+  position: relative;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
   white-space: nowrap;
 }
@@ -197,6 +199,26 @@ header p {
 }
 
 .bp-action-btn--primary:hover:not(:disabled) { background: #4f46e5; }
+
+.bp-action-btn--primary.is-loading {
+  animation: bp-action-stripes 1.2s linear infinite;
+  background-image: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.18) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.18) 50%,
+    rgba(255, 255, 255, 0.18) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 48px 48px;
+}
+
+@keyframes bp-action-stripes {
+  from { background-position: 0 0; }
+  to   { background-position: 48px 0; }
+}
 
 /* ── Collapsible blueprint form sections ─────────────────── */
 

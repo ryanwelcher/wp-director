@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { toast } from 'react-toastify';
+import { Dialog } from '../Dialog.jsx';
 import { useAppState } from '../context/AppStateContext.jsx';
 import { useRunState } from '../context/RunContext.jsx';
 import { errorMessage } from '../utils/actions.js';
@@ -28,78 +30,118 @@ export function RecordingsPanel() {
   const { recordings } = useAppState();
   const { running, showPreviewVideo } = useRunState();
   const deleteRecordingMutation = useDeleteRecordingMutation();
+  const [pendingDeleteRecording, setPendingDeleteRecording] = useState(null);
+  const deletingRecording = deleteRecordingMutation.isPending;
 
-  async function deleteRecording(recording) {
+  function closeDeleteDialog() {
+    if (!deletingRecording) setPendingDeleteRecording(null);
+  }
+
+  async function confirmDeleteRecording() {
+    if (!pendingDeleteRecording) return;
+
     try {
-      await deleteRecordingMutation.mutateAsync(recording.dirname);
-      toast.success(`Deleted recording "${recording.name}"`);
+      await deleteRecordingMutation.mutateAsync(pendingDeleteRecording.dirname);
+      toast.success(`Deleted recording "${pendingDeleteRecording.name}"`);
     } catch (err) {
       toast.error(errorMessage(err, 'Delete failed'));
+    } finally {
+      setPendingDeleteRecording(null);
     }
   }
 
   return (
-    <details id="recordings-section">
-      <summary>
-        <span>Recordings</span>
-        <SectionBadge hidden={recordings.length === 0}>{recordings.length}</SectionBadge>
-      </summary>
-      <div className="recordings-body">
-        <div id="recordings-list">
-          {!recordings.length && <p className="hint">No recordings yet - run a script to generate a video.</p>}
+    <>
+      <details id="recordings-section">
+        <summary>
+          <span>Recordings</span>
+          <SectionBadge hidden={recordings.length === 0}>{recordings.length}</SectionBadge>
+        </summary>
+        <div className="recordings-body">
+          <div id="recordings-list">
+            {!recordings.length && <p className="hint">No recordings yet - run a script to generate a video.</p>}
 
-          {recordings.map((recording) => {
-            const fileSize = formatFileSize(recording.size);
-            const timestamp = formatTimestamp(recording.createdAt);
-            const videoUrl = `/api/recordings/${recording.dirname}/video`;
-            const downloadName = `${recording.filenameBase ?? recording.slug ?? recording.dirname}.${recording.ext ?? 'mp4'}`;
+            {recordings.map((recording) => {
+              const fileSize = formatFileSize(recording.size);
+              const timestamp = formatTimestamp(recording.createdAt);
+              const videoUrl = `/api/recordings/${recording.dirname}/video`;
+              const downloadName = `${recording.filenameBase ?? recording.slug ?? recording.dirname}.${recording.ext ?? 'mp4'}`;
 
-            return (
-              <div className="recording-item" key={recording.dirname}>
-                <span className="recording-item-name">{recording.name}</span>
-                <span className="recording-item-meta">
-                  {timestamp && <span>{timestamp}</span>}
-                  {fileSize && <span>{fileSize}</span>}
-                </span>
-                <span className="recording-item-actions">
-                  <button
-                    className="recording-preview-btn recording-action-btn secondary"
-                    type="button"
-                    aria-label={`Preview ${recording.name}`}
-                    title="Preview"
-                    disabled={running}
-                    onClick={() => showPreviewVideo(videoUrl, {
-                      recordedAt: recording.createdAt,
-                      title: recording.name,
-                    })}
-                  >
-                    <PreviewIcon />
-                  </button>
-                  <a
-                    className="recording-download-btn recording-action-btn secondary"
-                    href={videoUrl}
-                    aria-label={`Download ${recording.name}`}
-                    title="Download"
-                    download={downloadName}
-                  >
-                    <DownloadIcon />
-                  </a>
-                  <button
-                    className="recording-delete-btn sidebar-delete-icon-btn recording-action-btn danger"
-                    type="button"
-                    aria-label={`Delete ${recording.name}`}
-                    title="Delete"
-                    disabled={deleteRecordingMutation.isPending && deleteRecordingMutation.variables === recording.dirname}
-                    onClick={() => deleteRecording(recording)}
-                  >
-                    <TrashIcon />
-                  </button>
-                </span>
-              </div>
-            );
-          })}
+              return (
+                <div className="recording-item" key={recording.dirname}>
+                  <span className="recording-item-name">{recording.name}</span>
+                  <span className="recording-item-meta">
+                    {timestamp && <span>{timestamp}</span>}
+                    {fileSize && <span>{fileSize}</span>}
+                  </span>
+                  <span className="recording-item-actions">
+                    <button
+                      className="recording-preview-btn recording-action-btn secondary"
+                      type="button"
+                      aria-label={`Preview ${recording.name}`}
+                      title="Preview"
+                      disabled={running}
+                      onClick={() => showPreviewVideo(videoUrl, {
+                        recordedAt: recording.createdAt,
+                        title: recording.name,
+                      })}
+                    >
+                      <PreviewIcon />
+                    </button>
+                    <a
+                      className="recording-download-btn recording-action-btn secondary"
+                      href={videoUrl}
+                      aria-label={`Download ${recording.name}`}
+                      title="Download"
+                      download={downloadName}
+                    >
+                      <DownloadIcon />
+                    </a>
+                    <button
+                      className="recording-delete-btn sidebar-delete-icon-btn recording-action-btn danger"
+                      type="button"
+                      aria-label={`Delete ${recording.name}`}
+                      title="Delete"
+                      disabled={deletingRecording && deleteRecordingMutation.variables === recording.dirname}
+                      onClick={() => setPendingDeleteRecording(recording)}
+                    >
+                      <TrashIcon />
+                    </button>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
-    </details>
+      </details>
+
+      {pendingDeleteRecording && (
+        <Dialog
+          title="Delete recording?"
+          description={`Delete "${pendingDeleteRecording.name}"? This cannot be undone.`}
+          closeDisabled={deletingRecording}
+          onClose={closeDeleteDialog}
+        >
+          <div className="app-dialog-actions">
+            <button
+              className="app-dialog-btn app-dialog-btn--secondary"
+              type="button"
+              disabled={deletingRecording}
+              onClick={closeDeleteDialog}
+            >
+              Cancel
+            </button>
+            <button
+              className="app-dialog-btn app-dialog-btn--danger"
+              type="button"
+              disabled={deletingRecording}
+              onClick={confirmDeleteRecording}
+            >
+              {deletingRecording ? 'Deleting...' : 'Delete recording'}
+            </button>
+          </div>
+        </Dialog>
+      )}
+    </>
   );
 }

@@ -7,7 +7,7 @@ const VIDEO_LABELS = {
   '3840x2160': '4K',
 };
 
-export function RecordingSettingsPanel({ embedded = false } = {}) {
+export function RecordingSettingsPanel() {
   const {
     endPause,
     setEndPause,
@@ -19,8 +19,8 @@ export function RecordingSettingsPanel({ embedded = false } = {}) {
     videoSize,
   } = useAppState();
 
-  const content = (
-    <div className={`recording-settings-body${embedded ? ' recording-settings-body--embedded' : ''}`}>
+  return (
+    <div className="recording-settings-body recording-settings-body--embedded">
       <div className="setting-field">
         <div className="setting-field-header">
           <label htmlFor="typing-delay-input">Typing speed</label>
@@ -91,16 +91,5 @@ export function RecordingSettingsPanel({ embedded = false } = {}) {
         />
       </div>
     </div>
-  );
-
-  if (embedded) return content;
-
-  return (
-    <details id="recording-settings-section">
-      <summary>
-        <span>Recording Settings</span>
-      </summary>
-      {content}
-    </details>
   );
 }

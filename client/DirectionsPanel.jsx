@@ -283,7 +283,7 @@ export function DirectionsPanel() {
           aria-labelledby="script-tab-recording"
           hidden={activeTab !== 'recording'}
         >
-          <RecordingSettingsPanel embedded />
+          <RecordingSettingsPanel />
         </div>
       </div>
 

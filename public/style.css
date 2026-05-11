@@ -520,30 +520,6 @@ header p {
 
 /* ── Recording settings section ─────────────────────────── */
 
-#recording-settings-section summary {
-  align-items: center;
-  cursor: pointer;
-  display: flex;
-  gap: 0.6rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  list-style: none;
-  padding: 0.7rem 1.5rem;
-  text-transform: uppercase;
-  color: #64748b;
-  user-select: none;
-}
-
-#recording-settings-section summary::-webkit-details-marker { display: none; }
-#recording-settings-section summary::before {
-  content: '▶';
-  font-size: 0.6rem;
-  transition: transform 0.15s;
-}
-#recording-settings-section[open] summary::before { transform: rotate(90deg); }
-#recording-settings-section[open] summary { color: #94a3b8; }
-
 .recording-settings-body {
   display: flex;
   flex-direction: column;
@@ -1350,7 +1326,6 @@ header p {
   height: 100%;
 }
 
-.sidebar-content > details[open] > .recording-settings-body,
 .sidebar-content > details[open] > .recordings-body,
 .sidebar-content > details[open] > .saved-scripts-body,
 .sidebar-content > details[open] > .directions-body {

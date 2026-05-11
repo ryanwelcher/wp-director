@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   useCurrentBlueprintQuery,
   useDefaultBlueprintQuery,
@@ -15,14 +15,9 @@ export function useBlueprintState() {
     : null;
   const blueprint = blueprintOverride === undefined ? loadedBlueprint : blueprintOverride;
 
-  const isBlueprintModified = useMemo(() => (
-    !!defaultBlueprint && JSON.stringify(blueprint) !== JSON.stringify(defaultBlueprint)
-  ), [blueprint, defaultBlueprint]);
-
   return {
     blueprint,
     setBlueprint,
     defaultBlueprint,
-    isBlueprintModified,
   };
 }

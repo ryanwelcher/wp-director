@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import { useEffect, useState } from 'react';
 import { CommandBar } from './CommandBar.jsx';
 import { DirectionToolbar } from './DirectionToolbar.jsx';
@@ -36,7 +37,7 @@ export function Layout() {
         &#9776;
       </button>
 
-      <div className={`main-content${sidebarOpen ? ' sidebar-open' : ''}`}>
+      <div className={clsx('main-content', sidebarOpen && 'sidebar-open')}>
         <CommandBar />
         <DirectionToolbar />
         <div className="workspace">

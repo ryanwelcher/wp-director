@@ -14,10 +14,10 @@ export function useRunActions({
   startRunRequest,
   streamRun,
 }) {
-  const runActions = useCallback(async ({ preview: previewOnly = false } = {}) => {
+  const runActions = useCallback(async ({ preview: previewOnly = false, scriptName } = {}) => {
     if (!runDirections.length) return;
 
-    const runName = name.trim() || `${previewOnly ? 'preview' : 'recording'}-${Date.now()}`;
+    const runName = scriptName?.trim() || name.trim() || `${previewOnly ? 'preview' : 'recording'}-${Date.now()}`;
     const body = {
       name: runName,
       actions: runDirections,

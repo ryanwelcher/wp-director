@@ -36,41 +36,11 @@ header p {
   margin-top: 0.2rem;
 }
 
-/* ── Blueprint section ───────────────────────────────────── */
-
-#blueprint-section {
-  border-bottom: 1px solid #1e2433;
-}
-
 /* Sidebar sections share a common summary style */
 .sidebar-content > details {
   border-bottom: 1px solid #1e2433;
   flex: 0 0 auto;
 }
-
-#blueprint-section summary {
-  align-items: center;
-  cursor: pointer;
-  display: flex;
-  gap: 0.6rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  list-style: none;
-  padding: 0.7rem 1.5rem;
-  text-transform: uppercase;
-  color: #64748b;
-  user-select: none;
-}
-
-#blueprint-section summary::-webkit-details-marker { display: none; }
-#blueprint-section summary::before {
-  content: '▶';
-  font-size: 0.6rem;
-  transition: transform 0.15s;
-}
-#blueprint-section[open] > summary::before { transform: rotate(90deg); }
-#blueprint-section[open] > summary { color: #94a3b8; }
 
 .badge {
   background: #1e3a5f;
@@ -113,8 +83,148 @@ header p {
   cursor: not-allowed;
 }
 
+/* Dialogs */
+.app-dialog-backdrop {
+  align-items: center;
+  background: rgba(3, 7, 18, 0.72);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 1rem;
+  position: fixed;
+  z-index: 2000;
+}
+
+.app-dialog {
+  background: #111827;
+  border: 1px solid #2d3748;
+  border-radius: 6px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.48);
+  color: #e2e8f0;
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  padding: 1rem;
+  width: min(420px, calc(100vw - 2rem));
+}
+
+.app-dialog-header h2 {
+  color: #f8fafc;
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.app-dialog-description {
+  color: #94a3b8;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  margin-top: 0.55rem;
+}
+
+.app-dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.app-dialog-field {
+  color: #cbd5e1;
+  display: flex;
+  flex-direction: column;
+  font-size: 0.82rem;
+  gap: 0.35rem;
+}
+
+.app-dialog-field input {
+  background: #1a2035;
+  border: 1px solid #374151;
+  border-radius: 5px;
+  color: #f8fafc;
+  font-size: 0.9rem;
+  outline: none;
+  padding: 0.45rem 0.6rem;
+  width: 100%;
+}
+
+.app-dialog-field input:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.18);
+}
+
+.app-dialog-error {
+  color: #fca5a5;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.app-dialog-actions {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.app-dialog-btn {
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 0.45rem 0.9rem;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.app-dialog-btn--secondary {
+  background: transparent;
+  border: 1px solid #374151;
+  color: #94a3b8;
+}
+
+.app-dialog-btn--secondary:hover {
+  border-color: #6b7280;
+  color: #e2e8f0;
+}
+
+.app-dialog-btn--primary {
+  background: #16a34a;
+  border: 1px solid transparent;
+  color: #fff;
+}
+
+.app-dialog-btn--primary:hover { background: #15803d; }
+
+.app-dialog-btn--danger {
+  background: #dc2626;
+  border: 1px solid transparent;
+  color: #fff;
+}
+
+.app-dialog-btn--danger:hover { background: #b91c1c; }
+
+.app-dialog-btn:disabled,
+.app-dialog-btn:disabled:hover {
+  background: #374151;
+  border-color: transparent;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
 .blueprint-body {
+  min-width: 0;
   padding: 0;
+}
+
+.blueprint-body--embedded {
+  background: #111827;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px #1e2433;
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+  min-height: 100%;
+  min-width: 0;
+  overflow: clip;
 }
 
 .blueprint-panel-actions {
@@ -129,12 +239,28 @@ header p {
   background: #111827;
 }
 
+.blueprint-body--embedded .blueprint-panel-actions {
+  bottom: 0;
+  box-shadow:
+    inset 1px 0 0 #1e2433,
+    inset -1px 0 0 #1e2433,
+    inset 0 -1px 0 #1e2433,
+    0 -10px 18px rgba(3, 7, 18, 0.35);
+  margin-top: auto;
+  position: sticky;
+  z-index: 6;
+}
+
 .blueprint-pool-indicators {
   align-items: center;
   display: flex;
   flex-shrink: 0;
   gap: 0.35rem;
-  margin: 0 auto 0 0;
+  margin: 0;
+}
+
+.blueprint-pool-indicators--tab {
+  gap: 0.25rem;
 }
 
 .blueprint-pool-indicator {
@@ -200,7 +326,9 @@ header p {
   cursor: pointer;
   font-size: 0.85rem;
   font-weight: 500;
+  overflow: hidden;
   padding: 0.4rem 0.9rem;
+  position: relative;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
   white-space: nowrap;
 }
@@ -227,9 +355,30 @@ header p {
 
 .bp-action-btn--primary:hover:not(:disabled) { background: #4f46e5; }
 
+.bp-action-btn--primary.is-loading {
+  animation: bp-action-stripes 1.2s linear infinite;
+  background-image: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.18) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.18) 50%,
+    rgba(255, 255, 255, 0.18) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 48px 48px;
+}
+
+@keyframes bp-action-stripes {
+  from { background-position: 0 0; }
+  to   { background-position: 48px 0; }
+}
+
 /* ── Collapsible blueprint form sections ─────────────────── */
 
 .bfs-collapsible {
+  min-width: 0;
   padding: 0 0.75rem;
 }
 
@@ -256,12 +405,13 @@ header p {
   flex-shrink: 0;
 }
 
-#blueprint-section .bfs-collapsible[open] > .bfs-summary::before {
+.blueprint-body .bfs-collapsible[open] > .bfs-summary::before {
   transform: rotate(90deg);
 }
 
-#blueprint-section .bfs-collapsible[open] > .bfs-summary {
+.blueprint-body .bfs-collapsible[open] > .bfs-summary {
   color: #e2e8f0;
+  margin-bottom: 0.75rem;
 }
 
 .bfs-json-preview {
@@ -269,6 +419,7 @@ header p {
   padding: 8px;
   font-size: 11px;
   font-family: monospace;
+  max-width: 100%;
   max-height: 240px;
   overflow: auto;
   white-space: pre;
@@ -291,17 +442,11 @@ header p {
 .blueprint-form-section {
   border-top: 1px solid #1e2433;
   background: #0d1120;
+  min-width: 0;
   padding: 0.5rem 0;
 }
 
 .blueprint-form-section:first-of-type { border-top: none; }
-
-
-.blueprint-form-section-placeholder {
-  color: #4b5563;
-  font-size: 0.85rem;
-  font-style: italic;
-}
 
 /* ── Blueprint form fields ───────────────────────────────── */
 
@@ -309,6 +454,7 @@ header p {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  min-width: 0;
   padding: 0 0.5rem;
 }
 
@@ -316,12 +462,14 @@ header p {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  min-width: 0;
 }
 
 .bf-field-pair {
   display: grid;
   gap: 1rem;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  min-width: 0;
 }
 
 .bf-label {
@@ -364,6 +512,7 @@ header p {
 .bf-landing-page-row {
   display: flex;
   gap: 0.5rem;
+  min-width: 0;
 }
 
 .bf-landing-page-row .bf-input { flex: 1; min-width: 0; }
@@ -385,6 +534,7 @@ header p {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  min-width: 0;
 }
 
 .bf-toggle-title {
@@ -507,20 +657,6 @@ header p {
   white-space: nowrap;
 }
 
-.bf-item-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.bf-item-toggle-label {
-  font-size: 0.8rem;
-  color: #94a3b8;
-  user-select: none;
-}
-
 .bf-remove-btn {
   padding: 0.25rem 0.6rem;
   background: transparent;
@@ -540,35 +676,17 @@ header p {
 
 /* ── Recording settings section ─────────────────────────── */
 
-#recording-settings-section summary {
-  align-items: center;
-  cursor: pointer;
-  display: flex;
-  gap: 0.6rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  list-style: none;
-  padding: 0.7rem 1.5rem;
-  text-transform: uppercase;
-  color: #64748b;
-  user-select: none;
-}
-
-#recording-settings-section summary::-webkit-details-marker { display: none; }
-#recording-settings-section summary::before {
-  content: '▶';
-  font-size: 0.6rem;
-  transition: transform 0.15s;
-}
-#recording-settings-section[open] summary::before { transform: rotate(90deg); }
-#recording-settings-section[open] summary { color: #94a3b8; }
-
 .recording-settings-body {
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
   padding: 0.75rem 1.5rem 1rem;
+}
+
+.recording-settings-body--embedded {
+  background: #111827;
+  border: 1px solid #1e2433;
+  border-radius: 6px;
 }
 
 .setting-field {
@@ -707,7 +825,7 @@ header p {
 
 .workspace {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0;
   flex: 1;
   overflow: hidden;
@@ -715,21 +833,150 @@ header p {
 }
 
 .panel {
+  min-width: 0;
   padding: 1rem 1.5rem;
   overflow-y: auto;
   max-height: calc(100vh - 220px);
 }
 
-
-.panel-header {
+#directions-panel {
   display: flex;
+  flex-direction: column;
+  height: calc(100vh - 220px);
+  min-height: 0;
+  overflow: visible;
+}
+
+.script-settings-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 0.35rem;
+}
+
+.script-settings-scroll,
+#steps-json-view,
+.blueprint-body--embedded .bfs-json-preview {
+  scrollbar-color: #334155 #0b1020;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.script-settings-scroll::-webkit-scrollbar,
+#steps-json-view::-webkit-scrollbar,
+.blueprint-body--embedded .bfs-json-preview::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+
+.script-settings-scroll::-webkit-scrollbar-track,
+#steps-json-view::-webkit-scrollbar-track,
+.blueprint-body--embedded .bfs-json-preview::-webkit-scrollbar-track {
+  background: #0b1020;
+  border-radius: 999px;
+}
+
+.script-settings-scroll::-webkit-scrollbar-thumb,
+#steps-json-view::-webkit-scrollbar-thumb,
+.blueprint-body--embedded .bfs-json-preview::-webkit-scrollbar-thumb {
+  background: #263449;
+  border: 2px solid #0b1020;
+  border-radius: 999px;
+}
+
+.script-settings-scroll::-webkit-scrollbar-thumb:hover,
+#steps-json-view::-webkit-scrollbar-thumb:hover,
+.blueprint-body--embedded .bfs-json-preview::-webkit-scrollbar-thumb:hover {
+  background: #3a4b66;
+}
+
+.script-settings-scroll::-webkit-scrollbar-corner,
+#steps-json-view::-webkit-scrollbar-corner,
+.blueprint-body--embedded .bfs-json-preview::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.script-settings-header {
   align-items: center;
+  container-name: script-settings;
+  container-type: inline-size;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
   justify-content: space-between;
   margin-bottom: 0.75rem;
 }
 
-.panel-header h2 {
-  margin-bottom: 0;
+.script-settings-tabs {
+  align-items: center;
+  display: grid;
+  flex: 1 1 100%;
+  gap: 0.3rem;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  width: 100%;
+}
+
+.script-settings-tab {
+  align-items: center;
+  background: transparent;
+  border: 1px solid #2d3748;
+  border-radius: 6px;
+  color: #64748b;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.72rem;
+  font-weight: 600;
+  gap: 0.45rem;
+  justify-content: flex-start;
+  letter-spacing: 0.05em;
+  min-width: 0;
+  padding: 0.32rem 0.65rem;
+  text-transform: uppercase;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.script-settings-tab:hover {
+  border-color: #6b7280;
+  color: #94a3b8;
+}
+
+.script-settings-tab.active {
+  background: #1a2035;
+  border-color: #6366f1;
+  color: #e2e8f0;
+}
+
+.script-settings-tab-panel {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.script-settings-tab #step-count,
+.script-settings-tab .blueprint-pool-indicators--tab {
+  margin-left: auto;
+}
+
+@container script-settings (min-width: 500px) {
+  .script-settings-tabs {
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    width: auto;
+  }
+
+  .script-settings-tab {
+    width: auto;
+  }
+
+  .script-settings-tab #step-count,
+  .script-settings-tab .blueprint-pool-indicators--tab {
+    margin-left: 0;
+  }
 }
 
 .panel h2 {
@@ -741,21 +988,46 @@ header p {
   margin-bottom: 0.75rem;
 }
 
-.view-toggle-btn {
-  background: transparent;
+.directions-view-switcher {
+  background: #0f1117;
+  padding: 0 0 0.5rem;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.directions-view-toggle {
+  background: #111827;
   border: 1px solid #2d3748;
   border-radius: 6px;
+  display: flex;
+  padding: 2px;
+  width: 100%;
+}
+
+.directions-view-toggle-btn {
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
   color: #64748b;
   cursor: pointer;
+  flex: 1 1 0;
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.05em;
   padding: 0.25rem 0.65rem;
   text-transform: uppercase;
-  transition: border-color 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
 
-.view-toggle-btn:hover { border-color: #6b7280; color: #94a3b8; }
+.directions-view-toggle-btn:hover {
+  color: #94a3b8;
+}
+
+.directions-view-toggle-btn.active {
+  background: #252f48;
+  color: #e2e8f0;
+}
 
 #steps-json-view {
   background: #111827;
@@ -984,36 +1256,6 @@ header p {
   border-radius: 3px 3px 0 0;
 }
 
-.direction-toggle {
-  background: none;
-  border: none;
-  color: #475569;
-  cursor: pointer;
-  font-size: 0.65rem;
-  line-height: 1;
-  padding: 0.2rem 0.3rem;
-  border-radius: 3px;
-  transition: color 0.15s, background 0.15s;
-  flex-shrink: 0;
-}
-
-.direction-toggle:hover { color: #94a3b8; background: #252d3d; }
-
-.direction-delete {
-  background: none;
-  border: none;
-  color: #374151;
-  cursor: pointer;
-  font-size: 0.7rem;
-  line-height: 1;
-  padding: 0.2rem 0.3rem;
-  border-radius: 3px;
-  transition: color 0.15s, background 0.15s;
-  flex-shrink: 0;
-}
-
-.direction-delete:hover { color: #f87171; background: #2d1f1f; }
-
 .direction-inner-list {
   list-style: none;
   border-top: 1px solid #232d40;
@@ -1053,35 +1295,6 @@ header p {
   letter-spacing: 0;
 }
 
-#json-preview {
-  background: #111827;
-  border: 1px solid #1e2433;
-  border-radius: 6px;
-  color: #86efac;
-  font-family: 'Menlo', 'Monaco', monospace;
-  font-size: 0.78rem;
-  line-height: 1.6;
-  outline: none;
-  padding: 0.75rem 1rem;
-  resize: none;
-  white-space: pre;
-  width: 100%;
-  height: calc(100% - 2rem);
-  min-height: 200px;
-  transition: border-color 0.15s;
-}
-
-#json-preview:focus { border-color: #6366f1; }
-#json-preview.invalid { border-color: #ef4444; }
-
-.json-error {
-  color: #f87171;
-  font-size: 0.78rem;
-  margin-top: 0.4rem;
-}
-
-.json-error.hidden { display: none; }
-
 .direction-bar {
   align-items: center;
   background: #0f1117;
@@ -1119,6 +1332,7 @@ header p {
   color: #94a3b8;
   cursor: pointer;
   font-size: 0.85rem;
+  line-height: 1.2;
   padding: 0.4rem 0.9rem;
   transition: border-color 0.15s, color 0.15s;
 }
@@ -1129,14 +1343,15 @@ header p {
 
 .direction-bar button.primary {
   background: #16a34a;
-  border: none;
+  border: 1px solid transparent;
   border-radius: 6px;
   color: #fff;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 600;
+  line-height: 1.2;
   margin-left: auto;
-  padding: 0.45rem 1.4rem;
+  padding: 0.4rem 1.4rem;
   transition: background 0.15s;
 }
 
@@ -1145,14 +1360,15 @@ header p {
 
 .direction-bar button.danger {
   background: #dc2626;
-  border: none;
+  border: 1px solid transparent;
   border-radius: 6px;
   color: #fff;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 600;
+  line-height: 1.2;
   margin-left: auto;
-  padding: 0.45rem 1.2rem;
+  padding: 0.4rem 1.2rem;
   transition: background 0.15s;
 }
 
@@ -1228,8 +1444,6 @@ header p {
   height: 100%;
 }
 
-.sidebar-content > details[open] > .blueprint-body,
-.sidebar-content > details[open] > .recording-settings-body,
 .sidebar-content > details[open] > .recordings-body,
 .sidebar-content > details[open] > .saved-scripts-body,
 .sidebar-content > details[open] > .directions-body {
@@ -1604,8 +1818,8 @@ header p {
 }
 
 @keyframes preview-pulse {
-  0%, 100% { box-shadow: 0 0 0 1px #6366f1; }
-  50%       { box-shadow: 0 0 8px 3px #6366f140; }
+  0%, 100% { box-shadow: inset 0 0 0 1px #6366f1; }
+  50%       { box-shadow: inset 0 0 10px 2px #6366f140; }
 }
 
 
@@ -1693,50 +1907,16 @@ header p {
 
 .direction-item--builtin .direction-name { color: #94a3b8; }
 
-.direction-save {
-  background: none;
-  border: none;
-  color: #374151;
-  cursor: pointer;
-  font-size: 0.75rem;
-  line-height: 1;
-  padding: 0.2rem 0.3rem;
-  border-radius: 3px;
-  transition: color 0.15s, background 0.15s;
-  flex-shrink: 0;
-}
-
-.direction-save:hover { color: #60a5fa; background: #1a2535; }
-
-/* ── Direction insert button (per action) ────────────────────────────────────── */
-.direction-insert {
-  background: none;
-  border: 1px solid #2d3a50;
-  border-radius: 50%;
-  color: #4b6080;
-  cursor: pointer;
-  font-size: 0.75rem;
-  font-weight: 600;
-  line-height: 1;
-  width: 1.1rem;
-  height: 1.1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  flex-shrink: 0;
-  transition: border-color 0.15s, color 0.15s, background 0.15s;
-}
-
-.direction-insert:hover {
-  border-color: #60a5fa;
-  color: #60a5fa;
-  background: #1a2535;
-}
-
 /* ── Bottom insert button ────────────────────────────────────────────────────── */
 #direction-insert-bottom {
   padding: 0.5rem 0 0.25rem;
+}
+
+.directions-tab-actions {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
 }
 
 .direction-insert-plus--bottom {

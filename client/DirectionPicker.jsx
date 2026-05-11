@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import { useState } from 'react';
 
 export function DirectionPicker({ anchorIndex, entries, onClose, onSelect, position }) {
@@ -20,14 +21,14 @@ export function DirectionPicker({ anchorIndex, entries, onClose, onSelect, posit
         <>
           <div className="direction-picker-position">
             <button
-              className={`direction-picker-pos-btn${!insertAbove ? ' active' : ''}`}
+              className={clsx('direction-picker-pos-btn', !insertAbove && 'active')}
               type="button"
               onClick={() => setInsertAbove(false)}
             >
               &#8595; Below
             </button>
             <button
-              className={`direction-picker-pos-btn${insertAbove ? ' active' : ''}`}
+              className={clsx('direction-picker-pos-btn', insertAbove && 'active')}
               type="button"
               onClick={() => setInsertAbove(true)}
             >
@@ -41,7 +42,7 @@ export function DirectionPicker({ anchorIndex, entries, onClose, onSelect, posit
       {entries.map((entry) => (
         <button
           key={entry.filename}
-          className={`direction-picker-item${entry.builtin ? ' direction-picker-item--builtin' : ''}`}
+          className={clsx('direction-picker-item', entry.builtin && 'direction-picker-item--builtin')}
           type="button"
           onClick={() => selectEntry(entry.filename)}
         >

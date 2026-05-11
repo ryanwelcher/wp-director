@@ -19,19 +19,30 @@ export function SavedScriptsPanel() {
   const { recordAll, running } = useRunState();
   const deleteScriptMutation = useDeleteScriptMutation();
   const [pendingLoadScript, setPendingLoadScript] = useState(null);
+  const [pendingDeleteScript, setPendingDeleteScript] = useState(null);
   const [loadingScript, setLoadingScript] = useState(false);
+  const deletingScript = deleteScriptMutation.isPending;
   const partiallySelected = selectedScripts.length > 0 && selectedScripts.length < savedScripts.length;
   const poolLabel = poolStatus.ready ? undefined : `Playground warming up (${poolStatus.warm}/${poolStatus.total} ready). The run will start when an instance is available.`;
   const setSelectAllRef = useCallback((node) => {
     if (node) node.indeterminate = partiallySelected;
   }, [partiallySelected]);
 
-  async function deleteScript(script) {
+  function closeDeleteDialog() {
+    if (!deletingScript) setPendingDeleteScript(null);
+  }
+
+  async function confirmDeleteScript() {
+    if (!pendingDeleteScript) return;
+
     try {
-      await deleteScriptMutation.mutateAsync(script.filename);
-      setSelectedScripts((current) => current.filter((name) => name !== script.name));
+      await deleteScriptMutation.mutateAsync(pendingDeleteScript.filename);
+      setSelectedScripts((current) => current.filter((name) => name !== pendingDeleteScript.name));
+      toast.success(`Deleted script "${pendingDeleteScript.name}"`);
     } catch (err) {
       toast.error(errorMessage(err, 'Delete failed'));
+    } finally {
+      setPendingDeleteScript(null);
     }
   }
 
@@ -108,7 +119,8 @@ export function SavedScriptsPanel() {
                   type="button"
                   aria-label={`Delete ${script.name}`}
                   title="Delete"
-                  onClick={() => deleteScript(script)}
+                  disabled={deletingScript && deleteScriptMutation.variables === script.filename}
+                  onClick={() => setPendingDeleteScript(script)}
                 >
                   <TrashIcon />
                 </button>
@@ -165,6 +177,34 @@ export function SavedScriptsPanel() {
               onClick={confirmLoadScript}
             >
               {loadingScript ? 'Loading...' : 'Load script'}
+            </button>
+          </div>
+        </Dialog>
+      )}
+
+      {pendingDeleteScript && (
+        <Dialog
+          title="Delete saved script?"
+          description={`Delete "${pendingDeleteScript.name}"? This cannot be undone.`}
+          closeDisabled={deletingScript}
+          onClose={closeDeleteDialog}
+        >
+          <div className="app-dialog-actions">
+            <button
+              className="app-dialog-btn app-dialog-btn--secondary"
+              type="button"
+              disabled={deletingScript}
+              onClick={closeDeleteDialog}
+            >
+              Cancel
+            </button>
+            <button
+              className="app-dialog-btn app-dialog-btn--danger"
+              type="button"
+              disabled={deletingScript}
+              onClick={confirmDeleteScript}
+            >
+              {deletingScript ? 'Deleting...' : 'Delete script'}
             </button>
           </div>
         </Dialog>

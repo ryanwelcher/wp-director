@@ -1,7 +1,5 @@
-import { BlueprintPanel } from './Sidebar/BlueprintPanel.jsx';
 import { DirectionLibraryPanel } from './Sidebar/DirectionLibraryPanel.jsx';
 import { LogPanel } from './Sidebar/LogPanel.jsx';
-import { RecordingSettingsPanel } from './Sidebar/RecordingSettingsPanel.jsx';
 import { RecordingsPanel } from './Sidebar/RecordingsPanel.jsx';
 import { SavedScriptsPanel } from './Sidebar/SavedScriptsPanel.jsx';
 
@@ -12,8 +10,6 @@ export function Sidebar({ open, style }) {
         <SavedScriptsPanel />
         <DirectionLibraryPanel />
         <RecordingsPanel />
-        <BlueprintPanel />
-        <RecordingSettingsPanel />
         <LogPanel />
       </div>
     </div>

@@ -89,6 +89,13 @@ header p {
   padding: 0;
 }
 
+.blueprint-body--embedded {
+  background: #111827;
+  border: 1px solid #1e2433;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
 .blueprint-panel-actions {
   display: flex;
   align-items: center;
@@ -543,6 +550,12 @@ header p {
   padding: 0.75rem 1.5rem 1rem;
 }
 
+.recording-settings-body--embedded {
+  background: #111827;
+  border: 1px solid #1e2433;
+  border-radius: 6px;
+}
+
 .setting-field {
   display: flex;
   flex-direction: column;
@@ -692,12 +705,59 @@ header p {
   max-height: calc(100vh - 220px);
 }
 
-
 .panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 0.75rem;
+}
+
+.script-settings-header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.script-settings-tabs {
+  align-items: center;
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.script-settings-tab {
+  background: transparent;
+  border: 1px solid #2d3748;
+  border-radius: 6px;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  padding: 0.32rem 0.65rem;
+  text-transform: uppercase;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.script-settings-tab:hover {
+  border-color: #6b7280;
+  color: #94a3b8;
+}
+
+.script-settings-tab.active {
+  background: #1a2035;
+  border-color: #6366f1;
+  color: #e2e8f0;
+}
+
+.script-settings-tab-panel {
+  min-width: 0;
 }
 
 .panel-header h2 {

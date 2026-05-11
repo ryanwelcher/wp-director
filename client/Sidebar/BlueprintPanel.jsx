@@ -47,7 +47,7 @@ function inferredPoolSlots(poolStatus) {
   }));
 }
 
-export function BlueprintPanel() {
+export function BlueprintPanel({ embedded = false } = {}) {
   const { blueprint: appBlueprint, defaultBlueprint, setBlueprint, isBlueprintModified, poolStatus } = useAppState();
   const { formState, updateForm, loadBlueprint, compiledBlueprint } =
     useBlueprintFormState(appBlueprint);
@@ -113,90 +113,96 @@ export function BlueprintPanel() {
     setPoolTooltip(null);
   }
 
+  const content = (
+    <div className={`blueprint-body${embedded ? ' blueprint-body--embedded' : ''}`}>
+      <EnvironmentSection formState={formState} updateForm={updateForm} />
+      <SiteSettingsSection formState={formState} updateForm={updateForm} />
+      <SlugListSection
+        title="Plugins" sectionId="section-plugins"
+        items={formState.plugins} onUpdate={(plugins) => updateForm({ plugins })}
+        itemType="plugin" inputId="bf-plugin-slug"
+        inputPlaceholder="WordPress.org plugin slug"
+      />
+      <SlugListSection
+        title="Themes" sectionId="section-themes"
+        items={formState.themes} onUpdate={(themes) => updateForm({ themes })}
+        itemType="theme" inputId="bf-theme-slug"
+        inputPlaceholder="WordPress.org theme slug"
+      />
+      <ContentSection formState={formState} updateForm={updateForm} />
+
+      <section className="blueprint-form-section">
+        <details className="bfs-collapsible">
+          <summary className="bfs-summary">JSON</summary>
+          <pre className="bfs-json-preview">
+            {JSON.stringify(compiledBlueprint, null, 2)}
+          </pre>
+        </details>
+      </section>
+
+      <div className="blueprint-panel-actions">
+        {poolSlots.length > 0 && (
+          <div className="blueprint-pool-indicators" aria-label="Playground pool status">
+            {poolSlots.map((slot) => {
+              const title = poolSlotTitle(slot);
+              return (
+                <span
+                  key={slot.port ?? slot.index}
+                  className={`blueprint-pool-indicator blueprint-pool-indicator--${poolSlotClass(slot.status)}`}
+                  aria-label={title}
+                  role="img"
+                  tabIndex={0}
+                  onBlur={hidePoolTooltip}
+                  onFocus={(event) => showPoolTooltip(title, event.currentTarget)}
+                  onMouseEnter={(event) => showPoolTooltip(title, event.currentTarget)}
+                  onMouseLeave={hidePoolTooltip}
+                />
+              );
+            })}
+          </div>
+        )}
+        <button
+          type="button"
+          className="bp-action-btn bp-action-btn--ghost"
+          onClick={handleReset}
+          disabled={!defaultBlueprint || isAtDefault || isSaving}
+        >
+          Reset
+        </button>
+        <button
+          type="button"
+          className="bp-action-btn bp-action-btn--primary"
+          onClick={handleSave}
+          disabled={isSaving || !hasUnsavedChanges}
+        >
+          {isSaving ? 'Saving…' : 'Save'}
+        </button>
+      </div>
+      {poolTooltip && createPortal(
+        <div
+          className="blueprint-pool-tooltip"
+          role="tooltip"
+          style={{
+            left: `${poolTooltip.left}px`,
+            top: `${poolTooltip.top}px`,
+          }}
+        >
+          {poolTooltip.text}
+        </div>,
+        document.body,
+      )}
+    </div>
+  );
+
+  if (embedded) return content;
+
   return (
     <details id="blueprint-section">
       <summary>
         <span>Environment / Blueprint</span>
         <SectionBadge hidden={!isBlueprintModified}>custom</SectionBadge>
       </summary>
-      <div className="blueprint-body">
-        <EnvironmentSection formState={formState} updateForm={updateForm} />
-        <SiteSettingsSection formState={formState} updateForm={updateForm} />
-        <SlugListSection
-          title="Plugins" sectionId="section-plugins"
-          items={formState.plugins} onUpdate={(plugins) => updateForm({ plugins })}
-          itemType="plugin" inputId="bf-plugin-slug"
-          inputPlaceholder="WordPress.org plugin slug"
-        />
-        <SlugListSection
-          title="Themes" sectionId="section-themes"
-          items={formState.themes} onUpdate={(themes) => updateForm({ themes })}
-          itemType="theme" inputId="bf-theme-slug"
-          inputPlaceholder="WordPress.org theme slug"
-        />
-        <ContentSection formState={formState} updateForm={updateForm} />
-
-        <section className="blueprint-form-section">
-          <details className="bfs-collapsible">
-            <summary className="bfs-summary">JSON</summary>
-            <pre className="bfs-json-preview">
-              {JSON.stringify(compiledBlueprint, null, 2)}
-            </pre>
-          </details>
-        </section>
-
-        <div className="blueprint-panel-actions">
-          {poolSlots.length > 0 && (
-            <div className="blueprint-pool-indicators" aria-label="Playground pool status">
-              {poolSlots.map((slot) => {
-                const title = poolSlotTitle(slot);
-                return (
-                  <span
-                    key={slot.port ?? slot.index}
-                    className={`blueprint-pool-indicator blueprint-pool-indicator--${poolSlotClass(slot.status)}`}
-                    aria-label={title}
-                    role="img"
-                    tabIndex={0}
-                    onBlur={hidePoolTooltip}
-                    onFocus={(event) => showPoolTooltip(title, event.currentTarget)}
-                    onMouseEnter={(event) => showPoolTooltip(title, event.currentTarget)}
-                    onMouseLeave={hidePoolTooltip}
-                  />
-                );
-              })}
-            </div>
-          )}
-          <button
-            type="button"
-            className="bp-action-btn bp-action-btn--ghost"
-            onClick={handleReset}
-            disabled={!defaultBlueprint || isAtDefault || isSaving}
-          >
-            Reset
-          </button>
-          <button
-            type="button"
-            className="bp-action-btn bp-action-btn--primary"
-            onClick={handleSave}
-            disabled={isSaving || !hasUnsavedChanges}
-          >
-            {isSaving ? 'Saving…' : 'Save'}
-          </button>
-        </div>
-        {poolTooltip && createPortal(
-          <div
-            className="blueprint-pool-tooltip"
-            role="tooltip"
-            style={{
-              left: `${poolTooltip.left}px`,
-              top: `${poolTooltip.top}px`,
-            }}
-          >
-            {poolTooltip.text}
-          </div>,
-          document.body,
-        )}
-      </div>
+      {content}
     </details>
   );
 }

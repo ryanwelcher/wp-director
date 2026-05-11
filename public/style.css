@@ -773,6 +773,8 @@ header p {
 
 .script-settings-header {
   align-items: center;
+  container-name: script-settings;
+  container-type: inline-size;
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
@@ -782,11 +784,12 @@ header p {
 
 .script-settings-tabs {
   align-items: center;
-  display: flex;
-  flex: 1 1 auto;
-  flex-wrap: wrap;
+  display: grid;
+  flex: 1 1 100%;
   gap: 0.3rem;
+  grid-template-columns: minmax(0, 1fr);
   min-width: 0;
+  width: 100%;
 }
 
 .script-settings-tab {
@@ -800,11 +803,14 @@ header p {
   font-size: 0.72rem;
   font-weight: 600;
   gap: 0.45rem;
+  justify-content: flex-start;
   letter-spacing: 0.05em;
+  min-width: 0;
   padding: 0.32rem 0.65rem;
   text-transform: uppercase;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
   white-space: nowrap;
+  width: 100%;
 }
 
 .script-settings-tab:hover {
@@ -821,6 +827,29 @@ header p {
 .script-settings-tab-panel {
   max-width: 100%;
   min-width: 0;
+}
+
+.script-settings-tab #step-count,
+.script-settings-tab .blueprint-pool-indicators--tab {
+  margin-left: auto;
+}
+
+@container script-settings (min-width: 500px) {
+  .script-settings-tabs {
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    width: auto;
+  }
+
+  .script-settings-tab {
+    width: auto;
+  }
+
+  .script-settings-tab #step-count,
+  .script-settings-tab .blueprint-pool-indicators--tab {
+    margin-left: 0;
+  }
 }
 
 .panel-header h2 {

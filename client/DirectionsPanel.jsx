@@ -143,15 +143,6 @@ export function DirectionsPanel() {
             Recording Settings
           </button>
         </div>
-        {activeTab === 'directions' && hasDirections && (
-          <button
-            className="view-toggle-btn"
-            type="button"
-            onClick={() => setDirectionsView(directionsView === 'actions' ? 'json' : 'actions')}
-          >
-            {directionsView === 'actions' ? 'Show JSON' : 'Show Actions'}
-          </button>
-        )}
       </div>
 
       <div className="script-settings-scroll">
@@ -162,6 +153,27 @@ export function DirectionsPanel() {
           aria-labelledby="script-tab-directions"
           hidden={activeTab !== 'directions'}
         >
+          <div className="directions-view-switcher">
+            <div className="directions-view-toggle" role="group" aria-label="Directions view">
+              <button
+                className={`directions-view-toggle-btn${directionsView === 'actions' ? ' active' : ''}`}
+                type="button"
+                aria-pressed={directionsView === 'actions'}
+                onClick={() => setDirectionsView('actions')}
+              >
+                Actions
+              </button>
+              <button
+                className={`directions-view-toggle-btn${directionsView === 'json' ? ' active' : ''}`}
+                type="button"
+                aria-pressed={directionsView === 'json'}
+                onClick={() => setDirectionsView('json')}
+              >
+                JSON
+              </button>
+            </div>
+          </div>
+
           {directionsView === 'actions' && (
             <>
               <ul id="step-list">
@@ -232,7 +244,7 @@ export function DirectionsPanel() {
 
               {!hasDirections && <p id="empty-hint" className="hint">Type a command above, or insert a direction below.</p>}
 
-              <div id="direction-insert-bottom">
+              <div id="direction-insert-bottom" className="directions-tab-actions">
                 <button
                   className="direction-insert-plus direction-insert-plus--bottom"
                   title="Insert direction"

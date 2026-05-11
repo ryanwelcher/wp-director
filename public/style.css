@@ -852,21 +852,46 @@ header p {
   margin-bottom: 0.75rem;
 }
 
-.view-toggle-btn {
-  background: transparent;
+.directions-view-switcher {
+  background: #0f1117;
+  padding: 0 0 0.5rem;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.directions-view-toggle {
+  background: #111827;
   border: 1px solid #2d3748;
   border-radius: 6px;
+  display: flex;
+  padding: 2px;
+  width: 100%;
+}
+
+.directions-view-toggle-btn {
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
   color: #64748b;
   cursor: pointer;
+  flex: 1 1 0;
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.05em;
   padding: 0.25rem 0.65rem;
   text-transform: uppercase;
-  transition: border-color 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
 
-.view-toggle-btn:hover { border-color: #6b7280; color: #94a3b8; }
+.directions-view-toggle-btn:hover {
+  color: #94a3b8;
+}
+
+.directions-view-toggle-btn.active {
+  background: #252f48;
+  color: #e2e8f0;
+}
 
 #steps-json-view {
   background: #111827;
@@ -1885,6 +1910,13 @@ header p {
 /* ── Bottom insert button ────────────────────────────────────────────────────── */
 #direction-insert-bottom {
   padding: 0.5rem 0 0.25rem;
+}
+
+.directions-tab-actions {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
 }
 
 .direction-insert-plus--bottom {

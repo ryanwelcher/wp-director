@@ -121,32 +121,32 @@ export function RecordingSettingsPanel() {
     </div>
 
     {resetDialogOpen && (
-        <Dialog
-          title="Reset recording settings?"
-          description="Reset typing speed, between-step pause, video size, and outro length to defaults?"
-          onClose={() => setResetDialogOpen(false)}
-        >
-          <div className="app-dialog-actions">
-            <button
-              className="app-dialog-btn app-dialog-btn--secondary"
-              type="button"
-              onClick={() => setResetDialogOpen(false)}
-            >
-              Cancel
-            </button>
-            <button
-              className="app-dialog-btn app-dialog-btn--danger"
-              type="button"
-              onClick={() => {
-                resetRecordingSettings();
-                setResetDialogOpen(false);
-              }}
-            >
-              Reset
-            </button>
-          </div>
-        </Dialog>
-      )}
+      <Dialog
+        title="Reset recording settings?"
+        description="Reset typing speed, between-step pause, video size, and outro length to defaults?"
+        onClose={() => setResetDialogOpen(false)}
+      >
+        <div className="app-dialog-actions">
+          <button
+            className="app-dialog-btn app-dialog-btn--secondary"
+            type="button"
+            onClick={() => setResetDialogOpen(false)}
+          >
+            Cancel
+          </button>
+          <button
+            className="app-dialog-btn app-dialog-btn--danger"
+            type="button"
+            onClick={() => {
+              resetRecordingSettings();
+              setResetDialogOpen(false);
+            }}
+          >
+            Reset
+          </button>
+        </div>
+      </Dialog>
+    )}
     </>
   );
 }

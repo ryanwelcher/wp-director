@@ -364,11 +364,11 @@ header p {
   flex-shrink: 0;
 }
 
-.blueprint-body .bfs-collapsible[open] > .bfs-summary::before {
+.bfs-collapsible[open] > .bfs-summary::before {
   transform: rotate(90deg);
 }
 
-.blueprint-body .bfs-collapsible[open] > .bfs-summary {
+.bfs-collapsible[open] > .bfs-summary {
   color: #e2e8f0;
   margin-bottom: 0.75rem;
 }
@@ -960,10 +960,6 @@ header p {
   letter-spacing: 0.08em;
   color: #64748b;
   margin-bottom: 0.75rem;
-}
-
-.directions-view-switcher {
-  background: #111827;
 }
 
 .directions-view-toggle {

@@ -67,7 +67,7 @@ export function BlueprintPanel() {
 
   return (
     <>
-    <div className="tab-panel-body blueprint-body">
+    <div className="tab-panel-body">
       <EnvironmentSection formState={formState} updateForm={updateForm} />
       <SiteSettingsSection formState={formState} updateForm={updateForm} />
       <SlugListSection
@@ -114,32 +114,32 @@ export function BlueprintPanel() {
     </div>
 
     {resetDialogOpen && (
-        <Dialog
-          title="Reset blueprint?"
-          description="Reset all fields to the default blueprint? Your current changes will be lost."
-          closeDisabled={isApplying}
-          onClose={closeResetDialog}
-        >
-          <div className="app-dialog-actions">
-            <button
-              className="app-dialog-btn app-dialog-btn--secondary"
-              type="button"
-              disabled={isApplying}
-              onClick={closeResetDialog}
-            >
-              Cancel
-            </button>
-            <button
-              className="app-dialog-btn app-dialog-btn--danger"
-              type="button"
-              disabled={isApplying}
-              onClick={confirmReset}
-            >
-              {isApplying ? 'Resetting...' : 'Reset'}
-            </button>
-          </div>
-        </Dialog>
-      )}
+      <Dialog
+        title="Reset blueprint?"
+        description="Reset all fields to the default blueprint? Your current changes will be lost."
+        closeDisabled={isApplying}
+        onClose={closeResetDialog}
+      >
+        <div className="app-dialog-actions">
+          <button
+            className="app-dialog-btn app-dialog-btn--secondary"
+            type="button"
+            disabled={isApplying}
+            onClick={closeResetDialog}
+          >
+            Cancel
+          </button>
+          <button
+            className="app-dialog-btn app-dialog-btn--danger"
+            type="button"
+            disabled={isApplying}
+            onClick={confirmReset}
+          >
+            {isApplying ? 'Resetting...' : 'Reset'}
+          </button>
+        </div>
+      </Dialog>
+    )}
     </>
   );
 }

@@ -715,9 +715,48 @@ header p {
   padding: 0.6rem 0.75rem;
   font-size: 0.82rem;
   color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.bf-suggestions-status--inline {
+  border-top: 1px solid #1e2433;
+  justify-content: center;
 }
 
 .bf-suggestions-error { color: #f87171; }
+
+.bf-spinner {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #2d3748;
+  border-top-color: #94a3b8;
+  animation: bf-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes bf-spin {
+  to { transform: rotate(360deg); }
+}
+
+.bf-suggestions-more {
+  display: block;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  background: transparent;
+  color: #93c5fd;
+  border: none;
+  border-top: 1px solid #1e2433;
+  font-size: 0.82rem;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.bf-suggestions-more:hover { background: #1a2035; }
 
 .bf-suggestion {
   display: flex;

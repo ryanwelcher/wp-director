@@ -8,16 +8,26 @@ export function PluginSearchSuggestions({
   existingSlugs,
   activeIndex,
   listId,
+  hasMore,
   onSelect,
   onHoverIndex,
+  onLoadMore,
 }) {
   if (!query) return null;
 
-  const showEmpty = !loading && !error && results.length === 0;
+  const hasResults = results.length > 0;
+  const showInitialLoading = loading && !hasResults;
+  const showEmpty = !loading && !error && !hasResults;
+  const showInlineLoading = loading && hasResults;
 
   return (
     <div className="bf-suggestions" id={listId} role="listbox">
-      {loading && <div className="bf-suggestions-status">Searching WordPress.org…</div>}
+      {showInitialLoading && (
+        <div className="bf-suggestions-status">
+          <span className="bf-spinner" aria-hidden="true" />
+          Searching WordPress.org…
+        </div>
+      )}
       {error && (
         <div className="bf-suggestions-status bf-suggestions-error">
           Couldn't reach WordPress.org — {error}
@@ -42,7 +52,6 @@ export function PluginSearchSuggestions({
             )}
             onMouseEnter={() => onHoverIndex(i)}
             onMouseDown={(e) => {
-              // Prevent input blur before click registers.
               e.preventDefault();
               if (!isAdded) onSelect(r);
             }}
@@ -63,6 +72,24 @@ export function PluginSearchSuggestions({
           </button>
         );
       })}
+      {hasMore && !showInlineLoading && (
+        <button
+          type="button"
+          className="bf-suggestions-more"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            onLoadMore?.();
+          }}
+        >
+          Show more
+        </button>
+      )}
+      {showInlineLoading && (
+        <div className="bf-suggestions-status bf-suggestions-status--inline">
+          <span className="bf-spinner" aria-hidden="true" />
+          Loading…
+        </div>
+      )}
     </div>
   );
 }

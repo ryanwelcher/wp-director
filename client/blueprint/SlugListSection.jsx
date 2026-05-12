@@ -23,6 +23,8 @@ export function SlugListSection({
     loading: false,
     error: null,
     query: '',
+    page: 1,
+    pages: 1,
   });
   const [activeIndex, setActiveIndex] = useState(-1);
   const [isFocused, setIsFocused] = useState(false);
@@ -42,7 +44,7 @@ export function SlugListSection({
   useEffect(() => {
     if (!onSearch) return undefined;
     if (!slugTrimmed) {
-      setSearchState({ results: [], loading: false, error: null, query: '' });
+      setSearchState({ results: [], loading: false, error: null, query: '', page: 1, pages: 1 });
       setActiveIndex(-1);
       return undefined;
     }
@@ -54,23 +56,60 @@ export function SlugListSection({
       abortRef.current = ctrl;
       setSearchState((s) => ({ ...s, loading: true, error: null }));
       try {
-        const data = await onSearch(slugTrimmed, { signal: ctrl.signal });
+        const data = await onSearch(slugTrimmed, { page: 1, signal: ctrl.signal });
         if (ctrl.signal.aborted) return;
         setSearchState({
           results: Array.isArray(data?.results) ? data.results : [],
           loading: false,
           error: null,
           query: slugTrimmed,
+          page: data?.page || 1,
+          pages: data?.pages || 1,
         });
         setActiveIndex(-1);
       } catch (err) {
         if (err.name === 'AbortError' || ctrl.signal.aborted) return;
-        setSearchState({ results: [], loading: false, error: err.message || 'search failed', query: slugTrimmed });
+        setSearchState({
+          results: [],
+          loading: false,
+          error: err.message || 'search failed',
+          query: slugTrimmed,
+          page: 1,
+          pages: 1,
+        });
       }
     }, SEARCH_DEBOUNCE_MS);
 
     return () => clearTimeout(debounceRef.current);
   }, [slugTrimmed, onSearch]);
+
+  async function loadMore() {
+    if (!onSearch) return;
+    if (searchState.loading) return;
+    if (searchState.page >= searchState.pages) return;
+    if (!searchState.query) return;
+
+    const nextPage = searchState.page + 1;
+    if (abortRef.current) abortRef.current.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setSearchState((s) => ({ ...s, loading: true, error: null }));
+    try {
+      const data = await onSearch(searchState.query, { page: nextPage, signal: ctrl.signal });
+      if (ctrl.signal.aborted) return;
+      const more = Array.isArray(data?.results) ? data.results : [];
+      setSearchState((s) => ({
+        ...s,
+        results: [...s.results, ...more],
+        loading: false,
+        page: data?.page || nextPage,
+        pages: data?.pages || s.pages,
+      }));
+    } catch (err) {
+      if (err.name === 'AbortError' || ctrl.signal.aborted) return;
+      setSearchState((s) => ({ ...s, loading: false, error: err.message || 'failed to load more' }));
+    }
+  }
 
   useEffect(() => () => {
     clearTimeout(debounceRef.current);
@@ -84,7 +123,7 @@ export function SlugListSection({
     if (name && onLearnName) onLearnName(cleaned, name);
     onUpdate([...items, { slug: cleaned }]);
     setSlugInput('');
-    setSearchState({ results: [], loading: false, error: null, query: '' });
+    setSearchState({ results: [], loading: false, error: null, query: '', page: 1, pages: 1 });
     setActiveIndex(-1);
   }
 
@@ -212,6 +251,8 @@ export function SlugListSection({
                   existingSlugs={existingSlugs}
                   activeIndex={activeIndex}
                   listId={listId}
+                  hasMore={searchState.page < searchState.pages}
+                  onLoadMore={loadMore}
                   onSelect={(r) => addSlug(r.slug, r.name)}
                   onHoverIndex={setActiveIndex}
                 />

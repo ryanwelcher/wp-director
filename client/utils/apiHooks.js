@@ -55,6 +55,8 @@ export function usePreviewsQuery() {
   return useQuery({
     queryKey: queryKeys.previews,
     queryFn: api.listPreviews,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 }
 

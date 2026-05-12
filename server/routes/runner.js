@@ -212,9 +212,8 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
 
   let browser = null;
   let context = null;
-  /** @type {string[]} Dirs created under PREVIEW_OUTPUT_DIR during this run; kept on error, deleted on success. */
+  /** @type {string[]} Dirs created under PREVIEW_OUTPUT_DIR during this run. Kept when the run errored, deleted on success. */
   const previewVideoDirs = [];
-  let runErrored = false;
   let instanceUsed = false;
   const markInstanceUsed = () => {
     if (instanceUsed) return;
@@ -296,7 +295,6 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
     if (signal?.aborted || err.code === 'RUN_STOPPED') {
       if (run) run.stopRequested = true;
     } else {
-      runErrored = true;
       send({ type: 'stderr', text: `[Playwright] ${err.message}\n` });
       code = 1;
     }
@@ -328,11 +326,10 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
     if (run?.browser === browser) run.browser = null;
   }
 
+  const runFailed = code !== 0 && !wasStopped();
   for (const dir of previewVideoDirs) {
-    if (runErrored) {
-      if (fs.existsSync(path.join(dir, 'video.webm'))) {
-        send({ type: 'previewArtifact', dirname: path.basename(dir) });
-      }
+    if (runFailed) {
+      send({ type: 'previewArtifact', dirname: path.basename(dir) });
     } else {
       try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
     }

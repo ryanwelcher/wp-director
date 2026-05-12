@@ -16,8 +16,14 @@ const path = require('path');
 const { PREVIEW_OUTPUT_DIR } = require('../config');
 
 function listPreviewDirs() {
-  if (!fs.existsSync(PREVIEW_OUTPUT_DIR)) return [];
-  return fs.readdirSync(PREVIEW_OUTPUT_DIR, { withFileTypes: true })
+  let entries;
+  try {
+    entries = fs.readdirSync(PREVIEW_OUTPUT_DIR, { withFileTypes: true });
+  } catch (err) {
+    if (err.code === 'ENOENT') return [];
+    throw err;
+  }
+  return entries
     .filter((entry) => entry.isDirectory())
     .map((entry) => {
       const dir = path.join(PREVIEW_OUTPUT_DIR, entry.name);
@@ -35,9 +41,7 @@ function register(app) {
 
   app.delete('/api/previews', (req, res) => {
     try {
-      if (fs.existsSync(PREVIEW_OUTPUT_DIR)) {
-        fs.rmSync(PREVIEW_OUTPUT_DIR, { recursive: true, force: true });
-      }
+      fs.rmSync(PREVIEW_OUTPUT_DIR, { recursive: true, force: true });
       res.json({ cleared: true });
     } catch (err) {
       res.status(500).json({ error: err.message || 'Could not clear previews' });

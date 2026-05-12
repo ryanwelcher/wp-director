@@ -26,13 +26,14 @@ export function RunProvider({ children }) {
   const runLog = useRunLog();
   const runPreview = useRunPreview();
   const queryClient = useQueryClient();
+  const previewMessageHandler = runPreview.handlePreviewMessage;
   const handlePreviewMessage = useCallback((msg) => {
     if (msg.type === 'previewArtifact') {
       queryClient.invalidateQueries({ queryKey: queryKeys.previews });
       return;
     }
-    runPreview.handlePreviewMessage(msg);
-  }, [queryClient, runPreview]);
+    previewMessageHandler(msg);
+  }, [queryClient, previewMessageHandler]);
   const {
     activeStepIndex,
     running,

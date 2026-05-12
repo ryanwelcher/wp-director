@@ -747,6 +747,11 @@ header p {
   background: #1a2035;
 }
 
+.bf-suggestion-icon--theme {
+  width: 64px;
+  height: 48px;
+}
+
 .bf-suggestion-icon--placeholder {
   display: inline-block;
   border: 1px solid #2d3748;

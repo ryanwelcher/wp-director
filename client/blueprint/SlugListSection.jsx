@@ -1,7 +1,7 @@
 import clsx from 'clsx';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { PluginSearchSuggestions } from './PluginSearchSuggestions.jsx';
+import { WpOrgSuggestions } from './WpOrgSuggestions.jsx';
 
 const SEARCH_DEBOUNCE_MS = 250;
 
@@ -16,6 +16,7 @@ export function SlugListSection({
   onSearch,
   nameMap,
   onLearnName,
+  variant = 'plugin',
 }) {
   const [slugInput, setSlugInput] = useState('');
   const [searchState, setSearchState] = useState({
@@ -243,7 +244,8 @@ export function SlugListSection({
                   width: dropdownCoords.width,
                 }}
               >
-                <PluginSearchSuggestions
+                <WpOrgSuggestions
+                  variant={variant}
                   query={slugTrimmed}
                   results={searchState.results}
                   loading={searchState.loading}

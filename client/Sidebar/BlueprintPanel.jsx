@@ -19,10 +19,11 @@ export function BlueprintPanel() {
   const [isApplying, setIsApplying] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [pluginNames, setPluginNames] = useState({});
+  const [themeNames, setThemeNames] = useState({});
 
-  // Resolve display names for any plugin slug we haven't seen yet. Fires on
-  // initial load and whenever the plugins list grows by a free-form slug.
-  // Server caches WP.org lookups for 5 min, so reloads are cheap.
+  // Resolve display names for any slug we haven't seen yet. Fires on initial
+  // load and whenever the list grows by a free-form slug. Server caches WP.org
+  // lookups for 5 min, so reloads are cheap.
   useEffect(() => {
     const missing = formState.plugins
       .map((p) => p.slug)
@@ -52,6 +53,36 @@ export function BlueprintPanel() {
       cancelled = true;
     };
   }, [formState.plugins, pluginNames]);
+
+  useEffect(() => {
+    const missing = formState.themes
+      .map((t) => t.slug)
+      .filter((slug) => slug && !themeNames[slug]);
+    if (missing.length === 0) return undefined;
+
+    let cancelled = false;
+    Promise.all(
+      missing.map(async (slug) => {
+        try {
+          const info = await api.getThemeInfo(slug);
+          return [slug, info?.name || null];
+        } catch {
+          return [slug, null];
+        }
+      }),
+    ).then((pairs) => {
+      if (cancelled) return;
+      const patch = {};
+      for (const [slug, name] of pairs) if (name) patch[slug] = name;
+      if (Object.keys(patch).length > 0) {
+        setThemeNames((prev) => ({ ...prev, ...patch }));
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [formState.themes, themeNames]);
 
   // Compare on form-state (not compiled JSON) so incidental key-order / shape
   // differences in the on-disk blueprint don't make the form look "dirty".
@@ -109,6 +140,7 @@ export function BlueprintPanel() {
         items={formState.plugins} onUpdate={(plugins) => updateForm({ plugins })}
         itemType="plugin" inputId="bf-plugin-slug"
         inputPlaceholder="Search WordPress.org or enter a slug"
+        variant="plugin"
         onSearch={(q, opts) => api.searchPlugins(q, opts)}
         nameMap={pluginNames}
         onLearnName={(slug, name) => setPluginNames((prev) => ({ ...prev, [slug]: name }))}
@@ -117,7 +149,11 @@ export function BlueprintPanel() {
         title="Themes" sectionId="section-themes"
         items={formState.themes} onUpdate={(themes) => updateForm({ themes })}
         itemType="theme" inputId="bf-theme-slug"
-        inputPlaceholder="WordPress.org theme slug"
+        inputPlaceholder="Search WordPress.org or enter a slug"
+        variant="theme"
+        onSearch={(q, opts) => api.searchThemes(q, opts)}
+        nameMap={themeNames}
+        onLearnName={(slug, name) => setThemeNames((prev) => ({ ...prev, [slug]: name }))}
       />
       <ContentSection formState={formState} updateForm={updateForm} />
 

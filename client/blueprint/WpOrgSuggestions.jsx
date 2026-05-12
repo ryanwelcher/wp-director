@@ -1,6 +1,8 @@
 import clsx from 'clsx';
 
-export function PluginSearchSuggestions({
+const EMPTY_LABEL = { plugin: 'plugins', theme: 'themes' };
+
+export function WpOrgSuggestions({
   query,
   results,
   loading,
@@ -12,6 +14,7 @@ export function PluginSearchSuggestions({
   onSelect,
   onHoverIndex,
   onLoadMore,
+  variant = 'plugin',
 }) {
   if (!query) return null;
 
@@ -34,7 +37,9 @@ export function PluginSearchSuggestions({
         </div>
       )}
       {showEmpty && (
-        <div className="bf-suggestions-status">No plugins found for "{query}"</div>
+        <div className="bf-suggestions-status">
+          No {EMPTY_LABEL[variant] || 'results'} found for "{query}"
+        </div>
       )}
       {results.map((r, i) => {
         const isAdded = existingSlugs.has(r.slug);
@@ -57,9 +62,20 @@ export function PluginSearchSuggestions({
             }}
           >
             {r.thumbnail ? (
-              <img src={r.thumbnail} alt="" className="bf-suggestion-icon" />
+              <img
+                src={r.thumbnail}
+                alt=""
+                className={clsx('bf-suggestion-icon', `bf-suggestion-icon--${variant}`)}
+              />
             ) : (
-              <span className="bf-suggestion-icon bf-suggestion-icon--placeholder" aria-hidden="true" />
+              <span
+                className={clsx(
+                  'bf-suggestion-icon',
+                  `bf-suggestion-icon--${variant}`,
+                  'bf-suggestion-icon--placeholder',
+                )}
+                aria-hidden="true"
+              />
             )}
             <span className="bf-suggestion-body">
               <span className="bf-suggestion-name">{r.name}</span>

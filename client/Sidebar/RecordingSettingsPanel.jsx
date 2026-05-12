@@ -36,7 +36,8 @@ export function RecordingSettingsPanel() {
   );
 
   return (
-    <div className="recording-settings-body recording-settings-body--embedded">
+    <>
+    <div className="tab-panel-body">
       <div className="setting-field">
         <div className="setting-field-header">
           <label htmlFor="typing-delay-input">Typing speed</label>
@@ -106,19 +107,20 @@ export function RecordingSettingsPanel() {
           onChange={(event) => setEndPause(event.target.value)}
         />
       </div>
+    </div>
 
-      <div className="blueprint-panel-actions">
-        <button
-          type="button"
-          className="bp-action-btn bp-action-btn--ghost"
-          onClick={() => setResetDialogOpen(true)}
-          disabled={isAtDefault}
-        >
-          Reset
-        </button>
-      </div>
+    <div className="tab-panel-footer">
+      <button
+        type="button"
+        className="bp-action-btn bp-action-btn--ghost"
+        onClick={() => setResetDialogOpen(true)}
+        disabled={isAtDefault}
+      >
+        Reset
+      </button>
+    </div>
 
-      {resetDialogOpen && (
+    {resetDialogOpen && (
         <Dialog
           title="Reset recording settings?"
           description="Reset typing speed, between-step pause, video size, and outro length to defaults?"
@@ -145,6 +147,6 @@ export function RecordingSettingsPanel() {
           </div>
         </Dialog>
       )}
-    </div>
+    </>
   );
 }

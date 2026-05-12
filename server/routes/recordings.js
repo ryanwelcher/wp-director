@@ -21,7 +21,54 @@ const fs = require('fs');
 const path = require('path');
 const rangeParser = require('range-parser');
 const { OUTPUT_DIR, SCREENCASTS_DIR } = require('../config');
-const { findVideoFile, probeVideoSize, spawnMp4Transcode } = require('../video');
+const { findVideoFile, probeVideoSize, spawnMp4Transcode, spawnWebmDownscale } = require('../video');
+const { VIDEO_SIZE_PRESETS } = require('../video-size');
+
+/**
+ * Resolutions a recording can be downloaded at: the captured source size,
+ * plus any preset whose width is strictly smaller. Sorted largest-first.
+ *
+ * @param {{ width: number, height: number }} sourceSize
+ * @returns {{ width: number, height: number }[]}
+ */
+function allowedSizesFor(sourceSize) {
+  const smaller = VIDEO_SIZE_PRESETS
+    .filter((p) => p.width < sourceSize.width)
+    .map((p) => ({ width: p.width, height: p.height }));
+  return [{ width: sourceSize.width, height: sourceSize.height }, ...smaller]
+    .sort((a, b) => b.width - a.width);
+}
+
+/**
+ * Resolve `width`+`height` query params to a target size, or return a status
+ * code on rejection. `null` means "no resize" (source resolution).
+ *
+ * @returns {{ kind: 'source' } | { kind: 'scale', size: { width: number, height: number } } | { kind: 'error', status: number }}
+ */
+function resolveDownloadSize(query, sourceSize) {
+  const rawW = query.width;
+  const rawH = query.height;
+  if (rawW == null && rawH == null) return { kind: 'source' };
+  if (rawW == null || rawH == null) return { kind: 'error', status: 400 };
+
+  const width = Number(rawW);
+  const height = Number(rawH);
+  if (!Number.isFinite(width) || !Number.isFinite(height)) {
+    return { kind: 'error', status: 400 };
+  }
+
+  if (!sourceSize) return { kind: 'error', status: 400 };
+  if (width === sourceSize.width && height === sourceSize.height) {
+    return { kind: 'source' };
+  }
+
+  const isAllowedPreset = VIDEO_SIZE_PRESETS.some(
+    (p) => p.width === width && p.height === height && p.width < sourceSize.width,
+  );
+  if (!isAllowedPreset) return { kind: 'error', status: 400 };
+
+  return { kind: 'scale', size: { width, height } };
+}
 
 const TIMESTAMP_PATTERN = /^(.+)-(\d{8}T\d{6}Z)(?:-\d+)?$/;
 const RUNNER_PREFIX = 'actions-runner-';
@@ -114,7 +161,8 @@ function register(app) {
       const stat = fs.statSync(file);
       const recording = parseRecordingDirname(dirname);
       const sourceSize = await probeVideoSize(file);
-      return { ...recording, dirname, ext, size: stat.size, mtime: stat.mtimeMs, sourceSize };
+      const downloadSizes = sourceSize ? allowedSizesFor(sourceSize) : [];
+      return { ...recording, dirname, ext, size: stat.size, mtime: stat.mtimeMs, sourceSize, downloadSizes };
     }));
     recordings.sort((a, b) => b.mtime - a.mtime);
     res.json({ recordings });
@@ -155,7 +203,7 @@ function register(app) {
     fs.createReadStream(found.file, { start, end }).pipe(res);
   });
 
-  app.get('/api/recordings/:dirname/download', (req, res) => {
+  app.get('/api/recordings/:dirname/download', async (req, res) => {
     const dirname = req.params.dirname;
     if (!isSafeRecordingDirname(dirname)) return res.status(400).end();
     const format = String(req.query.format || '').toLowerCase();
@@ -165,21 +213,32 @@ function register(app) {
     if (!found) return res.status(404).end();
     const { slug } = parseRecordingDirname(dirname);
 
-    if (format === 'webm') {
-      // Source-resolution WebM is served straight from disk.
+    const sourceSize = await probeVideoSize(found.file);
+    const target = resolveDownloadSize(req.query, sourceSize);
+    if (target.kind === 'error') return res.status(target.status).end();
+
+    const outSize = target.kind === 'scale' ? target.size : sourceSize;
+    const dimsSuffix = outSize ? `-${outSize.width}x${outSize.height}` : '';
+    const filename = `${slug}${dimsSuffix}.${format}`;
+
+    if (format === 'webm' && target.kind === 'source') {
       const stat = fs.statSync(found.file);
       res.setHeader('Content-Type', 'video/webm');
       res.setHeader('Content-Length', stat.size);
-      res.setHeader('Content-Disposition', `attachment; filename="${slug}.webm"`);
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       fs.createReadStream(found.file).pipe(res);
       return;
     }
 
-    // MP4: transcode on demand, stream directly, never persist.
-    res.setHeader('Content-Type', 'video/mp4');
-    res.setHeader('Content-Disposition', `attachment; filename="${slug}.mp4"`);
+    const mime = format === 'mp4' ? 'video/mp4' : 'video/webm';
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
 
-    const ff = spawnMp4Transcode(found.file, null);
+    const scaleSize = target.kind === 'scale' ? target.size : null;
+    const ff = format === 'mp4'
+      ? spawnMp4Transcode(found.file, scaleSize)
+      : spawnWebmDownscale(found.file, /** @type {{width:number,height:number}} */ (scaleSize));
+
     let killed = false;
     const kill = () => {
       if (killed) return;

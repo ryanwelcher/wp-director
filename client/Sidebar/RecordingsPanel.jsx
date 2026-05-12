@@ -44,16 +44,45 @@ function DownloadMenu({ recording, onClose }) {
     };
   }, [onClose]);
 
-  const size = recording.sourceSize;
-  const sizeLabel = size ? `${size.width}×${size.height}` : 'source';
+  const sizes = recording.downloadSizes?.length
+    ? recording.downloadSizes
+    : (recording.sourceSize ? [recording.sourceSize] : []);
   const base = `/api/recordings/${encodeURIComponent(recording.dirname)}/download`;
+
+  function url(format, size) {
+    const params = new URLSearchParams({ format });
+    if (size) {
+      params.set('width', String(size.width));
+      params.set('height', String(size.height));
+    }
+    return `${base}?${params.toString()}`;
+  }
+
+  function renderSection(format, label) {
+    if (!sizes.length) {
+      return (
+        <a className="download-menu-item" role="menuitem" href={url(format)} onClick={onClose}>source</a>
+      );
+    }
+    return sizes.map((size) => (
+      <a
+        key={`${format}-${size.width}x${size.height}`}
+        className="download-menu-item"
+        role="menuitem"
+        href={url(format, size)}
+        onClick={onClose}
+      >
+        {`${size.width}×${size.height}`}
+      </a>
+    ));
+  }
 
   return (
     <div className="download-menu" ref={ref} role="menu">
       <div className="download-menu-section-label">WebM</div>
-      <a className="download-menu-item" role="menuitem" href={`${base}?format=webm`} onClick={onClose}>{sizeLabel}</a>
+      {renderSection('webm')}
       <div className="download-menu-section-label">MP4</div>
-      <a className="download-menu-item" role="menuitem" href={`${base}?format=mp4`} onClick={onClose}>{sizeLabel}</a>
+      {renderSection('mp4')}
     </div>
   );
 }

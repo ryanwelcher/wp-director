@@ -712,21 +712,47 @@ header p {
 
 .bf-suggestions-more:hover { background: #1a2035; }
 
+.bf-suggestion-row {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid #1e2433;
+}
+
+.bf-suggestion-row:last-child { border-bottom: none; }
+
 .bf-suggestion {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: flex-start;
   gap: 0.6rem;
   padding: 0.55rem 0.75rem;
   background: transparent;
   border: none;
-  border-bottom: 1px solid #1e2433;
   text-align: left;
   cursor: pointer;
   color: #e2e8f0;
   transition: background 0.1s;
 }
 
-.bf-suggestion:last-child { border-bottom: none; }
+.bf-suggestion-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  flex-shrink: 0;
+  color: #94a3b8;
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: background 0.1s, color 0.1s;
+}
+
+.bf-suggestion-preview:hover,
+.bf-suggestion-preview:focus-visible {
+  background: #1a2035;
+  color: #e2e8f0;
+  outline: none;
+}
 
 .bf-suggestion.is-active,
 .bf-suggestion:hover:not(:disabled) {

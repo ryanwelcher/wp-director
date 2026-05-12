@@ -45,6 +45,7 @@ function normalize(upstream) {
       version: t.version,
       shortDescription: shortDescription(t.description),
       thumbnail: normalizeThumbnail(t.screenshot_url),
+      previewUrl: t.preview_url || null,
       downloaded: t.downloaded,
       rating: t.rating,
     })),
@@ -116,7 +117,7 @@ function register(app) {
       per_page: String(PER_PAGE),
       page: String(page),
     });
-    for (const f of ['description', 'screenshot_url', 'rating', 'downloaded']) {
+    for (const f of ['description', 'screenshot_url', 'preview_url', 'rating', 'downloaded']) {
       params.append('fields[]', f);
     }
     const url = `https://api.wordpress.org/themes/info/1.2/?${params.toString()}`;

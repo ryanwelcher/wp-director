@@ -39,9 +39,28 @@ function cacheSet(key, value) {
   cache.set(key, { t: Date.now(), v: value });
 }
 
+const NAMED_ENTITIES = {
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ',
+  hellip: '…', mdash: '—', ndash: '–',
+  lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”',
+  laquo: '«', raquo: '»', copy: '©', reg: '®', trade: '™',
+};
+
+function decodeEntities(s) {
+  return s.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (match, code) => {
+    if (code[0] === '#') {
+      const hex = code[1] === 'x' || code[1] === 'X';
+      const n = parseInt(code.slice(hex ? 2 : 1), hex ? 16 : 10);
+      return Number.isFinite(n) ? String.fromCodePoint(n) : match;
+    }
+    const v = NAMED_ENTITIES[code.toLowerCase()];
+    return v != null ? v : match;
+  });
+}
+
 function stripHtml(s) {
   if (typeof s !== 'string') return '';
-  return s.replace(/<[^>]*>/g, '').trim();
+  return decodeEntities(s.replace(/<[^>]*>/g, '')).trim();
 }
 
 function pickIcon(icons) {
@@ -69,6 +88,48 @@ function normalize(upstream) {
 }
 
 function register(app) {
+  app.get('/api/plugins/info', async (req, res) => {
+    const slug = typeof req.query.slug === 'string' ? req.query.slug.trim() : '';
+    if (!slug) return res.status(400).json({ error: 'slug is required' });
+    if (slug.length > MAX_QUERY_LEN || !/^[a-z0-9._-]+$/i.test(slug)) {
+      return res.status(400).json({ error: 'invalid slug' });
+    }
+
+    const cacheKey = `info|${slug}`;
+    const cached = cacheGet(cacheKey);
+    if (cached) {
+      res.set('X-Cache', 'HIT');
+      return res.json(cached);
+    }
+
+    const params = new URLSearchParams({ action: 'plugin_information', slug });
+    params.append('fields[]', 'icons');
+    const url = `https://api.wordpress.org/plugins/info/1.2/?${params.toString()}`;
+
+    try {
+      const upstream = await fetch(url);
+      if (!upstream.ok) {
+        return res.status(502).json({ error: `Upstream returned ${upstream.status}` });
+      }
+      const json = await upstream.json();
+      if (!json || typeof json !== 'object' || json.error || !json.slug) {
+        return res.status(404).json({ error: 'plugin not found' });
+      }
+      const normalized = {
+        slug: json.slug,
+        name: stripHtml(json.name),
+        author: stripHtml(json.author),
+        icon: pickIcon(json.icons),
+      };
+      cacheSet(cacheKey, normalized);
+      res.set('X-Cache', 'MISS');
+      res.json(normalized);
+    } catch (err) {
+      console.error('[plugins/info] fetch failed:', err.message);
+      res.status(502).json({ error: 'Failed to reach WordPress.org' });
+    }
+  });
+
   app.get('/api/plugins/search', async (req, res) => {
     const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
     const page = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1);

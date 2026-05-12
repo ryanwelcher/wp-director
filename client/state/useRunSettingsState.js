@@ -39,13 +39,17 @@ export function useRunSettingsState() {
     millisecondsFromValue(typingDelay, Number(DEFAULT_RUN_SETTINGS.typingDelay), 1000)
   ), [typingDelay]);
 
-  const resetScriptSettings = useCallback(() => {
-    setName('');
+  const resetRecordingSettings = useCallback(() => {
     setEndPause(DEFAULT_RUN_SETTINGS.endPause);
     setStepPause(DEFAULT_RUN_SETTINGS.stepPause);
     setTypingDelay(DEFAULT_RUN_SETTINGS.typingDelay);
     setVideoSize(DEFAULT_RUN_SETTINGS.videoSize);
   }, []);
+
+  const resetScriptSettings = useCallback(() => {
+    setName('');
+    resetRecordingSettings();
+  }, [resetRecordingSettings]);
 
   const loadScriptSettings = useCallback((script) => {
     setName(script.name);
@@ -73,6 +77,7 @@ export function useRunSettingsState() {
     videoSize,
     setVideoSize,
     currentVideoSize,
+    resetRecordingSettings,
     resetScriptSettings,
     loadScriptSettings,
   };

@@ -16,17 +16,20 @@ export function AppStateProvider({ children }) {
   } = useDirectionsState();
   const {
     loadScriptSettings,
+    resetRecordingSettings,
     resetScriptSettings,
     ...runSettings
   } = useRunSettingsState();
   const blueprintState = useBlueprintState();
+  const { resetBlueprintToDefault } = blueprintState;
   const collections = useServerCollections();
   const poolStatus = usePoolStatus();
 
-  const clearDirections = useCallback(() => {
+  const clearDirections = useCallback(async () => {
     clearDirectionState();
     resetScriptSettings();
-  }, [clearDirectionState, resetScriptSettings]);
+    await resetBlueprintToDefault();
+  }, [clearDirectionState, resetScriptSettings, resetBlueprintToDefault]);
 
   const loadScriptIntoEditor = useCallback(async (script) => {
     if (script.blueprint) {
@@ -45,6 +48,8 @@ export function AppStateProvider({ children }) {
     ...blueprintState,
     ...collections,
     clearDirections,
+    clearDirectionsOnly: clearDirectionState,
+    resetRecordingSettings,
     loadScriptIntoEditor,
     poolStatus,
   };

@@ -4,64 +4,20 @@
  * WordPress.org plugin directory search proxy.
  *
  *   GET /api/plugins/search?q=<term>&page=<n>
+ *   GET /api/plugins/info?slug=<slug>
  *
- * Proxies api.wordpress.org's keyless query_plugins endpoint, trims the
- * response to just what the UI needs, and caches results in memory for 5
- * minutes. The proxy isolates the UI from CORS / endpoint changes and lets
+ * Proxies api.wordpress.org's keyless query_plugins / plugin_information
+ * endpoints, trims the response to just what the UI needs, and caches results
+ * in memory. The proxy isolates the UI from CORS / endpoint changes and lets
  * us normalize errors in one place.
  */
 
-const CACHE_TTL_MS = 5 * 60 * 1000;
-const CACHE_MAX = 100;
+const { createCache, stripHtml } = require('../lib/wporg');
+
 const PER_PAGE = 10;
 const MAX_QUERY_LEN = 100;
 
-const cache = new Map();
-
-function cacheGet(key) {
-  const entry = cache.get(key);
-  if (!entry) return null;
-  if (Date.now() - entry.t > CACHE_TTL_MS) {
-    cache.delete(key);
-    return null;
-  }
-  // Refresh LRU position.
-  cache.delete(key);
-  cache.set(key, entry);
-  return entry.v;
-}
-
-function cacheSet(key, value) {
-  if (cache.size >= CACHE_MAX) {
-    const oldest = cache.keys().next().value;
-    if (oldest !== undefined) cache.delete(oldest);
-  }
-  cache.set(key, { t: Date.now(), v: value });
-}
-
-const NAMED_ENTITIES = {
-  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ',
-  hellip: '…', mdash: '—', ndash: '–',
-  lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”',
-  laquo: '«', raquo: '»', copy: '©', reg: '®', trade: '™',
-};
-
-function decodeEntities(s) {
-  return s.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (match, code) => {
-    if (code[0] === '#') {
-      const hex = code[1] === 'x' || code[1] === 'X';
-      const n = parseInt(code.slice(hex ? 2 : 1), hex ? 16 : 10);
-      return Number.isFinite(n) ? String.fromCodePoint(n) : match;
-    }
-    const v = NAMED_ENTITIES[code.toLowerCase()];
-    return v != null ? v : match;
-  });
-}
-
-function stripHtml(s) {
-  if (typeof s !== 'string') return '';
-  return decodeEntities(s.replace(/<[^>]*>/g, '')).trim();
-}
+const cache = createCache();
 
 function pickIcon(icons) {
   if (!icons || typeof icons !== 'object') return null;
@@ -80,7 +36,7 @@ function normalize(upstream) {
       author: stripHtml(p.author),
       version: p.version,
       shortDescription: stripHtml(p.short_description),
-      icon: pickIcon(p.icons),
+      thumbnail: pickIcon(p.icons),
       activeInstalls: p.active_installs,
       rating: p.rating,
     })),
@@ -96,7 +52,7 @@ function register(app) {
     }
 
     const cacheKey = `info|${slug}`;
-    const cached = cacheGet(cacheKey);
+    const cached = cache.get(cacheKey);
     if (cached) {
       res.set('X-Cache', 'HIT');
       return res.json(cached);
@@ -119,9 +75,9 @@ function register(app) {
         slug: json.slug,
         name: stripHtml(json.name),
         author: stripHtml(json.author),
-        icon: pickIcon(json.icons),
+        thumbnail: pickIcon(json.icons),
       };
-      cacheSet(cacheKey, normalized);
+      cache.set(cacheKey, normalized);
       res.set('X-Cache', 'MISS');
       res.json(normalized);
     } catch (err) {
@@ -140,7 +96,7 @@ function register(app) {
     }
 
     const cacheKey = `${q}|${page}`;
-    const cached = cacheGet(cacheKey);
+    const cached = cache.get(cacheKey);
     if (cached) {
       res.set('X-Cache', 'HIT');
       return res.json(cached);
@@ -165,7 +121,7 @@ function register(app) {
       }
       const json = await upstream.json();
       const normalized = normalize(json);
-      cacheSet(cacheKey, normalized);
+      cache.set(cacheKey, normalized);
       res.set('X-Cache', 'MISS');
       res.json(normalized);
     } catch (err) {

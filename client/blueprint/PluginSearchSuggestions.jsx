@@ -56,8 +56,8 @@ export function PluginSearchSuggestions({
               if (!isAdded) onSelect(r);
             }}
           >
-            {r.icon ? (
-              <img src={r.icon} alt="" className="bf-suggestion-icon" />
+            {r.thumbnail ? (
+              <img src={r.thumbnail} alt="" className="bf-suggestion-icon" />
             ) : (
               <span className="bf-suggestion-icon bf-suggestion-icon--placeholder" aria-hidden="true" />
             )}

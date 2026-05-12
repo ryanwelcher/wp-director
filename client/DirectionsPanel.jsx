@@ -6,6 +6,7 @@ import { DirectionGroup } from './DirectionGroup.jsx';
 import { DirectionMenu } from './DirectionMenu.jsx';
 import { DirectionPicker } from './DirectionPicker.jsx';
 import { PoolStatusIndicators } from './PoolStatusIndicators.jsx';
+import { Dialog } from './Dialog.jsx';
 import { BlueprintPanel } from './Sidebar/BlueprintPanel.jsx';
 import { RecordingSettingsPanel } from './Sidebar/RecordingSettingsPanel.jsx';
 import { directionsForJSON, errorMessage, flattenDirectionActions } from './utils/actions.js';
@@ -39,6 +40,7 @@ export function DirectionsPanel() {
   const {
     alwaysRunIndices,
     cleanDirections,
+    clearDirectionsOnly,
     deleteDirection,
     directions,
     directionsView,
@@ -59,6 +61,7 @@ export function DirectionsPanel() {
   const [menu, setMenu] = useState(null);
   const [picker, setPicker] = useState(null);
   const [activeTab, setActiveTab] = useState('directions');
+  const [clearDirectionsDialogOpen, setClearDirectionsDialogOpen] = useState(false);
   const loadDirection = useDirectionLoader();
   const saveDirectionMutation = useSaveDirectionMutation();
 
@@ -154,117 +157,128 @@ export function DirectionsPanel() {
           aria-labelledby="script-tab-directions"
           hidden={activeTab !== 'directions'}
         >
-          <div className="directions-view-switcher">
-            <div className="directions-view-toggle" role="group" aria-label="Directions view">
-              <button
-                className={clsx('directions-view-toggle-btn', directionsView === 'actions' && 'active')}
-                type="button"
-                aria-pressed={directionsView === 'actions'}
-                onClick={() => setDirectionsView('actions')}
-              >
-                Actions
-              </button>
-              <button
-                className={clsx('directions-view-toggle-btn', directionsView === 'json' && 'active')}
-                type="button"
-                aria-pressed={directionsView === 'json'}
-                onClick={() => setDirectionsView('json')}
-              >
-                JSON
-              </button>
-            </div>
-          </div>
-
-          {directionsView === 'actions' && (
-            <>
-              <ul id="step-list">
-                {directions.map((direction, index) => {
-                  const isStartFrom = startFromIndex === index;
-                  const isAlwaysRun = alwaysRunIndices.has(index);
-                  const isSkipped = startFromIndex !== null && index < startFromIndex && !isAlwaysRun;
-
-                  return (
-                    <DirectionGroup
-                      key={direction._id ?? index}
-                      direction={direction}
-                      dragging={draggingIndex === index}
-                      dragOver={dragOverIndex === index}
-                      index={index}
-                      isAlwaysRun={isAlwaysRun}
-                      isActiveStep={activeStepIndex === index}
-                      isSkipped={isSkipped}
-                      isStartFrom={isStartFrom}
-                      itemRef={activeStepIndex === index ? activeDirectionRef : null}
-                      onDragStart={(event) => {
-                        if (event.target.tagName === 'INPUT') {
-                          event.preventDefault();
-                          return;
-                        }
-                        draggingIndexRef.current = index;
-                        setDraggingIndex(index);
-                        event.dataTransfer.effectAllowed = 'move';
-                        event.dataTransfer.setData('text/plain', String(index));
-                      }}
-                      onDragEnd={() => {
-                        draggingIndexRef.current = null;
-                        setDraggingIndex(null);
-                        setDragOverIndex(null);
-                      }}
-                      onDragOver={(event) => {
-                        event.preventDefault();
-                        event.dataTransfer.dropEffect = 'move';
-                        if (draggingIndexRef.current !== null && draggingIndexRef.current !== index) {
-                          setDragOverIndex(index);
-                        }
-                      }}
-                      onDragLeave={() => {
-                        setDragOverIndex((current) => (current === index ? null : current));
-                      }}
-                      onDrop={(event) => {
-                        event.preventDefault();
-                        const from = draggingIndexRef.current;
-                        if (from !== null && from !== index) {
-                          reorderDirections(from, index);
-                        }
-                        draggingIndexRef.current = null;
-                        setDraggingIndex(null);
-                        setDragOverIndex(null);
-                      }}
-                      onLabelChange={(label) => updateDirectionLabel(index, label)}
-                      onMenu={(event) => {
-                        event.stopPropagation();
-                        setPicker(null);
-                        setMenu({ index, position: menuPosition(event.currentTarget) });
-                      }}
-                      onToggleAlwaysRun={() => toggleAlwaysRun(index)}
-                      onToggleStartFrom={() => toggleStartFrom(index)}
-                    />
-                  );
-                })}
-              </ul>
-
-              {!hasDirections && <p id="empty-hint" className="hint">Type a command above, or insert a direction below.</p>}
-
-              <div id="direction-insert-bottom" className="directions-tab-actions">
+          <div className="tab-panel-body">
+            <div className="directions-view-switcher">
+              <div className="directions-view-toggle" role="group" aria-label="Directions view">
                 <button
-                  className="direction-insert-plus direction-insert-plus--bottom"
-                  title="Insert direction"
+                  className={clsx('directions-view-toggle-btn', directionsView === 'actions' && 'active')}
                   type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setMenu(null);
-                    setPicker({ anchorIndex: null, position: pickerPosition(event.currentTarget) });
-                  }}
+                  aria-pressed={directionsView === 'actions'}
+                  onClick={() => setDirectionsView('actions')}
                 >
-                  + Insert direction
+                  Actions
+                </button>
+                <button
+                  className={clsx('directions-view-toggle-btn', directionsView === 'json' && 'active')}
+                  type="button"
+                  aria-pressed={directionsView === 'json'}
+                  onClick={() => setDirectionsView('json')}
+                >
+                  JSON
                 </button>
               </div>
-            </>
-          )}
-
-          {directionsView === 'json' && (
-            <pre id="steps-json-view">{JSON.stringify(cleanDirections, null, 2)}</pre>
-          )}
+            </div>
+  
+            {directionsView === 'actions' && (
+              <>
+                <ul id="step-list">
+                  {directions.map((direction, index) => {
+                    const isStartFrom = startFromIndex === index;
+                    const isAlwaysRun = alwaysRunIndices.has(index);
+                    const isSkipped = startFromIndex !== null && index < startFromIndex && !isAlwaysRun;
+  
+                    return (
+                      <DirectionGroup
+                        key={direction._id ?? index}
+                        direction={direction}
+                        dragging={draggingIndex === index}
+                        dragOver={dragOverIndex === index}
+                        index={index}
+                        isAlwaysRun={isAlwaysRun}
+                        isActiveStep={activeStepIndex === index}
+                        isSkipped={isSkipped}
+                        isStartFrom={isStartFrom}
+                        itemRef={activeStepIndex === index ? activeDirectionRef : null}
+                        onDragStart={(event) => {
+                          if (event.target.tagName === 'INPUT') {
+                            event.preventDefault();
+                            return;
+                          }
+                          draggingIndexRef.current = index;
+                          setDraggingIndex(index);
+                          event.dataTransfer.effectAllowed = 'move';
+                          event.dataTransfer.setData('text/plain', String(index));
+                        }}
+                        onDragEnd={() => {
+                          draggingIndexRef.current = null;
+                          setDraggingIndex(null);
+                          setDragOverIndex(null);
+                        }}
+                        onDragOver={(event) => {
+                          event.preventDefault();
+                          event.dataTransfer.dropEffect = 'move';
+                          if (draggingIndexRef.current !== null && draggingIndexRef.current !== index) {
+                            setDragOverIndex(index);
+                          }
+                        }}
+                        onDragLeave={() => {
+                          setDragOverIndex((current) => (current === index ? null : current));
+                        }}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          const from = draggingIndexRef.current;
+                          if (from !== null && from !== index) {
+                            reorderDirections(from, index);
+                          }
+                          draggingIndexRef.current = null;
+                          setDraggingIndex(null);
+                          setDragOverIndex(null);
+                        }}
+                        onLabelChange={(label) => updateDirectionLabel(index, label)}
+                        onMenu={(event) => {
+                          event.stopPropagation();
+                          setPicker(null);
+                          setMenu({ index, position: menuPosition(event.currentTarget) });
+                        }}
+                        onToggleAlwaysRun={() => toggleAlwaysRun(index)}
+                        onToggleStartFrom={() => toggleStartFrom(index)}
+                      />
+                    );
+                  })}
+                </ul>
+  
+                {!hasDirections && <p id="empty-hint" className="hint">Type a command above, or insert a direction below.</p>}
+  
+                <div id="direction-insert-bottom" className="directions-tab-actions">
+                  <button
+                    className="direction-insert-plus direction-insert-plus--bottom"
+                    title="Insert direction"
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setMenu(null);
+                      setPicker({ anchorIndex: null, position: pickerPosition(event.currentTarget) });
+                    }}
+                  >
+                    + Insert direction
+                  </button>
+                  <button
+                    className="direction-insert-plus direction-insert-plus--bottom"
+                    title="Clear all directions"
+                    type="button"
+                    disabled={!hasDirections}
+                    onClick={() => setClearDirectionsDialogOpen(true)}
+                  >
+                    × Clear directions
+                  </button>
+                </div>
+              </>
+            )}
+  
+            {directionsView === 'json' && (
+              <pre id="steps-json-view">{JSON.stringify(cleanDirections, null, 2)}</pre>
+            )}
+          </div>
         </div>
 
         <div
@@ -314,6 +328,34 @@ export function DirectionsPanel() {
             onSelect={insertDirection}
           />
         </>
+      )}
+
+      {clearDirectionsDialogOpen && (
+        <Dialog
+          title="Clear directions?"
+          description="Remove all directions from the editor? Recording settings and blueprint will not change. This cannot be undone."
+          onClose={() => setClearDirectionsDialogOpen(false)}
+        >
+          <div className="app-dialog-actions">
+            <button
+              className="app-dialog-btn app-dialog-btn--secondary"
+              type="button"
+              onClick={() => setClearDirectionsDialogOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              className="app-dialog-btn app-dialog-btn--danger"
+              type="button"
+              onClick={() => {
+                clearDirectionsOnly();
+                setClearDirectionsDialogOpen(false);
+              }}
+            >
+              Clear directions
+            </button>
+          </div>
+        </Dialog>
       )}
     </div>
   );

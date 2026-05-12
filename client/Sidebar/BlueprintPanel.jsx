@@ -1,6 +1,7 @@
 import clsx from 'clsx';
 import { useState, useMemo } from 'react';
 import { toast } from 'react-toastify';
+import { Dialog } from '../Dialog.jsx';
 import { useAppState } from '../context/AppStateContext.jsx';
 import { blueprintToForm, useBlueprintFormState } from '../state/useBlueprintFormState.js';
 import { errorMessage } from '../utils/actions.js';
@@ -11,11 +12,12 @@ import { SlugListSection } from '../blueprint/SlugListSection.jsx';
 import { ContentSection } from '../blueprint/ContentSection.jsx';
 
 export function BlueprintPanel() {
-  const { blueprint: appBlueprint, defaultBlueprint, setBlueprint } = useAppState();
-  const { formState, updateForm, loadBlueprint, compiledBlueprint } =
+  const { blueprint: appBlueprint, defaultBlueprint, setBlueprint, resetBlueprintToDefault } = useAppState();
+  const { formState, updateForm, compiledBlueprint } =
     useBlueprintFormState(appBlueprint);
 
   const [isApplying, setIsApplying] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
 
   // Compare on form-state (not compiled JSON) so incidental key-order / shape
   // differences in the on-disk blueprint don't make the form look "dirty".
@@ -42,15 +44,20 @@ export function BlueprintPanel() {
     }
   }
 
-  async function handleReset() {
+  function openResetDialog() {
     if (!defaultBlueprint) return;
-    if (!window.confirm('Reset all fields to the default blueprint? Your current changes will be lost.')) return;
+    setResetDialogOpen(true);
+  }
+
+  function closeResetDialog() {
+    if (!isApplying) setResetDialogOpen(false);
+  }
+
+  async function confirmReset() {
     setIsApplying(true);
     try {
-      const bp = await api.resetBlueprint();
-      const target = bp ?? defaultBlueprint;
-      loadBlueprint(target);
-      setBlueprint(target);
+      await resetBlueprintToDefault();
+      setResetDialogOpen(false);
     } catch (err) {
       toast.error(errorMessage(err, 'Could not reset blueprint'));
     } finally {
@@ -59,7 +66,8 @@ export function BlueprintPanel() {
   }
 
   return (
-    <div className="blueprint-body blueprint-body--embedded">
+    <>
+    <div className="tab-panel-body">
       <EnvironmentSection formState={formState} updateForm={updateForm} />
       <SiteSettingsSection formState={formState} updateForm={updateForm} />
       <SlugListSection
@@ -84,25 +92,54 @@ export function BlueprintPanel() {
           </pre>
         </details>
       </section>
-
-      <div className="blueprint-panel-actions">
-        <button
-          type="button"
-          className="bp-action-btn bp-action-btn--ghost"
-          onClick={handleReset}
-          disabled={!defaultBlueprint || isAtDefault || isApplying}
-        >
-          Reset
-        </button>
-        <button
-          type="button"
-          className={clsx('bp-action-btn bp-action-btn--primary', isApplying && 'is-loading')}
-          onClick={handleApply}
-          disabled={isApplying || !hasUnappliedChanges}
-        >
-          Apply
-        </button>
-      </div>
     </div>
+
+    <div className="tab-panel-footer">
+      <button
+        type="button"
+        className="bp-action-btn bp-action-btn--ghost"
+        onClick={openResetDialog}
+        disabled={!defaultBlueprint || isAtDefault || isApplying}
+      >
+        Reset
+      </button>
+      <button
+        type="button"
+        className={clsx('bp-action-btn bp-action-btn--primary', isApplying && 'is-loading')}
+        onClick={handleApply}
+        disabled={isApplying || !hasUnappliedChanges}
+      >
+        Apply
+      </button>
+    </div>
+
+    {resetDialogOpen && (
+      <Dialog
+        title="Reset blueprint?"
+        description="Reset all fields to the default blueprint? Your current changes will be lost."
+        closeDisabled={isApplying}
+        onClose={closeResetDialog}
+      >
+        <div className="app-dialog-actions">
+          <button
+            className="app-dialog-btn app-dialog-btn--secondary"
+            type="button"
+            disabled={isApplying}
+            onClick={closeResetDialog}
+          >
+            Cancel
+          </button>
+          <button
+            className="app-dialog-btn app-dialog-btn--danger"
+            type="button"
+            disabled={isApplying}
+            onClick={confirmReset}
+          >
+            {isApplying ? 'Resetting...' : 'Reset'}
+          </button>
+        </div>
+      </Dialog>
+    )}
+    </>
   );
 }

@@ -216,15 +216,9 @@ export function useBlueprintFormState(initialBlueprint) {
     setFormState((prev) => ({ ...prev, ...partial }));
   }
 
-  function loadBlueprint(bp) {
-    schemaRef.current = bp?.$schema ?? null;
-    setFormState(blueprintToForm(bp));
-  }
-
   return {
     formState,
     updateForm,
-    loadBlueprint,
     compiledBlueprint,
     hasExtraSteps: formState.extraSteps.length > 0,
   };

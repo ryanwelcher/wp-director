@@ -550,38 +550,6 @@ header p {
 
 /* ── Blueprint Plugins / Themes sections ─────────────────── */
 
-.bf-slug-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.bf-slug-row .bf-input { flex: 1; min-width: 0; }
-
-.bf-add-btn {
-  padding: 0.5rem 1rem;
-  background: #6366f1;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.15s;
-}
-
-.bf-add-btn:hover:not(:disabled) { background: #4f46e5; }
-.bf-add-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-.bf-input-warn { border-color: #f59e0b !important; }
-
-.bf-warn {
-  color: #f59e0b;
-  font-size: 0.82rem;
-  margin: 0.25rem 0 0;
-}
-
 .bf-item-list {
   list-style: none;
   margin: 0.25rem 0 0;
@@ -599,6 +567,19 @@ header p {
   border: 1px solid #2d3748;
   border-radius: 6px;
   padding: 0.5rem 0.75rem;
+}
+
+.bf-item-badge {
+  flex-shrink: 0;
+  padding: 0.1rem 0.45rem;
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .bf-remove-btn {

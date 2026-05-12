@@ -1,4 +1,3 @@
-import clsx from 'clsx';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { WpOrgSuggestions } from './WpOrgSuggestions.jsx';
@@ -36,14 +35,10 @@ export function SlugListSection({
   const [dropdownCoords, setDropdownCoords] = useState(null);
 
   const slugTrimmed = slugInput.trim();
-  const isDuplicate = items.some((item) => item.slug === slugTrimmed);
-  const canAdd = slugTrimmed.length > 0 && !isDuplicate;
-  const dupWarnId = `${inputId}-dup-warn`;
   const listId = `${inputId}-suggestions`;
   const existingSlugs = useMemo(() => new Set(items.map((i) => i.slug)), [items]);
 
   useEffect(() => {
-    if (!onSearch) return undefined;
     if (!slugTrimmed) {
       setSearchState({ results: [], loading: false, error: null, query: '', page: 1, pages: 1 });
       setActiveIndex(-1);
@@ -85,7 +80,6 @@ export function SlugListSection({
   }, [slugTrimmed, onSearch]);
 
   async function loadMore() {
-    if (!onSearch) return;
     if (searchState.loading) return;
     if (searchState.page >= searchState.pages) return;
     if (!searchState.query) return;
@@ -128,44 +122,32 @@ export function SlugListSection({
     setActiveIndex(-1);
   }
 
-  function addFromInput() {
-    if (!canAdd) return;
-    addSlug(slugTrimmed, null);
-  }
-
   function removeItem(index) {
     onUpdate(items.filter((_, i) => i !== index));
   }
 
   function handleKeyDown(e) {
-    const hasSuggestions = onSearch && searchState.results.length > 0;
-    if (hasSuggestions) {
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setActiveIndex((i) => Math.min(i + 1, searchState.results.length - 1));
-        return;
-      }
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setActiveIndex((i) => Math.max(i - 1, -1));
-        return;
-      }
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        setSearchState({ results: [], loading: false, error: null, query: '' });
-        setActiveIndex(-1);
-        return;
-      }
-      if (e.key === 'Enter' && activeIndex >= 0) {
-        e.preventDefault();
-        const r = searchState.results[activeIndex];
-        if (r) addSlug(r.slug, r.name);
-        return;
-      }
-    }
-    if (e.key === 'Enter') {
+    if (searchState.results.length === 0) return;
+    if (e.key === 'ArrowDown') {
       e.preventDefault();
-      addFromInput();
+      setActiveIndex((i) => Math.min(i + 1, searchState.results.length - 1));
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIndex((i) => Math.max(i - 1, -1));
+      return;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setSearchState({ results: [], loading: false, error: null, query: '' });
+      setActiveIndex(-1);
+      return;
+    }
+    if (e.key === 'Enter' && activeIndex >= 0) {
+      e.preventDefault();
+      const r = searchState.results[activeIndex];
+      if (r) addSlug(r.slug, r.name);
     }
   }
 
@@ -182,7 +164,6 @@ export function SlugListSection({
   }
 
   const showSuggestions =
-    onSearch &&
     isFocused &&
     slugTrimmed.length > 0 &&
     (searchState.loading ||
@@ -214,80 +195,71 @@ export function SlugListSection({
       <details className="bfs-collapsible">
       <summary className="bfs-summary" id={sectionId}>{title}</summary>
       <div className="bf-fields">
-        <div className="bf-slug-row">
-          <div className="bf-slug-input-wrap">
-            <input
-              ref={inputRef}
-              id={inputId}
-              type="text"
-              className={clsx('bf-input', isDuplicate && slugTrimmed && 'bf-input-warn')}
-              value={slugInput}
-              onChange={(e) => setSlugInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onFocus={handleFocus}
-              onBlur={handleBlur}
-              placeholder={inputPlaceholder}
-              aria-label={`${title.slice(0, -1)} slug`}
-              aria-describedby={isDuplicate && slugTrimmed ? dupWarnId : undefined}
-              aria-autocomplete={onSearch ? 'list' : undefined}
-              aria-controls={onSearch ? listId : undefined}
-              aria-expanded={onSearch ? showSuggestions : undefined}
-              autoComplete="off"
-            />
-            {showSuggestions && dropdownCoords && createPortal(
-              <div
-                className="bf-suggestions-portal"
-                style={{
-                  position: 'fixed',
-                  top: dropdownCoords.top,
-                  left: dropdownCoords.left,
-                  width: dropdownCoords.width,
-                }}
-              >
-                <WpOrgSuggestions
-                  variant={variant}
-                  query={slugTrimmed}
-                  results={searchState.results}
-                  loading={searchState.loading}
-                  error={searchState.error}
-                  existingSlugs={existingSlugs}
-                  activeIndex={activeIndex}
-                  listId={listId}
-                  hasMore={searchState.page < searchState.pages}
-                  onLoadMore={loadMore}
-                  onSelect={(r) => addSlug(r.slug, r.name)}
-                  onHoverIndex={setActiveIndex}
-                />
-              </div>,
-              document.body,
-            )}
-          </div>
-          <button
-            type="button"
-            className="bf-add-btn"
-            onClick={addFromInput}
-            disabled={!canAdd}
-            aria-label={`Add ${itemType}`}
-          >
-            Add
-          </button>
+        <div className="bf-slug-input-wrap">
+          <input
+            ref={inputRef}
+            id={inputId}
+            type="text"
+            className="bf-input"
+            value={slugInput}
+            onChange={(e) => setSlugInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            placeholder={inputPlaceholder}
+            aria-label={`Search ${title.toLowerCase()}`}
+            aria-autocomplete="list"
+            aria-controls={listId}
+            aria-expanded={showSuggestions}
+            autoComplete="off"
+          />
+          {showSuggestions && dropdownCoords && createPortal(
+            <div
+              className="bf-suggestions-portal"
+              style={{
+                position: 'fixed',
+                top: dropdownCoords.top,
+                left: dropdownCoords.left,
+                width: dropdownCoords.width,
+              }}
+            >
+              <WpOrgSuggestions
+                variant={variant}
+                query={slugTrimmed}
+                results={searchState.results}
+                loading={searchState.loading}
+                error={searchState.error}
+                existingSlugs={existingSlugs}
+                activeIndex={activeIndex}
+                listId={listId}
+                hasMore={searchState.page < searchState.pages}
+                onLoadMore={loadMore}
+                onSelect={(r) => addSlug(r.slug, r.name)}
+                onHoverIndex={setActiveIndex}
+              />
+            </div>,
+            document.body,
+          )}
         </div>
-
-        {isDuplicate && slugTrimmed && (
-          <p id={dupWarnId} className="bf-warn">
-            "{slugTrimmed}" is already in the list.
-          </p>
-        )}
 
         {items.length > 0 && (
           <ul className="bf-item-list" aria-label={`${title} list`}>
             {items.map((item, index) => {
               const displayName = (nameMap && nameMap[item.slug]) || item.slug;
+              const isActiveTheme = variant === 'theme' && index === items.length - 1;
               return (
                 <li key={item.slug} className="bf-item">
                   <span className="bf-item-label">
                     <span className="bf-item-primary">{displayName}</span>
                   </span>
+                  {isActiveTheme && (
+                    <span
+                      className="bf-item-badge"
+                      title="This is the active theme after the blueprint runs"
+                    >
+                      Active
+                    </span>
+                  )}
                   <button
                     type="button"
                     className="bf-remove-btn"

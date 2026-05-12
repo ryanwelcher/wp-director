@@ -77,7 +77,7 @@ export function BlueprintPanel() {
         title="Plugins" sectionId="section-plugins"
         items={formState.plugins} onUpdate={(plugins) => updateForm({ plugins })}
         itemType="plugin" inputId="bf-plugin-slug"
-        inputPlaceholder="Search WordPress.org or enter a slug"
+        inputPlaceholder="Search WordPress.org"
         onSearch={api.searchPlugins}
         nameMap={pluginNames}
         onLearnName={learnPluginName}
@@ -86,7 +86,7 @@ export function BlueprintPanel() {
         title="Themes" sectionId="section-themes"
         items={formState.themes} onUpdate={(themes) => updateForm({ themes })}
         itemType="theme" inputId="bf-theme-slug"
-        inputPlaceholder="Search WordPress.org or enter a slug"
+        inputPlaceholder="Search WordPress.org"
         variant="theme"
         onSearch={api.searchThemes}
         nameMap={themeNames}

@@ -177,18 +177,14 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       const pluginSearchInput = page.locator('#search-plugins');
       await pluginSearchInput.waitFor({ state: 'visible' });
       await typeSlow(pluginSearchInput, step.slug, stepTypingDelay(step, settings));
-      await page.waitForLoadState('networkidle');
-      await page.waitForTimeout(800);
       const installBtn = page.locator(`.plugin-card-${step.slug} .install-now`);
       await installBtn.waitFor({ timeout: 15_000 });
       await highlightAndClick(page, installBtn);
       const activateBtn = page.locator(`.plugin-card-${step.slug} .activate-now`);
       await activateBtn.waitFor({ timeout: 30_000 });
-      await page.waitForTimeout(600);
       if (step.activate) {
         await highlightAndClick(page, activateBtn);
-        await page.waitForLoadState('networkidle');
-        await page.waitForTimeout(800);
+        await page.waitForLoadState('domcontentloaded');
       }
       break;
     }
@@ -200,7 +196,6 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       const searchInput = page.locator('#wp-filter-search-input');
       await searchInput.waitFor({ state: 'visible' });
       await typeSlow(searchInput, step.slug, stepTypingDelay(step, settings));
-      await page.waitForLoadState('networkidle');
       const themeInstallBtn = page.locator(`[aria-label="Install ${displayName}"]`);
       await themeInstallBtn.waitFor({ timeout: 15_000 });
       await themeInstallBtn.hover();
@@ -209,7 +204,7 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       await themeActivateBtn.waitFor({ timeout: 30_000 });
       if (step.activate) {
         await highlightAndClick(page, themeActivateBtn);
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
       }
       break;
     }
@@ -223,7 +218,6 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       } else {
         await typeSlow(titleLocator, step.title, stepTypingDelay(step, settings));
       }
-      await page.waitForTimeout(300);
       break;
     }
 
@@ -245,7 +239,6 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       await targetLocator.scrollIntoViewIfNeeded();
       await targetLocator.click({ clickCount: replace ? 3 : 1 });
       await targetLocator.pressSequentially(step.content, { delay });
-      await page.waitForTimeout(300);
       break;
     }
 
@@ -257,7 +250,6 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       await block.waitFor({ state: 'visible', timeout: 10_000 });
       await block.click();
       await block.and(editorFrame.locator('.is-selected')).waitFor({ state: 'visible', timeout: 5_000 });
-      await page.waitForTimeout(400);
       break;
     }
 
@@ -267,42 +259,21 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
         : step.blockType;
       const editorFrame = page.frameLocator('iframe[name="editor-canvas"]');
 
-      if (step.afterIndex !== undefined && step.afterIndex >= 0) {
-        // Insert an empty paragraph at the exact position and use its clientId
-        // to click it directly — avoids focus/keyboard state issues entirely.
-        const newClientId = await page.evaluate((idx) => {
-          const newBlock = wp.blocks.createBlock('core/paragraph');
-          wp.data.dispatch('core/block-editor').insertBlock(newBlock, idx + 1);
-          return newBlock.clientId;
-        }, step.afterIndex);
-        await page.waitForTimeout(300);
-        const newBlockEl = editorFrame.locator(`[data-block="${newClientId}"]`);
-        await newBlockEl.waitFor({ state: 'visible', timeout: 5_000 });
-        await newBlockEl.click();
-      } else {
-        // Insert at the end
-        const appender = editorFrame.getByRole('button', { name: 'Add default block' });
-        try {
-          await appender.waitFor({ state: 'visible', timeout: 3_000 });
-          await appender.click();
-        } catch {
-          // No appender — move cursor to absolute end of last text block, then Enter if it has content
-          const lastEditable = editorFrame.locator('[contenteditable="true"]:not(.wp-block-post-title)').last();
-          await lastEditable.click();
-          const isEmpty = (await lastEditable.textContent()) === '';
-          if (!isEmpty) {
-            await lastEditable.evaluate(el => {
-              const range = document.createRange();
-              range.selectNodeContents(el);
-              range.collapse(false);
-              const sel = window.getSelection();
-              sel.removeAllRanges();
-              sel.addRange(range);
-            });
-            await page.keyboard.press('Enter');
-          }
-        }
-      }
+      // Insert an empty paragraph programmatically at the target position, then
+      // click it to focus. Avoids the DOM appender race and the unreliable
+      // "click + Enter to split" fallback, both of which produced
+      // mid-word block splits when Gutenberg's internal selection state
+      // didn't match the DOM selection.
+      const newClientId = await page.evaluate((idx) => {
+        const newBlock = wp.blocks.createBlock('core/paragraph');
+        const order = wp.data.select('core/block-editor').getBlockOrder();
+        const position = idx !== undefined && idx >= 0 ? idx + 1 : order.length;
+        wp.data.dispatch('core/block-editor').insertBlock(newBlock, position);
+        return newBlock.clientId;
+      }, step.afterIndex);
+      const newBlockEl = editorFrame.locator(`[data-block="${newClientId}"]`);
+      await newBlockEl.waitFor({ state: 'visible', timeout: 5_000 });
+      await newBlockEl.click();
 
       // Paragraph is the default block — no slash command needed
       if (shortName !== 'paragraph') {
@@ -312,8 +283,10 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
         await option.waitFor({ state: 'visible', timeout: 5_000 });
         await option.click();
         await page.keyboard.press('Enter');
+        // Wait for the autocomplete to close — confirms the block was inserted
+        // and the editor is settled before the next step runs.
+        await option.waitFor({ state: 'hidden', timeout: 5_000 });
       }
-      await page.waitForTimeout(400);
       break;
     }
 
@@ -333,36 +306,39 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       const blockType = step.blockType.includes('/') ? step.blockType : `core/${step.blockType}`;
       const index = step.index ?? 0;
       const editorFrame = page.frameLocator('iframe[name="editor-canvas"]');
-      await editorFrame.locator(`[data-type="${blockType}"]`).nth(index).click();
-      await page.waitForTimeout(200);
+      const blocks = editorFrame.locator(`[data-type="${blockType}"]`);
+      const target = blocks.nth(index);
+      const beforeCount = await blocks.count();
+      await target.click();
+      await target.and(editorFrame.locator('.is-selected')).waitFor({ state: 'visible', timeout: 5_000 });
       await page.keyboard.press('Escape');
-      await page.waitForTimeout(200);
       await page.keyboard.press('Backspace');
-      await page.waitForTimeout(300);
+      if (beforeCount > 0) {
+        const deadline = Date.now() + 5_000;
+        while (Date.now() < deadline && (await blocks.count()) >= beforeCount) {
+          await page.waitForTimeout(50);
+        }
+      }
       break;
     }
 
     case 'wpSiteEditorSave': {
       await page.getByRole('button', { name: 'Save', exact: true }).click();
-      await page.waitForTimeout(500);
       const publishPanel = page.getByRole('region', { name: 'Editor publish' });
       await publishPanel.waitFor({ state: 'visible', timeout: 10_000 });
       await publishPanel.getByRole('button', { name: 'Save', exact: true }).click();
-      await page.waitForTimeout(800);
+      await publishPanel.waitFor({ state: 'hidden', timeout: 10_000 });
       break;
     }
 
     case 'wpInsertBlockFromPanel': {
       await page.getByRole('button', { name: 'Block Inserter', exact: true }).click();
-      await page.waitForTimeout(400);
       const blockLibrary = page.getByRole('region', { name: 'Block Library' });
       await blockLibrary.waitFor({ state: 'visible', timeout: 10_000 });
       await blockLibrary.getByRole('searchbox', { name: 'Search' }).fill(step.blockType);
-      await page.waitForTimeout(400);
       const option = page.getByRole('option', { name: step.blockType, exact: true });
       await option.waitFor({ timeout: 5_000 });
       await option.click();
-      await page.waitForTimeout(400);
       break;
     }
 
@@ -375,7 +351,6 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
         await sidebar.waitFor({ state: 'visible', timeout: 5_000 });
       }
       await sidebar.getByRole('button', { name: step.panel }).click();
-      await page.waitForTimeout(300);
       break;
     }
 
@@ -400,7 +375,6 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
     case 'wpEditorWPMenuClick': {
       // Click the WordPress logo button at the top-left of the block editor.
       await highlightAndClick(page, page.getByRole('button', { name: 'WordPress', exact: true }));
-      await page.waitForTimeout(300);
       break;
     }
 
@@ -409,7 +383,6 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       // Pass `enable: false` to turn fullscreen off (reveals the WP admin sidebar).
       const optionsBtn = page.getByRole('button', { name: 'Options', exact: true });
       await highlightAndClick(page, optionsBtn);
-      await page.waitForTimeout(300);
       const prefsItem = page.getByRole('menuitem', { name: 'Preferences' });
       await prefsItem.waitFor({ state: 'visible', timeout: 5_000 });
       await prefsItem.click();
@@ -420,10 +393,9 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       const shouldEnable = step.enable !== false;
       if (shouldEnable !== await toggle.isChecked()) {
         await toggle.click();
-        await page.waitForTimeout(300);
       }
       await modal.getByRole('button', { name: 'Close' }).click();
-      await page.waitForTimeout(300);
+      await modal.waitFor({ state: 'hidden', timeout: 5_000 });
       break;
     }
 

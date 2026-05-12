@@ -143,6 +143,17 @@ export const api = {
     return requestJSON("/api/translate", postOptions({ command, history }));
   },
 
+  async getPluginInfo(slug, { signal } = {}) {
+    const params = new URLSearchParams({ slug });
+    return requestJSON(`/api/plugins/info?${params.toString()}`, { signal });
+  },
+
+  async searchPlugins(q, { page = 1, signal } = {}) {
+    const params = new URLSearchParams({ q });
+    if (page !== 1) params.set("page", String(page));
+    return requestJSON(`/api/plugins/search?${params.toString()}`, { signal });
+  },
+
   startRun(endpoint, body, signal) {
     return apiRequest(endpoint, postOptions(body, { signal }));
   },

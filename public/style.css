@@ -601,16 +601,6 @@ header p {
   padding: 0.5rem 0.75rem;
 }
 
-.bf-item-slug {
-  flex: 1;
-  font-size: 0.875rem;
-  color: #e2e8f0;
-  font-family: monospace;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .bf-remove-btn {
   padding: 0.25rem 0.6rem;
   background: transparent;
@@ -626,6 +616,180 @@ header p {
 .bf-remove-btn:hover {
   background: #f87171;
   color: #fff;
+}
+
+.bf-item-label {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.bf-item-primary {
+  font-size: 0.875rem;
+  color: #e2e8f0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bf-item-secondary {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-family: monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Plugin search suggestions dropdown ─────────────────── */
+
+.bf-slug-input-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.bf-slug-input-wrap .bf-input { width: 100%; }
+
+.bf-suggestions-portal { z-index: 1000; }
+
+.bf-suggestions {
+  background: #0f172a;
+  border: 1px solid #2d3748;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  max-height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.bf-suggestions-status {
+  padding: 0.6rem 0.75rem;
+  font-size: 0.82rem;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.bf-suggestions-status--inline {
+  border-top: 1px solid #1e2433;
+  justify-content: center;
+}
+
+.bf-suggestions-error { color: #f87171; }
+
+.bf-spinner {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #2d3748;
+  border-top-color: #94a3b8;
+  animation: bf-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes bf-spin {
+  to { transform: rotate(360deg); }
+}
+
+.bf-suggestions-more {
+  display: block;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  background: transparent;
+  color: #93c5fd;
+  border: none;
+  border-top: 1px solid #1e2433;
+  font-size: 0.82rem;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.bf-suggestions-more:hover { background: #1a2035; }
+
+.bf-suggestion {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #1e2433;
+  text-align: left;
+  cursor: pointer;
+  color: #e2e8f0;
+  transition: background 0.1s;
+}
+
+.bf-suggestion:last-child { border-bottom: none; }
+
+.bf-suggestion.is-active,
+.bf-suggestion:hover:not(:disabled) {
+  background: #1a2035;
+}
+
+.bf-suggestion.is-added {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.bf-suggestion-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  object-fit: cover;
+  background: #1a2035;
+}
+
+.bf-suggestion-icon--placeholder {
+  display: inline-block;
+  border: 1px solid #2d3748;
+}
+
+.bf-suggestion-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.bf-suggestion-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #e2e8f0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bf-suggestion-meta {
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+.bf-suggestion-desc {
+  font-size: 0.78rem;
+  color: #cbd5e1;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.bf-suggestion-added {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+  align-self: center;
 }
 
 /* ── Shared tab panel frame ─────────────────────────────── */

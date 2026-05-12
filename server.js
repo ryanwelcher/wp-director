@@ -21,7 +21,6 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const {
-  SCREENCASTS_DIR,
   DEFAULT_SERVER_PORT,
   DEFAULT_BLUEPRINT,
   GENERATED_BLUEPRINT,
@@ -30,7 +29,6 @@ const {
 const app = express();
 
 app.use(express.json());
-app.use('/screencasts', express.static(SCREENCASTS_DIR));
 
 // Route modules — each registers its own handlers on `app`.
 require('./server/routes/translate').register(app);
@@ -39,6 +37,7 @@ require('./server/routes/scripts').register(app);
 require('./server/routes/directions').register(app);
 require('./server/routes/runner').register(app);
 require('./server/routes/recordings').register(app);
+require('./server/routes/previews').register(app);
 require('./server/routes/plugins').register(app);
 require('./server/routes/themes').register(app);
 

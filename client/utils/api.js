@@ -69,6 +69,7 @@ export const queryKeys = {
   },
   recordings: ["recordings"],
   scripts: ["scripts"],
+  previews: ["previews"],
 };
 
 export const api = {
@@ -133,6 +134,15 @@ export const api = {
     return requestJSON(`/api/recordings/${encodeURIComponent(dirname)}`, {
       method: "DELETE",
     });
+  },
+
+  async listPreviews({ signal } = {}) {
+    const data = await requestJSON("/api/previews", { signal });
+    return { count: data?.count ?? 0, items: data?.items ?? [] };
+  },
+
+  async clearPreviews() {
+    return requestJSON("/api/previews", { method: "DELETE" });
   },
 
   async previewBlueprint(blueprint) {

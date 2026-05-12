@@ -28,7 +28,7 @@
  *   { type: 'stdout',     text: string }          — log line from Playwright/ffmpeg
  *   { type: 'stderr',     text: string }          — error line
  *   { type: 'screencast', data: string }          — base64 JPEG frame for live preview
- *   { type: 'screencastVideo', uri: string }      — public URI for the saved screencast video
+ *   { type: 'previewArtifact', dirname: string }  — failed-preview recording kept for debugging
  *   { type: 'done',       code: number, file?: string }  — terminal event; client closes
  */
 
@@ -39,7 +39,6 @@ const {
   OUTPUT_DIR,
   PLAYWRIGHT_OUTPUT_DIR,
   PREVIEW_OUTPUT_DIR,
-  SCREENCASTS_DIR,
   DEFAULT_BLUEPRINT,
   GENERATED_BLUEPRINT,
 } = require('../config');
@@ -213,8 +212,9 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
 
   let browser = null;
   let context = null;
-  let latestPreviewVideoPath = null;
-  let latestPreviewVideoFilename = null;
+  /** @type {string[]} Dirs created under PREVIEW_OUTPUT_DIR during this run; kept on error, deleted on success. */
+  const previewVideoDirs = [];
+  let runErrored = false;
   let instanceUsed = false;
   const markInstanceUsed = () => {
     if (instanceUsed) return;
@@ -250,16 +250,14 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
       });
       throwIfRunStopped(signal);
 
-      let recordedVideoPath = null;
       const outputSlug = nameToFilename(def.name).replace(/\.json$/i, '');
       const outputStamp = timestamp();
       const outputDirname = timestampedDirname(shouldSaveRecording ? outputSlug : `preview-${outputSlug}`, outputStamp);
       const outputRoot = shouldSaveRecording ? OUTPUT_DIR : PREVIEW_OUTPUT_DIR;
       const videoDir = uniqueDir(path.join(outputRoot, outputDirname));
-      recordedVideoPath = path.join(videoDir, 'video.webm');
+      const recordedVideoPath = path.join(videoDir, 'video.webm');
       fs.mkdirSync(videoDir, { recursive: true });
-      latestPreviewVideoPath = recordedVideoPath;
-      latestPreviewVideoFilename = `${path.basename(videoDir)}.webm`;
+      if (!shouldSaveRecording) previewVideoDirs.push(videoDir);
 
       // Load the site before starting the screencast so the video does not start with a blank screen.
       // Use the blueprint's landingPage if specified; otherwise fall back to the WP admin dashboard.
@@ -286,7 +284,7 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
       const video = page.video();
       await page.close();
       if (run?.page === page) run.page = null;
-      if (video && recordedVideoPath) await video.saveAs(recordedVideoPath);
+      if (video) await video.saveAs(recordedVideoPath);
       if (shouldSaveRecording && recordedVideoPath && code === 0) {
         await processVideo(recordedVideoPath, null, send);
       }
@@ -298,6 +296,7 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
     if (signal?.aborted || err.code === 'RUN_STOPPED') {
       if (run) run.stopRequested = true;
     } else {
+      runErrored = true;
       send({ type: 'stderr', text: `[Playwright] ${err.message}\n` });
       code = 1;
     }
@@ -329,11 +328,14 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
     if (run?.browser === browser) run.browser = null;
   }
 
-  if (latestPreviewVideoPath && latestPreviewVideoFilename && fs.existsSync(latestPreviewVideoPath)) {
-    const publicPath = path.join(SCREENCASTS_DIR, latestPreviewVideoFilename);
-    fs.mkdirSync(SCREENCASTS_DIR, { recursive: true });
-    fs.copyFileSync(latestPreviewVideoPath, publicPath);
-    send({ type: 'screencastVideo', uri: `/screencasts/${latestPreviewVideoFilename}` });
+  for (const dir of previewVideoDirs) {
+    if (runErrored) {
+      if (fs.existsSync(path.join(dir, 'video.webm'))) {
+        send({ type: 'previewArtifact', dirname: path.basename(dir) });
+      }
+    } else {
+      try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
+    }
   }
 
   send({ type: 'done', code, ...(wasStopped() ? { stopped: true } : {}), ...doneExtra });

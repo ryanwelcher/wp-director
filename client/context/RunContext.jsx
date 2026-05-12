@@ -1,9 +1,11 @@
-import { createContext, useContext, useMemo } from 'react';
+import { createContext, useCallback, useContext, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRunActions } from '../state/useRunActions.js';
 import { useRunLog } from '../state/useRunLog.js';
 import { useRunPreview } from '../state/useRunPreview.js';
 import { useRunStream } from '../state/useRunStream.js';
 import { useAppState } from './AppStateContext.jsx';
+import { queryKeys } from '../utils/api.js';
 
 const RunContext = createContext(null);
 
@@ -23,6 +25,14 @@ export function RunProvider({ children }) {
 
   const runLog = useRunLog();
   const runPreview = useRunPreview();
+  const queryClient = useQueryClient();
+  const handlePreviewMessage = useCallback((msg) => {
+    if (msg.type === 'previewArtifact') {
+      queryClient.invalidateQueries({ queryKey: queryKeys.previews });
+      return;
+    }
+    runPreview.handlePreviewMessage(msg);
+  }, [queryClient, runPreview]);
   const {
     activeStepIndex,
     running,
@@ -31,7 +41,7 @@ export function RunProvider({ children }) {
     stopRun,
   } = useRunStream({
     appendLog: runLog.appendLog,
-    handlePreviewMessage: runPreview.handlePreviewMessage,
+    handlePreviewMessage,
     markDone: runLog.markDone,
     markFailed: runLog.markFailed,
     markStopped: runLog.markStopped,

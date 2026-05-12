@@ -20,7 +20,7 @@
 const fs = require('fs');
 const path = require('path');
 const rangeParser = require('range-parser');
-const { OUTPUT_DIR, SCREENCASTS_DIR } = require('../config');
+const { OUTPUT_DIR } = require('../config');
 const { findVideoFile } = require('../video');
 
 const TIMESTAMP_PATTERN = /^(.+)-(\d{8}T\d{6}Z)(?:-\d+)?$/;
@@ -160,7 +160,6 @@ function register(app) {
 
     try {
       fs.rmSync(dir, { recursive: true, force: false });
-      fs.rmSync(path.join(SCREENCASTS_DIR, `${dirname}.webm`), { force: true });
       res.json({ deleted: true });
     } catch {
       res.status(500).json({ error: 'Could not delete recording' });

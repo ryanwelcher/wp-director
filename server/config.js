@@ -20,7 +20,6 @@ module.exports = {
   OUTPUT_DIR:              path.join(ROOT, 'output'),
   PLAYWRIGHT_OUTPUT_DIR:   path.join(ROOT, 'output', '.playwright'),
   PREVIEW_OUTPUT_DIR:      path.join(ROOT, 'output', '.previews'),
-  SCREENCASTS_DIR:         path.join(ROOT, 'output', '.screencasts'),
   DIRECTIONS_DIR:          path.join(ROOT, 'directions'),
   BUILTIN_DIRECTIONS_DIR:  path.join(__dirname, 'directions'),
 

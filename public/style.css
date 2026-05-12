@@ -1703,6 +1703,22 @@ header p {
   padding: 0.75rem 1.5rem 1rem;
 }
 
+.failed-previews-notice {
+  align-items: center;
+  border: 1px solid #3b2f12;
+  background: #1a1408;
+  border-radius: 6px;
+  display: flex;
+  gap: 0.6rem;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+  padding: 0.55rem 0.75rem;
+}
+
+.failed-previews-notice .hint {
+  margin: 0;
+}
+
 .recording-item {
   align-items: center;
   border-bottom: 1px solid #1a2035;

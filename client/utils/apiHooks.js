@@ -51,6 +51,22 @@ export function useDeleteRecordingMutation() {
   });
 }
 
+export function usePreviewsQuery() {
+  return useQuery({
+    queryKey: queryKeys.previews,
+    queryFn: api.listPreviews,
+  });
+}
+
+export function useClearPreviewsMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: api.clearPreviews,
+    onSuccess: () => invalidate(queryClient, queryKeys.previews),
+  });
+}
+
 export function useDirectionLoader() {
   const queryClient = useQueryClient();
 

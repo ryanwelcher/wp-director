@@ -7,7 +7,7 @@
  * `runPlaywrightApi` in `server/routes/runner.js` (Playwright library API).
  */
 
-const HIGHLIGHT_HOLD = 1000;
+const HIGHLIGHT_HOLD = 700;
 const DEFAULT_END_PAUSE = 2000;
 const DEFAULT_STEP_PAUSE = 0;
 const DEFAULT_TYPING_DELAY = 100;

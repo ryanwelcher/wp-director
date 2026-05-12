@@ -550,38 +550,6 @@ header p {
 
 /* ── Blueprint Plugins / Themes sections ─────────────────── */
 
-.bf-slug-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.bf-slug-row .bf-input { flex: 1; min-width: 0; }
-
-.bf-add-btn {
-  padding: 0.5rem 1rem;
-  background: #6366f1;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.15s;
-}
-
-.bf-add-btn:hover:not(:disabled) { background: #4f46e5; }
-.bf-add-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-.bf-input-warn { border-color: #f59e0b !important; }
-
-.bf-warn {
-  color: #f59e0b;
-  font-size: 0.82rem;
-  margin: 0.25rem 0 0;
-}
-
 .bf-item-list {
   list-style: none;
   margin: 0.25rem 0 0;
@@ -599,6 +567,53 @@ header p {
   border: 1px solid #2d3748;
   border-radius: 6px;
   padding: 0.5rem 0.75rem;
+}
+
+.bf-item-badge {
+  flex-shrink: 0;
+  padding: 0.1rem 0.45rem;
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.bf-item-reorder {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+}
+
+.bf-reorder-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  color: #94a3b8;
+  border: 1px solid #2d3748;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.bf-reorder-btn:hover:not(:disabled) {
+  background: #1a2035;
+  color: #e2e8f0;
+  border-color: #475569;
+}
+
+.bf-reorder-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .bf-remove-btn {
@@ -712,21 +727,47 @@ header p {
 
 .bf-suggestions-more:hover { background: #1a2035; }
 
+.bf-suggestion-row {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid #1e2433;
+}
+
+.bf-suggestion-row:last-child { border-bottom: none; }
+
 .bf-suggestion {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: flex-start;
   gap: 0.6rem;
   padding: 0.55rem 0.75rem;
   background: transparent;
   border: none;
-  border-bottom: 1px solid #1e2433;
   text-align: left;
   cursor: pointer;
   color: #e2e8f0;
   transition: background 0.1s;
 }
 
-.bf-suggestion:last-child { border-bottom: none; }
+.bf-suggestion-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  flex-shrink: 0;
+  color: #94a3b8;
+  text-decoration: none;
+  font-size: 0.95rem;
+  transition: background 0.1s, color 0.1s;
+}
+
+.bf-suggestion-preview:hover,
+.bf-suggestion-preview:focus-visible {
+  background: #1a2035;
+  color: #e2e8f0;
+  outline: none;
+}
 
 .bf-suggestion.is-active,
 .bf-suggestion:hover:not(:disabled) {
@@ -745,6 +786,11 @@ header p {
   flex-shrink: 0;
   object-fit: cover;
   background: #1a2035;
+}
+
+.bf-suggestion-icon--theme {
+  width: 64px;
+  height: 48px;
 }
 
 .bf-suggestion-icon--placeholder {

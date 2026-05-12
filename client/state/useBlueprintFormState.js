@@ -167,11 +167,16 @@ export function formToBlueprint(form, schema) {
     blueprint.plugins = pluginEntries.map((p) => p.slug);
   }
 
-  // 4. Install + activate each theme unconditionally
-  for (const t of form.themes) {
-    if (!t.slug) continue;
+  // 4. Install every theme; activate only the last one (WordPress can only
+  //    have one active theme at a time, so additional activate steps would
+  //    just overwrite each other — make the intent explicit instead).
+  const themeEntries = form.themes.filter((t) => t.slug);
+  for (const t of themeEntries) {
     steps.push({ step: 'installTheme', themeData: { resource: 'wordpress.org/themes', slug: t.slug } });
-    steps.push({ step: 'activateTheme', themeFolderName: t.slug });
+  }
+  if (themeEntries.length > 0) {
+    const activeTheme = themeEntries[themeEntries.length - 1];
+    steps.push({ step: 'activateTheme', themeFolderName: activeTheme.slug });
   }
 
   // 7. Sample posts

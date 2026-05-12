@@ -154,6 +154,17 @@ export const api = {
     return requestJSON(`/api/plugins/search?${params.toString()}`, { signal });
   },
 
+  async getThemeInfo(slug, { signal } = {}) {
+    const params = new URLSearchParams({ slug });
+    return requestJSON(`/api/themes/info?${params.toString()}`, { signal });
+  },
+
+  async searchThemes(q, { page = 1, signal } = {}) {
+    const params = new URLSearchParams({ q });
+    if (page !== 1) params.set("page", String(page));
+    return requestJSON(`/api/themes/search?${params.toString()}`, { signal });
+  },
+
   startRun(endpoint, body, signal) {
     return apiRequest(endpoint, postOptions(body, { signal }));
   },

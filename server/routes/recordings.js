@@ -3,25 +3,25 @@
 /**
  * Recordings list + download.
  *
- *   GET    /api/recordings                  → list all completed recordings
- *   GET    /api/recordings/:dirname/video   → stream the MP4 (or WebM fallback)
- *   DELETE /api/recordings/:dirname         → delete one completed recording
+ *   GET    /api/recordings                       → list all completed recordings
+ *   GET    /api/recordings/:dirname/video        → stream the canonical WebM
+ *   GET    /api/recordings/:dirname/download     → download as ?format=webm|mp4
+ *   DELETE /api/recordings/:dirname              → delete one completed recording
  *
  * "Recordings" == directories under `output/` that have a video file.
  * Playwright names them `actions-runner-<test-name>-chromium`; UI recordings
  * use `<recording-name>-<timestamp>`. We strip the runner/chromium wrapper and
  * parse the timestamp so the UI can show a clean title plus a readable date.
  *
- * Why prefer MP4? After /api/run's ffmpeg step, an MP4 sits alongside the
- * WebM. We serve MP4 when present (universal playback, matches user's chosen
- * size) and fall back to WebM only if conversion failed.
+ * WebM is the only persisted artifact. MP4 downloads are produced on demand
+ * via ffmpeg, streamed to the response, and never written to disk.
  */
 
 const fs = require('fs');
 const path = require('path');
 const rangeParser = require('range-parser');
 const { OUTPUT_DIR, SCREENCASTS_DIR } = require('../config');
-const { findVideoFile } = require('../video');
+const { findVideoFile, probeVideoSize, spawnMp4Transcode } = require('../video');
 
 const TIMESTAMP_PATTERN = /^(.+)-(\d{8}T\d{6}Z)(?:-\d+)?$/;
 const RUNNER_PREFIX = 'actions-runner-';
@@ -104,17 +104,19 @@ function resolveRecordingDir(dirname) {
 }
 
 function register(app) {
-  app.get('/api/recordings', (req, res) => {
+  app.get('/api/recordings', async (req, res) => {
     if (!fs.existsSync(OUTPUT_DIR)) return res.json({ recordings: [] });
     const dirs = fs.readdirSync(OUTPUT_DIR).filter(d => isListableRecordingDir(d) && findVideoFile(d) !== null);
-    const recordings = dirs.map((dirname) => {
+    const recordings = await Promise.all(dirs.map(async (dirname) => {
       const found = findVideoFile(dirname);
       // findVideoFile returned non-null from the filter above, so this is safe.
       const { file, ext } = /** @type {NonNullable<typeof found>} */ (found);
       const stat = fs.statSync(file);
       const recording = parseRecordingDirname(dirname);
-      return { ...recording, dirname, ext, size: stat.size, mtime: stat.mtimeMs };
-    }).sort((a, b) => b.mtime - a.mtime);
+      const sourceSize = await probeVideoSize(file);
+      return { ...recording, dirname, ext, size: stat.size, mtime: stat.mtimeMs, sourceSize };
+    }));
+    recordings.sort((a, b) => b.mtime - a.mtime);
     res.json({ recordings });
   });
 
@@ -124,13 +126,13 @@ function register(app) {
     if (!isSafeRecordingDirname(dirname)) return res.status(400).end();
     const found = findVideoFile(dirname);
     if (!found) return res.status(404).end();
-    const { filenameBase } = parseRecordingDirname(dirname);
+    const { slug } = parseRecordingDirname(dirname);
     const stat = fs.statSync(found.file);
     const range = req.headers.range;
 
     res.setHeader('Accept-Ranges', 'bytes');
     res.setHeader('Content-Type', found.mime);
-    res.setHeader('Content-Disposition', `attachment; filename="${filenameBase}.${found.ext}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${slug}.${found.ext}"`);
 
     if (!range) {
       res.setHeader('Content-Length', stat.size);
@@ -151,6 +153,49 @@ function register(app) {
     res.setHeader('Content-Range', `bytes ${start}-${end}/${stat.size}`);
     res.setHeader('Content-Length', end - start + 1);
     fs.createReadStream(found.file, { start, end }).pipe(res);
+  });
+
+  app.get('/api/recordings/:dirname/download', (req, res) => {
+    const dirname = req.params.dirname;
+    if (!isSafeRecordingDirname(dirname)) return res.status(400).end();
+    const format = String(req.query.format || '').toLowerCase();
+    if (format !== 'webm' && format !== 'mp4') return res.status(400).end();
+
+    const found = findVideoFile(dirname);
+    if (!found) return res.status(404).end();
+    const { slug } = parseRecordingDirname(dirname);
+
+    if (format === 'webm') {
+      // Source-resolution WebM is served straight from disk.
+      const stat = fs.statSync(found.file);
+      res.setHeader('Content-Type', 'video/webm');
+      res.setHeader('Content-Length', stat.size);
+      res.setHeader('Content-Disposition', `attachment; filename="${slug}.webm"`);
+      fs.createReadStream(found.file).pipe(res);
+      return;
+    }
+
+    // MP4: transcode on demand, stream directly, never persist.
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Content-Disposition', `attachment; filename="${slug}.mp4"`);
+
+    const ff = spawnMp4Transcode(found.file, null);
+    let killed = false;
+    const kill = () => {
+      if (killed) return;
+      killed = true;
+      try { ff.kill('SIGKILL'); } catch {}
+    };
+    res.on('close', () => { if (!res.writableEnded) kill(); });
+    ff.stdout.pipe(res);
+    ff.stderr.on('data', () => {}); // drain to avoid backpressure
+    ff.on('error', () => {
+      if (!res.headersSent) res.status(500);
+      if (!res.writableEnded) res.end();
+    });
+    ff.on('close', (code) => {
+      if (code !== 0 && !res.writableEnded) res.end();
+    });
   });
 
   app.delete('/api/recordings/:dirname', (req, res) => {

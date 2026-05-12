@@ -1771,6 +1771,43 @@ header p {
 .recording-preview-btn:hover,
 .recording-download-btn:hover { border-color: #6b7280; color: #e2e8f0; }
 
+.recording-download-wrap {
+  display: inline-block;
+  position: relative;
+}
+
+.download-menu {
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  min-width: 9rem;
+  padding: 4px 0;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 50;
+}
+
+.download-menu-section-label {
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 4px 12px 2px;
+  text-transform: uppercase;
+}
+
+.download-menu-item {
+  color: #e2e8f0;
+  display: block;
+  font-size: 0.82rem;
+  padding: 6px 12px;
+  text-decoration: none;
+}
+
+.download-menu-item:hover { background: #243046; }
+
 .recording-preview-btn:disabled {
   border-color: #2d3748;
   color: #374151;

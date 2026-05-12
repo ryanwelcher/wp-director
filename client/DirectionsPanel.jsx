@@ -6,6 +6,7 @@ import { DirectionGroup } from './DirectionGroup.jsx';
 import { DirectionMenu } from './DirectionMenu.jsx';
 import { DirectionPicker } from './DirectionPicker.jsx';
 import { PoolStatusIndicators } from './PoolStatusIndicators.jsx';
+import { Dialog } from './Dialog.jsx';
 import { BlueprintPanel } from './Sidebar/BlueprintPanel.jsx';
 import { RecordingSettingsPanel } from './Sidebar/RecordingSettingsPanel.jsx';
 import { directionsForJSON, errorMessage, flattenDirectionActions } from './utils/actions.js';
@@ -39,6 +40,7 @@ export function DirectionsPanel() {
   const {
     alwaysRunIndices,
     cleanDirections,
+    clearDirectionsOnly,
     deleteDirection,
     directions,
     directionsView,
@@ -59,6 +61,7 @@ export function DirectionsPanel() {
   const [menu, setMenu] = useState(null);
   const [picker, setPicker] = useState(null);
   const [activeTab, setActiveTab] = useState('directions');
+  const [clearDirectionsDialogOpen, setClearDirectionsDialogOpen] = useState(false);
   const loadDirection = useDirectionLoader();
   const saveDirectionMutation = useSaveDirectionMutation();
 
@@ -258,6 +261,15 @@ export function DirectionsPanel() {
                 >
                   + Insert direction
                 </button>
+                <button
+                  className="direction-insert-plus direction-insert-plus--bottom"
+                  title="Clear all directions"
+                  type="button"
+                  disabled={!hasDirections}
+                  onClick={() => setClearDirectionsDialogOpen(true)}
+                >
+                  × Clear directions
+                </button>
               </div>
             </>
           )}
@@ -314,6 +326,34 @@ export function DirectionsPanel() {
             onSelect={insertDirection}
           />
         </>
+      )}
+
+      {clearDirectionsDialogOpen && (
+        <Dialog
+          title="Clear directions?"
+          description="Remove all directions from the editor? Recording settings and blueprint will not change. This cannot be undone."
+          onClose={() => setClearDirectionsDialogOpen(false)}
+        >
+          <div className="app-dialog-actions">
+            <button
+              className="app-dialog-btn app-dialog-btn--secondary"
+              type="button"
+              onClick={() => setClearDirectionsDialogOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              className="app-dialog-btn app-dialog-btn--danger"
+              type="button"
+              onClick={() => {
+                clearDirectionsOnly();
+                setClearDirectionsDialogOpen(false);
+              }}
+            >
+              Clear directions
+            </button>
+          </div>
+        </Dialog>
       )}
     </div>
   );

@@ -1,5 +1,8 @@
 import clsx from 'clsx';
+import { useMemo, useState } from 'react';
+import { Dialog } from '../Dialog.jsx';
 import { useAppState } from '../context/AppStateContext.jsx';
+import { DEFAULT_RUN_SETTINGS } from '../state/useRunSettingsState.js';
 import { VIDEO_SIZE_VALUES } from '../utils/actions.js';
 
 const VIDEO_LABELS = {
@@ -11,6 +14,7 @@ const VIDEO_LABELS = {
 export function RecordingSettingsPanel() {
   const {
     endPause,
+    resetRecordingSettings,
     setEndPause,
     setStepPause,
     setTypingDelay,
@@ -19,6 +23,17 @@ export function RecordingSettingsPanel() {
     typingDelay,
     videoSize,
   } = useAppState();
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+
+  const isAtDefault = useMemo(
+    () => (
+      endPause === DEFAULT_RUN_SETTINGS.endPause
+      && stepPause === DEFAULT_RUN_SETTINGS.stepPause
+      && typingDelay === DEFAULT_RUN_SETTINGS.typingDelay
+      && videoSize === DEFAULT_RUN_SETTINGS.videoSize
+    ),
+    [endPause, stepPause, typingDelay, videoSize],
+  );
 
   return (
     <div className="recording-settings-body recording-settings-body--embedded">
@@ -91,6 +106,45 @@ export function RecordingSettingsPanel() {
           onChange={(event) => setEndPause(event.target.value)}
         />
       </div>
+
+      <div className="blueprint-panel-actions">
+        <button
+          type="button"
+          className="bp-action-btn bp-action-btn--ghost"
+          onClick={() => setResetDialogOpen(true)}
+          disabled={isAtDefault}
+        >
+          Reset
+        </button>
+      </div>
+
+      {resetDialogOpen && (
+        <Dialog
+          title="Reset recording settings?"
+          description="Reset typing speed, between-step pause, video size, and outro length to defaults?"
+          onClose={() => setResetDialogOpen(false)}
+        >
+          <div className="app-dialog-actions">
+            <button
+              className="app-dialog-btn app-dialog-btn--secondary"
+              type="button"
+              onClick={() => setResetDialogOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              className="app-dialog-btn app-dialog-btn--danger"
+              type="button"
+              onClick={() => {
+                resetRecordingSettings();
+                setResetDialogOpen(false);
+              }}
+            >
+              Reset
+            </button>
+          </div>
+        </Dialog>
+      )}
     </div>
   );
 }

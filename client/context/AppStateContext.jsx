@@ -16,6 +16,7 @@ export function AppStateProvider({ children }) {
   } = useDirectionsState();
   const {
     loadScriptSettings,
+    resetRecordingSettings,
     resetScriptSettings,
     ...runSettings
   } = useRunSettingsState();
@@ -47,6 +48,8 @@ export function AppStateProvider({ children }) {
     ...blueprintState,
     ...collections,
     clearDirections,
+    clearDirectionsOnly: clearDirectionState,
+    resetRecordingSettings,
     loadScriptIntoEditor,
     poolStatus,
   };

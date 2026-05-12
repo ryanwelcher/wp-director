@@ -126,6 +126,14 @@ export function SlugListSection({
     onUpdate(items.filter((_, i) => i !== index));
   }
 
+  function moveItem(index, delta) {
+    const target = index + delta;
+    if (target < 0 || target >= items.length) return;
+    const next = items.slice();
+    [next[index], next[target]] = [next[target], next[index]];
+    onUpdate(next);
+  }
+
   function handleKeyDown(e) {
     if (searchState.results.length === 0) return;
     if (e.key === 'ArrowDown') {
@@ -247,6 +255,7 @@ export function SlugListSection({
             {items.map((item, index) => {
               const displayName = (nameMap && nameMap[item.slug]) || item.slug;
               const isActiveTheme = variant === 'theme' && index === items.length - 1;
+              const canReorder = variant === 'theme' && items.length > 1;
               return (
                 <li key={item.slug} className="bf-item">
                   <span className="bf-item-label">
@@ -259,6 +268,28 @@ export function SlugListSection({
                     >
                       Active
                     </span>
+                  )}
+                  {canReorder && (
+                    <div className="bf-item-reorder" role="group" aria-label="Reorder">
+                      <button
+                        type="button"
+                        className="bf-reorder-btn"
+                        onClick={() => moveItem(index, -1)}
+                        disabled={index === 0}
+                        aria-label={`Move ${item.slug} up`}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        className="bf-reorder-btn"
+                        onClick={() => moveItem(index, 1)}
+                        disabled={index === items.length - 1}
+                        aria-label={`Move ${item.slug} down`}
+                      >
+                        ↓
+                      </button>
+                    </div>
                   )}
                   <button
                     type="button"

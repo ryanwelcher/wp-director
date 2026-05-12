@@ -582,6 +582,40 @@ header p {
   text-transform: uppercase;
 }
 
+.bf-item-reorder {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+}
+
+.bf-reorder-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  color: #94a3b8;
+  border: 1px solid #2d3748;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.bf-reorder-btn:hover:not(:disabled) {
+  background: #1a2035;
+  color: #e2e8f0;
+  border-color: #475569;
+}
+
+.bf-reorder-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 .bf-remove-btn {
   padding: 0.25rem 0.6rem;
   background: transparent;

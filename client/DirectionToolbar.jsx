@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { toast } from 'react-toastify';
 import { useAppState } from './context/AppStateContext.jsx';
 import { useRunState } from './context/RunContext.jsx';
+import { Dialog } from './Dialog.jsx';
 import { ScriptNameDialog } from './ScriptNameDialog.jsx';
 import { errorMessage } from './utils/actions.js';
 import { useSaveScriptMutation } from './utils/apiHooks.js';
@@ -24,6 +25,8 @@ export function DirectionToolbar() {
   const { running, runActions, stopRun } = useRunState();
   const saveScriptMutation = useSaveScriptMutation();
   const [pendingNamedAction, setPendingNamedAction] = useState(null);
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const hasResolvedDirections = runDirections.length > 0;
   const poolLabel = poolStatus.ready ? null : `Playground warming up (${poolStatus.warm}/${poolStatus.total} ready). The run will start when an instance is available.`;
   const currentScriptName = name.trim();
@@ -119,7 +122,7 @@ export function DirectionToolbar() {
         <button className="secondary" type="button" disabled={!hasResolvedDirections} onClick={() => runWithScriptName('export')}>
           Export TXT
         </button>
-        <button className="secondary" type="button" onClick={clearDirections}>
+        <button className="secondary" type="button" onClick={() => setClearDialogOpen(true)}>
           Clear
         </button>
 
@@ -161,6 +164,44 @@ export function DirectionToolbar() {
           onCancel={() => setPendingNamedAction(null)}
           onConfirm={confirmScriptName}
         />
+      )}
+
+      {clearDialogOpen && (
+        <Dialog
+          title="Clear workspace?"
+          description="This will remove all directions, reset recording settings to defaults, and reset the blueprint to the default. This cannot be undone."
+          closeDisabled={clearing}
+          onClose={() => { if (!clearing) setClearDialogOpen(false); }}
+        >
+          <div className="app-dialog-actions">
+            <button
+              className="app-dialog-btn app-dialog-btn--secondary"
+              type="button"
+              disabled={clearing}
+              onClick={() => setClearDialogOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              className="app-dialog-btn app-dialog-btn--danger"
+              type="button"
+              disabled={clearing}
+              onClick={async () => {
+                setClearing(true);
+                try {
+                  await clearDirections();
+                  setClearDialogOpen(false);
+                } catch (err) {
+                  toast.error(errorMessage(err, 'Could not clear workspace'));
+                } finally {
+                  setClearing(false);
+                }
+              }}
+            >
+              {clearing ? 'Clearing...' : 'Clear'}
+            </button>
+          </div>
+        </Dialog>
       )}
     </>
   );

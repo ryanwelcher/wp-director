@@ -157,6 +157,7 @@ export function DirectionsPanel() {
           aria-labelledby="script-tab-directions"
           hidden={activeTab !== 'directions'}
         >
+          <div className="tab-panel-body">
           <div className="directions-view-switcher">
             <div className="directions-view-toggle" role="group" aria-label="Directions view">
               <button
@@ -277,6 +278,7 @@ export function DirectionsPanel() {
           {directionsView === 'json' && (
             <pre id="steps-json-view">{JSON.stringify(cleanDirections, null, 2)}</pre>
           )}
+          </div>
         </div>
 
         <div

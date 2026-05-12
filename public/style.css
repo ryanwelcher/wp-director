@@ -1017,11 +1017,7 @@ header p {
 }
 
 .directions-view-switcher {
-  background: #0f1117;
-  padding: 0 0 0.5rem;
-  position: sticky;
-  top: 0;
-  z-index: 5;
+  background: #111827;
 }
 
 .directions-view-toggle {
@@ -1936,10 +1932,6 @@ header p {
 .direction-item--builtin .direction-name { color: #94a3b8; }
 
 /* ── Bottom insert button ────────────────────────────────────────────────────── */
-#direction-insert-bottom {
-  padding: 0.5rem 0 0.25rem;
-}
-
 .directions-tab-actions {
   align-items: center;
   display: flex;

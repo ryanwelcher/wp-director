@@ -440,13 +440,8 @@ header p {
 }
 
 .blueprint-form-section {
-  border-top: 1px solid #1e2433;
-  background: #0d1120;
   min-width: 0;
-  padding: 0.5rem 0;
 }
-
-.blueprint-form-section:first-of-type { border-top: none; }
 
 /* ── Blueprint form fields ───────────────────────────────── */
 

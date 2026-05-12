@@ -66,7 +66,8 @@ export function BlueprintPanel() {
   }
 
   return (
-    <div className="blueprint-body blueprint-body--embedded">
+    <>
+    <div className="tab-panel-body blueprint-body">
       <EnvironmentSection formState={formState} updateForm={updateForm} />
       <SiteSettingsSection formState={formState} updateForm={updateForm} />
       <SlugListSection
@@ -91,27 +92,28 @@ export function BlueprintPanel() {
           </pre>
         </details>
       </section>
+    </div>
 
-      <div className="blueprint-panel-actions">
-        <button
-          type="button"
-          className="bp-action-btn bp-action-btn--ghost"
-          onClick={openResetDialog}
-          disabled={!defaultBlueprint || isAtDefault || isApplying}
-        >
-          Reset
-        </button>
-        <button
-          type="button"
-          className={clsx('bp-action-btn bp-action-btn--primary', isApplying && 'is-loading')}
-          onClick={handleApply}
-          disabled={isApplying || !hasUnappliedChanges}
-        >
-          Apply
-        </button>
-      </div>
+    <div className="tab-panel-footer">
+      <button
+        type="button"
+        className="bp-action-btn bp-action-btn--ghost"
+        onClick={openResetDialog}
+        disabled={!defaultBlueprint || isAtDefault || isApplying}
+      >
+        Reset
+      </button>
+      <button
+        type="button"
+        className={clsx('bp-action-btn bp-action-btn--primary', isApplying && 'is-loading')}
+        onClick={handleApply}
+        disabled={isApplying || !hasUnappliedChanges}
+      >
+        Apply
+      </button>
+    </div>
 
-      {resetDialogOpen && (
+    {resetDialogOpen && (
         <Dialog
           title="Reset blueprint?"
           description="Reset all fields to the default blueprint? Your current changes will be lost."
@@ -138,6 +140,6 @@ export function BlueprintPanel() {
           </div>
         </Dialog>
       )}
-    </div>
+    </>
   );
 }

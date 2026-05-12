@@ -1,7 +1,5 @@
 import clsx from 'clsx';
 
-const EMPTY_LABEL = { plugin: 'plugins', theme: 'themes' };
-
 export function WpOrgSuggestions({
   query,
   results,
@@ -38,7 +36,7 @@ export function WpOrgSuggestions({
       )}
       {showEmpty && (
         <div className="bf-suggestions-status">
-          No {EMPTY_LABEL[variant] || 'results'} found for "{query}"
+          No {variant}s found for "{query}"
         </div>
       )}
       {results.map((r, i) => {
@@ -65,14 +63,14 @@ export function WpOrgSuggestions({
                 <img
                   src={r.thumbnail}
                   alt=""
-                  className={clsx('bf-suggestion-icon', `bf-suggestion-icon--${variant}`)}
+                  className={clsx('bf-suggestion-icon', variant === 'theme' && 'bf-suggestion-icon--theme')}
                 />
               ) : (
                 <span
                   className={clsx(
                     'bf-suggestion-icon',
-                    `bf-suggestion-icon--${variant}`,
                     'bf-suggestion-icon--placeholder',
+                    variant === 'theme' && 'bf-suggestion-icon--theme',
                   )}
                   aria-hidden="true"
                 />
@@ -94,20 +92,17 @@ export function WpOrgSuggestions({
                 rel="noopener noreferrer"
                 aria-label={`View ${r.name} on WordPress.org`}
                 onMouseDown={(e) => {
-                  // The row button uses onMouseDown to add the slug while
-                  // keeping input focus. Mirror that here: handle the open on
-                  // mousedown for left-click so the input-blur path doesn't
-                  // tear the portal down before a click event fires.
+                  // Open on mousedown for left-click — the input-blur path on
+                  // the parent section can tear the portal down before a
+                  // synthesized click would fire on the anchor.
                   if (e.button !== 0) return;
                   e.preventDefault();
                   e.stopPropagation();
                   window.open(r.previewUrl, '_blank', 'noopener,noreferrer');
                 }}
                 onClick={(e) => {
-                  // Suppress the synthesized click for the same left-button
-                  // gesture (otherwise we'd open the link twice). Keyboard
-                  // activation fires click with detail === 0; let that
-                  // through so Enter still works.
+                  // Suppress the duplicate left-click open. Keyboard activation
+                  // (Enter) fires click with detail === 0; let it fall through.
                   if (e.detail > 0) e.preventDefault();
                 }}
               >

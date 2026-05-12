@@ -37,7 +37,7 @@ function normalize(upstream) {
       version: p.version,
       shortDescription: stripHtml(p.short_description),
       thumbnail: pickIcon(p.icons),
-      previewUrl: p.slug ? `https://wordpress.org/plugins/${p.slug}/` : null,
+      previewUrl: `https://wordpress.org/plugins/${p.slug}/`,
       activeInstalls: p.active_installs,
       rating: p.rating,
     })),

@@ -1,9 +1,10 @@
 import clsx from 'clsx';
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import { Dialog } from '../Dialog.jsx';
 import { useAppState } from '../context/AppStateContext.jsx';
 import { blueprintToForm, useBlueprintFormState } from '../state/useBlueprintFormState.js';
+import { useSlugNameResolver } from '../state/useSlugNameResolver.js';
 import { errorMessage } from '../utils/actions.js';
 import { api } from '../utils/api.js';
 import { EnvironmentSection } from '../blueprint/EnvironmentSection.jsx';
@@ -18,71 +19,8 @@ export function BlueprintPanel() {
 
   const [isApplying, setIsApplying] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
-  const [pluginNames, setPluginNames] = useState({});
-  const [themeNames, setThemeNames] = useState({});
-
-  // Resolve display names for any slug we haven't seen yet. Fires on initial
-  // load and whenever the list grows by a free-form slug. Server caches WP.org
-  // lookups for 5 min, so reloads are cheap.
-  useEffect(() => {
-    const missing = formState.plugins
-      .map((p) => p.slug)
-      .filter((slug) => slug && !pluginNames[slug]);
-    if (missing.length === 0) return undefined;
-
-    let cancelled = false;
-    Promise.all(
-      missing.map(async (slug) => {
-        try {
-          const info = await api.getPluginInfo(slug);
-          return [slug, info?.name || null];
-        } catch {
-          return [slug, null];
-        }
-      }),
-    ).then((pairs) => {
-      if (cancelled) return;
-      const patch = {};
-      for (const [slug, name] of pairs) if (name) patch[slug] = name;
-      if (Object.keys(patch).length > 0) {
-        setPluginNames((prev) => ({ ...prev, ...patch }));
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [formState.plugins, pluginNames]);
-
-  useEffect(() => {
-    const missing = formState.themes
-      .map((t) => t.slug)
-      .filter((slug) => slug && !themeNames[slug]);
-    if (missing.length === 0) return undefined;
-
-    let cancelled = false;
-    Promise.all(
-      missing.map(async (slug) => {
-        try {
-          const info = await api.getThemeInfo(slug);
-          return [slug, info?.name || null];
-        } catch {
-          return [slug, null];
-        }
-      }),
-    ).then((pairs) => {
-      if (cancelled) return;
-      const patch = {};
-      for (const [slug, name] of pairs) if (name) patch[slug] = name;
-      if (Object.keys(patch).length > 0) {
-        setThemeNames((prev) => ({ ...prev, ...patch }));
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [formState.themes, themeNames]);
+  const [pluginNames, learnPluginName] = useSlugNameResolver(formState.plugins, api.getPluginInfo);
+  const [themeNames, learnThemeName] = useSlugNameResolver(formState.themes, api.getThemeInfo);
 
   // Compare on form-state (not compiled JSON) so incidental key-order / shape
   // differences in the on-disk blueprint don't make the form look "dirty".
@@ -140,10 +78,9 @@ export function BlueprintPanel() {
         items={formState.plugins} onUpdate={(plugins) => updateForm({ plugins })}
         itemType="plugin" inputId="bf-plugin-slug"
         inputPlaceholder="Search WordPress.org or enter a slug"
-        variant="plugin"
-        onSearch={(q, opts) => api.searchPlugins(q, opts)}
+        onSearch={api.searchPlugins}
         nameMap={pluginNames}
-        onLearnName={(slug, name) => setPluginNames((prev) => ({ ...prev, [slug]: name }))}
+        onLearnName={learnPluginName}
       />
       <SlugListSection
         title="Themes" sectionId="section-themes"
@@ -151,9 +88,9 @@ export function BlueprintPanel() {
         itemType="theme" inputId="bf-theme-slug"
         inputPlaceholder="Search WordPress.org or enter a slug"
         variant="theme"
-        onSearch={(q, opts) => api.searchThemes(q, opts)}
+        onSearch={api.searchThemes}
         nameMap={themeNames}
-        onLearnName={(slug, name) => setThemeNames((prev) => ({ ...prev, [slug]: name }))}
+        onLearnName={learnThemeName}
       />
       <ContentSection formState={formState} updateForm={updateForm} />
 

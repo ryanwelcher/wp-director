@@ -71,7 +71,6 @@ function normalizeThumbnail(url) {
 
 module.exports = {
   createCache,
-  decodeEntities,
   stripHtml,
   normalizeThumbnail,
 };

@@ -153,10 +153,11 @@ function resolveRecordingDir(dirname) {
 function register(app) {
   app.get('/api/recordings', async (req, res) => {
     if (!fs.existsSync(OUTPUT_DIR)) return res.json({ recordings: [] });
-    const dirs = fs.readdirSync(OUTPUT_DIR).filter(d => isListableRecordingDir(d) && findVideoFile(d) !== null);
-    const recordings = await Promise.all(dirs.map(async (dirname) => {
-      const found = findVideoFile(dirname);
-      // findVideoFile returned non-null from the filter above, so this is safe.
+    const entries = fs.readdirSync(OUTPUT_DIR)
+      .filter(isListableRecordingDir)
+      .map((dirname) => ({ dirname, found: findVideoFile(dirname) }))
+      .filter((entry) => entry.found !== null);
+    const recordings = await Promise.all(entries.map(async ({ dirname, found }) => {
       const { file, ext } = /** @type {NonNullable<typeof found>} */ (found);
       const stat = fs.statSync(file);
       const recording = parseRecordingDirname(dirname);

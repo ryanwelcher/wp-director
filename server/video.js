@@ -20,36 +20,9 @@ const { OUTPUT_DIR } = require('./config');
 /**
  * @typedef {Object} VideoFile
  * @property {string} file  Absolute path to the video.
- * @property {'mp4'|'webm'} ext
+ * @property {'webm'} ext
  * @property {string} mime
  */
-
-/**
- * @typedef {Object} VideoSize
- * @property {number} width
- * @property {number} height
- */
-
-/**
- * @typedef {(event: { type: 'stdout'|'stderr', text: string }) => void} Sender
- */
-
-/**
- * Locate the most-recently-modified output directory that has a `video.webm`.
- * Playwright names dirs like `steps-runner-<test-name>-chromium`; we pick the
- * newest by mtime so the ffmpeg step operates on the test that just finished.
- *
- * @returns {string | null}  Directory name (not full path), or null if none found.
- */
-function findNewestVideoDir() {
-  if (!fs.existsSync(OUTPUT_DIR)) return null;
-  const dirs = fs.readdirSync(OUTPUT_DIR)
-    .filter(d => !d.startsWith('.'))
-    .filter(d => fs.existsSync(path.join(OUTPUT_DIR, d, 'video.webm')))
-    .map(d => ({ d, mtime: fs.statSync(path.join(OUTPUT_DIR, d)).mtimeMs }))
-    .sort((a, b) => b.mtime - a.mtime);
-  return dirs[0]?.d ?? null;
-}
 
 /**
  * Locate the canonical WebM file inside an output directory. Returned shape
@@ -141,4 +114,4 @@ function spawnWebmDownscale(inputPath, targetSize) {
   ]);
 }
 
-module.exports = { findVideoFile, findNewestVideoDir, probeVideoSize, spawnMp4Transcode, spawnWebmDownscale };
+module.exports = { findVideoFile, probeVideoSize, spawnMp4Transcode, spawnWebmDownscale };

@@ -7,6 +7,7 @@ import { blueprintToForm, useBlueprintFormState } from '../state/useBlueprintFor
 import { useSlugNameResolver } from '../state/useSlugNameResolver.js';
 import { errorMessage } from '../utils/actions.js';
 import { api } from '../utils/api.js';
+import { usePreviewBlueprintMutation } from '../utils/apiHooks.js';
 import { EnvironmentSection } from '../blueprint/EnvironmentSection.jsx';
 import { SiteSettingsSection } from '../blueprint/SiteSettingsSection.jsx';
 import { SlugListSection } from '../blueprint/SlugListSection.jsx';
@@ -19,6 +20,8 @@ export function BlueprintPanel() {
 
   const [isApplying, setIsApplying] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const previewBlueprintMutation = usePreviewBlueprintMutation();
+  const isPreviewing = previewBlueprintMutation.isPending;
   const [pluginNames, learnPluginName] = useSlugNameResolver(formState.plugins, api.getPluginInfo);
   const [themeNames, learnThemeName] = useSlugNameResolver(formState.themes, api.getThemeInfo);
 
@@ -68,6 +71,25 @@ export function BlueprintPanel() {
     }
   }
 
+  async function handlePreview() {
+    const previewWindow = window.open('/preview-loading.html', '_blank');
+    if (previewWindow) previewWindow.opener = null;
+
+    try {
+      const data = await previewBlueprintMutation.mutateAsync(compiledBlueprint);
+      if (!data?.url) throw new Error('Preview URL missing');
+
+      if (previewWindow) {
+        previewWindow.location.replace(data.url);
+      } else {
+        window.open(data.url, '_blank', 'noopener,noreferrer');
+      }
+    } catch (err) {
+      previewWindow?.close();
+      toast.error(errorMessage(err, 'Could not preview blueprint'));
+    }
+  }
+
   return (
     <>
     <div className="tab-panel-body">
@@ -107,9 +129,17 @@ export function BlueprintPanel() {
     <div className="tab-panel-footer">
       <button
         type="button"
+        className={clsx('bp-action-btn bp-action-btn--ghost bp-action-btn--preview', isPreviewing && 'is-loading')}
+        onClick={handlePreview}
+        disabled={isPreviewing || isApplying}
+      >
+        Preview
+      </button>
+      <button
+        type="button"
         className="bp-action-btn bp-action-btn--ghost"
         onClick={openResetDialog}
-        disabled={!defaultBlueprint || isAtDefault || isApplying}
+        disabled={!defaultBlueprint || isAtDefault || isApplying || isPreviewing}
       >
         Reset
       </button>
@@ -117,7 +147,7 @@ export function BlueprintPanel() {
         type="button"
         className={clsx('bp-action-btn bp-action-btn--primary', isApplying && 'is-loading')}
         onClick={handleApply}
-        disabled={isApplying || !hasUnappliedChanges}
+        disabled={isApplying || isPreviewing || !hasUnappliedChanges}
       >
         Apply
       </button>

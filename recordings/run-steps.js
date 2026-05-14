@@ -177,6 +177,8 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       const pluginSearchInput = page.locator('#search-plugins');
       await pluginSearchInput.waitFor({ state: 'visible' });
       await typeSlow(pluginSearchInput, step.slug, stepTypingDelay(step, settings));
+      const submitBtn = page.locator('#search-submit');
+      await submitBtn.click();
       const installBtn = page.locator(`.plugin-card-${step.slug} .install-now`);
       await installBtn.waitFor({ timeout: 15_000 });
       await highlightAndClick(page, installBtn);

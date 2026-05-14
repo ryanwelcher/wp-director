@@ -29,6 +29,8 @@ for (const file of stepFiles) {
   const def = JSON.parse(fs.readFileSync(path.join(stepsDir, file), 'utf8'));
 
   test(def.name, async ({ page }) => {
+    const landingPage = def.blueprint?.landingPage || '/wp-admin/';
+    await page.goto(landingPage);
     await runSteps(page, def, async ( step, exec ) => await test.step( step.action + ( step.selector ? ` "${ step.selector }"` : '' ), exec ));
   });
 }

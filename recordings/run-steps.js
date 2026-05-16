@@ -368,6 +368,17 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
         `#adminmenu .wp-submenu li a:text-is("${step.item}")`
       ).first();
       const topCount = await topLevel.count();
+      const subCount = await subLevel.count();
+
+      if ( topCount === 0 && subCount > 0 ) {
+        const parentMenuItem = page
+          .locator('#adminmenu > li')
+          .filter({ has: page.locator(`.wp-submenu li a:text-is("${step.item}")`) })
+          .locator('> a')
+          .first();
+        await parentMenuItem.hover();
+      }
+
       const menuLink = topCount > 0 ? topLevel : subLevel;
       await highlightAndClick(page, menuLink);
       await page.waitForLoadState('domcontentloaded');

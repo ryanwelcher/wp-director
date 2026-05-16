@@ -1,4 +1,4 @@
-export function DirectionMenu({ direction, onClose, onDelete, onInsert, onSave, onToggle, position }) {
+export function DirectionMenu({ direction, onClose, onDelete, onEdit, onInsert, onSave, onToggle, position }) {
   if (!position) return null;
   const isResolved = !direction._translation?.status || direction._translation.status === 'resolved';
 
@@ -23,6 +23,11 @@ export function DirectionMenu({ direction, onClose, onDelete, onInsert, onSave, 
       {isResolved && !direction._fromDirection && (
         <button className="direction-menu-item direction-menu-save" type="button" onClick={handleClick(onSave)}>
           &#128190; Save direction
+        </button>
+      )}
+      {isResolved && (
+        <button className="direction-menu-item direction-menu-edit" type="button" onClick={handleClick(onEdit)}>
+          Edit
         </button>
       )}
       <div className="direction-menu-divider" />

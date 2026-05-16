@@ -1300,18 +1300,84 @@ header p {
 .direction-pin-btn:hover { color: #f59e0b; background: #1f1a0a; }
 .direction-menu-btn:hover { color: #94a3b8; background: #252d3d; }
 .direction-start-btn:disabled,
-.direction-pin-btn:disabled {
+.direction-pin-btn:disabled,
+.direction-menu-btn:disabled {
   color: #2d3748;
   cursor: not-allowed;
 }
 .direction-start-btn:disabled:hover,
-.direction-pin-btn:disabled:hover {
+.direction-pin-btn:disabled:hover,
+.direction-menu-btn:disabled:hover {
   background: transparent;
 }
 
 .direction-label-input:disabled {
   color: #94a3b8;
   cursor: default;
+}
+
+.direction-edit-form {
+  align-items: center;
+  border-top: 1px solid #24324a;
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  padding: 0.55rem 0.75rem 0.65rem 3.2rem;
+}
+
+.direction-edit-input {
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 5px;
+  color: #f8fafc;
+  font-size: 0.85rem;
+  min-width: 0;
+  outline: none;
+  padding: 0.42rem 0.55rem;
+  width: 100%;
+}
+
+.direction-edit-input:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.18);
+}
+
+.direction-edit-btn {
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 0.42rem 0.7rem;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.direction-edit-btn--secondary {
+  background: transparent;
+  border: 1px solid #374151;
+  color: #94a3b8;
+}
+
+.direction-edit-btn--secondary:hover {
+  border-color: #6b7280;
+  color: #e2e8f0;
+}
+
+.direction-edit-btn--primary {
+  background: #16a34a;
+  border: 1px solid transparent;
+  color: #fff;
+}
+
+.direction-edit-btn--primary:hover { background: #15803d; }
+
+.direction-edit-btn:disabled,
+.direction-edit-btn:disabled:hover {
+  background: #374151;
+  border-color: transparent;
+  color: #94a3b8;
+  cursor: not-allowed;
 }
 
 .direction-translation-state {

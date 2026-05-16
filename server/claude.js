@@ -93,6 +93,7 @@ After navigating to new-post or new-page, always emit \`tryClick\` with \`role: 
   After \`wpAdminMenuClick\`, always emit \`waitForSelector\` on a landmark element of the destination page (e.g. \`#wpbody\`).
   Exception: \`"Add Post"\` and \`"Add Page"\` land in the block editor — do NOT use \`waitForSelector: "#wpbody"\` for those items because \`#wpbody\` may be hidden by fullscreen mode depending on user preferences or blueprint configuration. Use \`waitForSelector\` with \`[aria-label="Editor top bar"]\` instead, which is always present regardless of fullscreen state. For \`"Add Page"\`, also emit \`tryClick\` with \`role: "button"\`, \`name: "Close"\`, and \`timeout: 5000\` after the waitForSelector, to dismiss the pattern chooser dialog that may appear.
   Exception: \`"Theme File Editor"\` and \`"Plugin File Editor"\` may show a security warning overlay — emit \`tryClick\` with selector \`#file-editor-warning .file-editor-warning-dismiss\` and \`timeout: 5000\` immediately after the \`wpAdminMenuClick\` (it silently skips if the warning was suppressed via blueprint), then emit \`waitForSelector: "#wpbody"\`.
+  When clicking a submenu item, never click the parent menu parent item as a preceding step, unless the submenu item is not shown without clicking the parent item first. Instead, execute a hover action on the parent item first.
 
   **Exact admin menu labels** — use these verbatim, including capitalisation:
 
@@ -230,7 +231,8 @@ After navigating to new-post or new-page, always emit \`tryClick\` with \`role: 
 - To open any panel's options (⋮) menu, ALWAYS use wpOpenOptionsMenu — never use highlightClick on an options button; highlightClick is a toggle and will close the menu if it is already open
 - When enabling multiple controls from the same panel's options menu, open the options button ONCE and click all menuitemcheckbox items in sequence — never click the options button again between items (it toggles the menu closed); group all of them in one direction
 - Never invent action types — only use the actions listed above
-- Each direction should contain ONLY the actions required to accomplish its stated intent — do NOT add setup steps (opening the sidebar, selecting a block, switching tabs, etc.) that a prior direction may have already handled. Assume the UI is in the state the prior directions left it in. For example, if the user just selected a block, the sidebar is already open on the Block tab — do not emit steps to open Settings or click the Block tab again`;
+- Each direction should contain ONLY the actions required to accomplish its stated intent — do NOT add setup steps (opening the sidebar, selecting a block, switching tabs, etc.) that a prior direction may have already handled. Assume the UI is in the state the prior directions left it in. For example, if the user just selected a block, the sidebar is already open on the Block tab — do not emit steps to open Settings or click the Block tab again
+- Limit the number of steps in a single directions to no more than 5. Make sure the steps within a direction only pertain to that direction. If the direction covers more than one intent or needs more than 5 steps, split the direction into multiple ones.`;
 
 /**
  * Tool schema for forced structured output. We pass this plus `tool_choice:

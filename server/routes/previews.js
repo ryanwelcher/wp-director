@@ -3,10 +3,8 @@
 /**
  * Latest disposable video endpoints.
  *
- *   GET    /api/previews              → metadata for the current disposable video cache
  *   GET    /api/previews/latest/video → stream the latest disposable WebM
  *   POST   /api/previews/latest/save  → copy latest disposable WebM as a recording
- *   DELETE /api/previews              → empty disposable video cache
  *
  * Play writes a single replaceable video to `output/.previews/latest/`.
  * Saving promotes that WebM into `output/`. MP4 downloads are generated on demand.
@@ -27,24 +25,6 @@ function latestVideoDir() {
 
 function latestVideoPath() {
   return path.join(latestVideoDir(), 'video.webm');
-}
-
-function listPreviewDirs() {
-  let entries;
-  try {
-    entries = fs.readdirSync(PREVIEW_OUTPUT_DIR, { withFileTypes: true });
-  } catch (err) {
-    if (err.code === 'ENOENT') return [];
-    throw err;
-  }
-  return entries
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => {
-      const dir = path.join(PREVIEW_OUTPUT_DIR, entry.name);
-      const stat = fs.statSync(dir);
-      return { dirname: entry.name, mtime: stat.mtimeMs };
-    })
-    .sort((a, b) => b.mtime - a.mtime);
 }
 
 function latestVideoMetadata() {
@@ -104,11 +84,6 @@ function sendVideoFile(req, res, file, filenameBase) {
 }
 
 function register(app) {
-  app.get('/api/previews', (req, res) => {
-    const items = listPreviewDirs();
-    res.json({ count: items.length, items, latest: latestVideoMetadata() });
-  });
-
   app.get('/api/previews/latest/video', (req, res) => {
     const file = latestVideoPath();
     const meta = latestVideoMetadata();
@@ -145,14 +120,6 @@ function register(app) {
     }
   });
 
-  app.delete('/api/previews', (req, res) => {
-    try {
-      fs.rmSync(PREVIEW_OUTPUT_DIR, { recursive: true, force: true });
-      res.json({ cleared: true });
-    } catch (err) {
-      res.status(500).json({ error: err.message || 'Could not clear videos' });
-    }
-  });
 }
 
 module.exports = { register };

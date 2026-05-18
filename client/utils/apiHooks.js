@@ -51,33 +51,12 @@ export function useDeleteRecordingMutation() {
   });
 }
 
-export function usePreviewsQuery() {
-  return useQuery({
-    queryKey: queryKeys.previews,
-    queryFn: api.listPreviews,
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
-  });
-}
-
-export function useClearPreviewsMutation() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: api.clearPreviews,
-    onSuccess: () => invalidate(queryClient, queryKeys.previews),
-  });
-}
-
 export function useSaveLatestPreviewMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: api.saveLatestPreview,
-    onSuccess: () => {
-      invalidate(queryClient, queryKeys.recordings);
-      return invalidate(queryClient, queryKeys.previews);
-    },
+    onSuccess: () => invalidate(queryClient, queryKeys.recordings),
   });
 }
 

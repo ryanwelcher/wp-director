@@ -1703,22 +1703,6 @@ header p {
   padding: 0.75rem 1.5rem 1rem;
 }
 
-.failed-previews-notice {
-  align-items: center;
-  border: 1px solid #3b2f12;
-  background: #1a1408;
-  border-radius: 6px;
-  display: flex;
-  gap: 0.6rem;
-  justify-content: space-between;
-  margin-bottom: 0.6rem;
-  padding: 0.55rem 0.75rem;
-}
-
-.failed-previews-notice .hint {
-  margin: 0;
-}
-
 .recording-item {
   align-items: center;
   border-bottom: 1px solid #1a2035;
@@ -1983,14 +1967,16 @@ header p {
 }
 
 .preview-heading {
-  align-items: baseline;
+  align-items: center;
   display: flex;
   gap: 1rem;
+  min-height: 1.65rem;
   justify-content: space-between;
   margin-bottom: 0.75rem;
 }
 
 .preview-heading h2 {
+  line-height: 1.65rem;
   margin-bottom: 0;
   min-width: 0;
   overflow: hidden;
@@ -2002,6 +1988,33 @@ header p {
   color: #475569;
   flex-shrink: 0;
   font-size: 0.75rem;
+}
+
+.preview-save-btn {
+  background: transparent;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  color: #94a3b8;
+  cursor: pointer;
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1;
+  min-height: 1.65rem;
+  padding: 0 0.7rem;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.preview-save-btn:hover {
+  border-color: #6b7280;
+  color: #e2e8f0;
+}
+
+.preview-save-btn:disabled,
+.preview-save-btn:disabled:hover {
+  border-color: #2d3748;
+  color: #374151;
+  cursor: not-allowed;
 }
 
 #preview-container {

@@ -69,6 +69,18 @@ export function useClearPreviewsMutation() {
   });
 }
 
+export function useSaveLatestPreviewMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: api.saveLatestPreview,
+    onSuccess: () => {
+      invalidate(queryClient, queryKeys.recordings);
+      return invalidate(queryClient, queryKeys.previews);
+    },
+  });
+}
+
 export function useDirectionLoader() {
   const queryClient = useQueryClient();
 

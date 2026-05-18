@@ -9,23 +9,41 @@ const IDLE_PREVIEW = {
   title: '',
   playgroundPort: null,
   isLive: false,
+  saveable: false,
 };
 
 export function useRunPreview() {
   const [preview, setPreview] = useState(IDLE_PREVIEW);
 
   const startPreview = useCallback(() => {
-    setPreview({ mode: 'connecting', imageSrc: '', recordedAt: null, videoSrc: '', poster: '', title: '', playgroundPort: null, isLive: false });
+    setPreview({ mode: 'connecting', imageSrc: '', recordedAt: null, videoSrc: '', poster: '', title: '', playgroundPort: null, isLive: false, saveable: false });
   }, []);
 
   const stopPreview = useCallback(() => {
     setPreview((current) => (
-      current.mode === 'image' ? { ...current, isLive: false, playgroundPort: null } : IDLE_PREVIEW
+      current.mode === 'image' || current.mode === 'video'
+        ? { ...current, isLive: false, playgroundPort: null }
+        : IDLE_PREVIEW
     ));
   }, []);
 
-  const showPreviewVideo = useCallback((videoSrc, { recordedAt = null, title = '' } = {}) => {
-    setPreview({ mode: 'video', imageSrc: '', recordedAt, videoSrc, poster: '', title, playgroundPort: null, isLive: false });
+  const showPreviewVideo = useCallback((videoSrc, { recordedAt = null, title = '', saveable = false } = {}) => {
+    setPreview({ mode: 'video', imageSrc: '', recordedAt, videoSrc, poster: '', title, playgroundPort: null, isLive: false, saveable });
+  }, []);
+
+  const showPlayableVideo = useCallback((video) => {
+    if (!video?.videoUrl) return;
+    setPreview({
+      mode: 'video',
+      imageSrc: '',
+      recordedAt: video.createdAt ?? null,
+      videoSrc: `${video.videoUrl}?t=${Date.now()}`,
+      poster: '',
+      title: video.name ?? 'Play',
+      playgroundPort: null,
+      isLive: false,
+      saveable: true,
+    });
   }, []);
 
   const handlePreviewMessage = useCallback((msg) => {
@@ -48,9 +66,20 @@ export function useRunPreview() {
         title: '',
         playgroundPort: null,
         isLive: true,
+        saveable: false,
       });
+      return;
     }
-  }, []);
+
+    if (msg.type === 'videoReady') {
+      showPlayableVideo(msg);
+      return;
+    }
+
+    if (msg.type === 'done' && msg.video) {
+      showPlayableVideo(msg.video);
+    }
+  }, [showPlayableVideo]);
 
   return {
     preview,

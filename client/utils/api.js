@@ -138,11 +138,15 @@ export const api = {
 
   async listPreviews({ signal } = {}) {
     const data = await requestJSON("/api/previews", { signal });
-    return { count: data?.count ?? 0, items: data?.items ?? [] };
+    return { count: data?.count ?? 0, items: data?.items ?? [], latest: data?.latest ?? null };
   },
 
   async clearPreviews() {
     return requestJSON("/api/previews", { method: "DELETE" });
+  },
+
+  async saveLatestPreview({ name }) {
+    return requestJSON("/api/previews/latest/save", postOptions({ name }));
   },
 
   async previewBlueprint(blueprint) {

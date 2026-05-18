@@ -5,7 +5,7 @@ import { useAppState } from '../context/AppStateContext.jsx';
 import { useRunState } from '../context/RunContext.jsx';
 import { errorMessage } from '../utils/actions.js';
 import { formatFileSize, formatTimestamp } from '../utils/formatters.js';
-import { useDeleteRecordingMutation, usePreviewsQuery, useClearPreviewsMutation } from '../utils/apiHooks.js';
+import { useDeleteRecordingMutation } from '../utils/apiHooks.js';
 import { SectionBadge } from './SectionBadge.jsx';
 import { TrashIcon } from './TrashIcon.jsx';
 
@@ -91,22 +91,9 @@ export function RecordingsPanel() {
   const { recordings } = useAppState();
   const { running, showPreviewVideo } = useRunState();
   const deleteRecordingMutation = useDeleteRecordingMutation();
-  const previewsQuery = usePreviewsQuery();
-  const clearPreviewsMutation = useClearPreviewsMutation();
   const [pendingDeleteRecording, setPendingDeleteRecording] = useState(null);
   const [downloadMenuFor, setDownloadMenuFor] = useState(null);
   const deletingRecording = deleteRecordingMutation.isPending;
-  const failedPreviewCount = previewsQuery.data?.count ?? 0;
-  const clearingPreviews = clearPreviewsMutation.isPending;
-
-  async function clearFailedPreviews() {
-    try {
-      await clearPreviewsMutation.mutateAsync();
-      toast.success(`Cleared ${failedPreviewCount} failed preview${failedPreviewCount === 1 ? '' : 's'}`);
-    } catch (err) {
-      toast.error(errorMessage(err, 'Could not clear previews'));
-    }
-  }
 
   function closeDeleteDialog() {
     if (!deletingRecording) setPendingDeleteRecording(null);
@@ -133,21 +120,6 @@ export function RecordingsPanel() {
           <SectionBadge hidden={recordings.length === 0}>{recordings.length}</SectionBadge>
         </summary>
         <div className="recordings-body">
-          {failedPreviewCount > 0 && (
-            <div className="failed-previews-notice">
-              <span className="hint">
-                {failedPreviewCount} failed preview{failedPreviewCount === 1 ? '' : 's'} kept for debugging
-              </span>
-              <button
-                type="button"
-                className="app-dialog-btn app-dialog-btn--secondary"
-                disabled={clearingPreviews}
-                onClick={clearFailedPreviews}
-              >
-                {clearingPreviews ? 'Clearing...' : 'Clear failed previews'}
-              </button>
-            </div>
-          )}
           <div id="recordings-list">
             {!recordings.length && <p className="hint">No recordings yet - run a script to generate a video.</p>}
 
@@ -168,8 +140,8 @@ export function RecordingsPanel() {
                     <button
                       className="recording-preview-btn recording-action-btn secondary"
                       type="button"
-                      aria-label={`Preview ${recording.name}`}
-                      title="Preview"
+                      aria-label={`Play ${recording.name}`}
+                      title="Play"
                       disabled={running}
                       onClick={() => showPreviewVideo(videoUrl, {
                         recordedAt: recording.createdAt,

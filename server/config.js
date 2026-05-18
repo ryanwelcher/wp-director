@@ -11,6 +11,7 @@
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
+const DISPOSABLE_OUTPUT_DIR = path.join(ROOT, 'output', '.previews');
 
 module.exports = {
   ROOT,
@@ -19,7 +20,8 @@ module.exports = {
   STEPS_DIR:               path.join(ROOT, 'scripts'),
   OUTPUT_DIR:              path.join(ROOT, 'output'),
   PLAYWRIGHT_OUTPUT_DIR:   path.join(ROOT, 'output', '.playwright'),
-  PREVIEW_OUTPUT_DIR:      path.join(ROOT, 'output', '.previews'),
+  DISPOSABLE_OUTPUT_DIR,
+  PREVIEW_OUTPUT_DIR:      DISPOSABLE_OUTPUT_DIR,
   DIRECTIONS_DIR:          path.join(ROOT, 'directions'),
   BUILTIN_DIRECTIONS_DIR:  path.join(__dirname, 'directions'),
 

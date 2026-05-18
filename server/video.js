@@ -1,12 +1,11 @@
 // @ts-check
 
 /**
- * Video post-processing: convert Playwright's `video.webm` to MP4 (H.264 + AAC)
- * and optionally scale to a user-chosen size.
+ * Video helpers.
  *
- * Playwright outputs WebM per-test. Most downstream tools (Keynote, Slack,
- * QuickTime, social) prefer MP4, so we always convert. Callers may optionally
- * pass a target size when they need a scale pass.
+ * WebM is the canonical persisted artifact (captured directly by Playwright).
+ * MP4 and downscaled WebM are produced on demand by ffmpeg and streamed to
+ * the client — never written to disk.
  *
  * ffmpeg is shipped via the `ffmpeg-static` npm package — no system install
  * required, which matters for the long-term goal of a distributable app.
@@ -17,109 +16,102 @@ const path = require('path');
 const { spawn } = require('child_process');
 const ffmpegPath = require('ffmpeg-static');
 const { OUTPUT_DIR } = require('./config');
-const { normalizeVideoSize } = require('./video-size');
 
 /**
  * @typedef {Object} VideoFile
  * @property {string} file  Absolute path to the video.
- * @property {'mp4'|'webm'} ext
+ * @property {'webm'} ext
  * @property {string} mime
  */
 
 /**
- * @typedef {Object} VideoSize
- * @property {number} width
- * @property {number} height
- */
-
-/**
- * @typedef {(event: { type: 'stdout'|'stderr', text: string }) => void} Sender
- */
-
-/**
- * Locate the most-recently-modified output directory that has a `video.webm`.
- * Playwright names dirs like `steps-runner-<test-name>-chromium`; we pick the
- * newest by mtime so the ffmpeg step operates on the test that just finished.
- *
- * @returns {string | null}  Directory name (not full path), or null if none found.
- */
-function findNewestVideoDir() {
-  if (!fs.existsSync(OUTPUT_DIR)) return null;
-  const dirs = fs.readdirSync(OUTPUT_DIR)
-    .filter(d => !d.startsWith('.'))
-    .filter(d => fs.existsSync(path.join(OUTPUT_DIR, d, 'video.webm')))
-    .map(d => ({ d, mtime: fs.statSync(path.join(OUTPUT_DIR, d)).mtimeMs }))
-    .sort((a, b) => b.mtime - a.mtime);
-  return dirs[0]?.d ?? null;
-}
-
-/**
- * Locate a video file inside an output directory, preferring MP4 over WebM
- * (MP4 only exists after a successful conversion). Returned shape includes
- * MIME + extension so callers can set Content-Type / Content-Disposition
+ * Locate the canonical WebM file inside an output directory. Returned shape
+ * includes MIME + extension so callers can set Content-Type / Content-Disposition
  * without guessing.
  *
  * @param {string} dirname  Directory name inside OUTPUT_DIR.
  * @returns {VideoFile | null}
  */
 function findVideoFile(dirname) {
-  const mp4 = path.join(OUTPUT_DIR, dirname, 'video.mp4');
-  if (fs.existsSync(mp4)) return { file: mp4, ext: 'mp4', mime: 'video/mp4' };
   const webm = path.join(OUTPUT_DIR, dirname, 'video.webm');
   if (fs.existsSync(webm)) return { file: webm, ext: 'webm', mime: 'video/webm' };
   return null;
 }
 
 /**
- * Convert a specific WebM recording to MP4, optionally scaling.
- * No-op if the input file does not exist.
+ * Probe a video file for its width/height. Uses ffmpeg's stderr banner — we
+ * don't ship ffprobe-static. Result is cached by absolute path + mtime so
+ * repeated calls from `/api/recordings` are cheap.
  *
- * Resolves regardless of ffmpeg's exit code — we don't want conversion
- * failures to fail the whole run. On failure we delete the partial MP4 and
- * notify the caller via SSE; the WebM stays in place as a fallback.
- *
- * @param {string} inputPath            Absolute path to the source `video.webm`.
- * @param {VideoSize | null} videoSize  Optional target size; null → no scale.
- * @param {Sender} send                 SSE forwarder for ffmpeg output.
- * @returns {Promise<void>}
+ * @param {string} filePath
+ * @returns {Promise<{ width: number, height: number } | null>}
  */
-function processVideo(inputPath, videoSize, send) {
-  return new Promise((resolve) => {
-    if (!fs.existsSync(inputPath)) return resolve();
-    const outputPath = path.join(path.dirname(inputPath), 'video.mp4');
+const probeCache = new Map();
+function probeVideoSize(filePath) {
+  let stat;
+  try { stat = fs.statSync(filePath); } catch { return Promise.resolve(null); }
+  const cacheKey = `${filePath}:${stat.mtimeMs}`;
+  const cached = probeCache.get(cacheKey);
+  if (cached) return cached;
 
-    const targetSize = videoSize ? normalizeVideoSize(videoSize, null) : null;
-    const label = targetSize
-      ? `Converting to MP4 and scaling to ${targetSize.width}×${targetSize.height}`
-      : 'Converting to MP4';
-    send({ type: 'stdout', text: `[ffmpeg] ${label}…\n` });
-
-    const scaleFilter = targetSize
-      ? [`-vf`, `scale=${targetSize.width}:${targetSize.height}:flags=lanczos`]
-      : [];
-
-    const ff = spawn(ffmpegPath, [
-      '-i', inputPath,
-      ...scaleFilter,
-      // CRF 18 / preset slow = near-visually-lossless at reasonable filesize.
-      '-c:v', 'libx264', '-preset', 'slow', '-crf', '18',
-      '-c:a', 'aac', '-b:a', '192k',
-      '-y', outputPath,
-    ]);
-
-    // ffmpeg writes everything to stderr by design; we tag it as stdout here
-    // so the UI log panel doesn't style the progress output as errors.
-    ff.stderr.on('data', (d) => send({ type: 'stdout', text: `[ffmpeg] ${d}` }));
-    ff.on('close', (code) => {
-      if (code === 0) {
-        send({ type: 'stdout', text: '[ffmpeg] Done.\n' });
-      } else {
-        send({ type: 'stderr', text: `[ffmpeg] Conversion failed (exit ${code})\n` });
-        try { fs.unlinkSync(outputPath); } catch {}
-      }
-      resolve();
+  const promise = new Promise((resolve) => {
+    const ff = spawn(ffmpegPath, ['-hide_banner', '-i', filePath]);
+    let buf = '';
+    ff.stderr.on('data', (d) => { buf += d.toString(); });
+    ff.on('close', () => {
+      // Match "Stream #0:0: Video: ... 1920x1080" — the first WxH near the
+      // Video line. We avoid matching SAR/DAR ratios by anchoring on commas.
+      const match = buf.match(/Video:[^\n]*?(\b\d{2,5})x(\d{2,5})\b/);
+      if (!match) return resolve(null);
+      resolve({ width: Number(match[1]), height: Number(match[2]) });
     });
+    ff.on('error', () => resolve(null));
   });
+  probeCache.set(cacheKey, promise);
+  return promise;
 }
 
-module.exports = { findVideoFile, processVideo };
+/**
+ * Spawn ffmpeg to transcode WebM → MP4 (H.264 + AAC), piping to a writable
+ * stream. Optionally scales to a target size. The child is returned so the
+ * caller can wire its exit to the response lifecycle.
+ *
+ * @param {string} inputPath
+ * @param {{ width: number, height: number } | null} targetSize
+ * @returns {import('child_process').ChildProcessWithoutNullStreams}
+ */
+function spawnMp4Transcode(inputPath, targetSize) {
+  const scaleArgs = targetSize
+    ? ['-vf', `scale=${targetSize.width}:${targetSize.height}:flags=lanczos`]
+    : [];
+  return spawn(ffmpegPath, [
+    '-i', inputPath,
+    ...scaleArgs,
+    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
+    '-c:a', 'aac', '-b:a', '192k',
+    // Required so MP4 atoms are streamable (moov before mdat).
+    '-movflags', 'frag_keyframe+empty_moov+default_base_moof',
+    '-f', 'mp4',
+    'pipe:1',
+  ]);
+}
+
+/**
+ * Spawn ffmpeg to downscale a WebM to a smaller resolution, piping to stdout
+ * in WebM container.
+ *
+ * @param {string} inputPath
+ * @param {{ width: number, height: number }} targetSize
+ */
+function spawnWebmDownscale(inputPath, targetSize) {
+  return spawn(ffmpegPath, [
+    '-i', inputPath,
+    '-vf', `scale=${targetSize.width}:${targetSize.height}:flags=lanczos`,
+    '-c:v', 'libvpx-vp9', '-crf', '32', '-b:v', '0',
+    '-c:a', 'libopus',
+    '-f', 'webm',
+    'pipe:1',
+  ]);
+}
+
+module.exports = { findVideoFile, probeVideoSize, spawnMp4Transcode, spawnWebmDownscale };

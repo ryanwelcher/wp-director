@@ -25,9 +25,6 @@ module.exports = defineConfig({
     },
     trace: 'on',    // always record trace for interactive replay
     screenshot: 'on', // capture screenshots on each step
-    launchOptions: {
-      slowMo: 500,  // slow down actions so the recording is easier to follow
-    },
   },
   projects: [
     {

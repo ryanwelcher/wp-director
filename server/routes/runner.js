@@ -18,9 +18,7 @@
  *      each script's step definitions in order.
  *   4. Stream stdout/stderr and live screencast frames back to the client as
  *      SSE events.
- *   5. After all scripts finish, run the ffmpeg post-process step to produce
- *      an MP4.
- *   6. Call pool.release() so the used slot is rebooted in the background,
+ *   5. Call pool.release() so the used slot is rebooted in the background,
  *      ready for the run after next.
  *
  * ## SSE event contract
@@ -43,7 +41,6 @@ const {
   GENERATED_BLUEPRINT,
 } = require('../config');
 const pool = require('../playground-server');
-const { processVideo } = require('../video');
 const { normalizeVideoSize, screencastSizeForVideoSize, sizeKey } = require('../video-size');
 const { timestamp, timestampedDirname, uniqueDir } = require('../output-paths');
 const { nameToFilename, normalizeRecordingSettings, scriptForRun } = require('./scripts');
@@ -283,10 +280,7 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
       const video = page.video();
       await page.close();
       if (run?.page === page) run.page = null;
-      if (video) await video.saveAs(recordedVideoPath);
-      if (shouldSaveRecording && recordedVideoPath && code === 0) {
-        await processVideo(recordedVideoPath, null, send);
-      }
+      if (video && recordedVideoPath) await video.saveAs(recordedVideoPath);
     }
 
     await context.close();

@@ -25,9 +25,10 @@ function pendingDirection(command, label = command) {
   });
 }
 
-function translatedDirections(raw, command) {
+function translatedDirections(raw, command, { freeForm = false } = {}) {
   return normalizeDirections(raw).map((direction) => ({
     ...direction,
+    ...(freeForm ? { _freeForm: true } : {}),
     _translation: {
       status: 'resolved',
       command,
@@ -81,8 +82,8 @@ export function useDirectionsState() {
     return direction;
   }, [directions.length]);
 
-  const resolvePendingDirection = useCallback((id, raw, command, replaceIndex = null) => {
-    const nextDirections = translatedDirections(raw, command);
+  const resolvePendingDirection = useCallback((id, raw, command, replaceIndex = null, options = {}) => {
+    const nextDirections = translatedDirections(raw, command, options);
     const delta = nextDirections.length - 1;
 
     setDirections((current) => current.flatMap((direction) => (
@@ -98,6 +99,22 @@ export function useDirectionsState() {
     }
 
     return nextDirections;
+  }, []);
+
+  const resolveUnmatchedDirection = useCallback((id, originalText) => {
+    setDirections((current) => current.map((direction) => (
+      direction._id === id
+        ? {
+            ...direction,
+            _translation: {
+              ...(direction._translation || {}),
+              status: 'unmatched',
+              command: originalText,
+              unmatchedAt: Date.now(),
+            },
+          }
+        : direction
+    )));
   }, []);
 
   const failPendingDirection = useCallback((id, err) => {
@@ -199,6 +216,7 @@ export function useDirectionsState() {
     appendPendingDirection,
     replaceWithPendingDirection,
     resolvePendingDirection,
+    resolveUnmatchedDirection,
     failPendingDirection,
     clearDirections,
     updateDirectionLabel,

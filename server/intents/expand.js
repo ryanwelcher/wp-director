@@ -38,6 +38,9 @@ const WHOLE_PLACEHOLDER_RE = /^\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}$/;
  * @typedef {Object} ExpandedDirection
  * @property {string} label
  * @property {Array<Record<string, unknown>>} actions
+ * @property {number[]} [_placeholders] - indices into `actions` whose final
+ *   values were derived from the placeholder filler (e.g. "Paragraph 1").
+ *   Carried back to the UI so those rows can be flagged as edit-me content.
  */
 
 /**
@@ -52,7 +55,7 @@ const WHOLE_PLACEHOLDER_RE = /^\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}$/;
  * @param {Record<string, number>} [placeholderCounters] - shared across an
  *   expandAll() call so multiple intents with the same `placeholderFor`
  *   sibling produce contiguous indices (Paragraph 1, Paragraph 2, ...).
- * @returns {Record<string, unknown>}
+ * @returns {{ resolved: Record<string, unknown>, placeholderSlotNames: string[] }}
  */
 function resolveSlots(intent, provided, placeholderCounters) {
   /** @type {Record<string, unknown>} */
@@ -86,6 +89,8 @@ function resolveSlots(intent, provided, placeholderCounters) {
   }
 
   const counters = placeholderCounters || {};
+  /** @type {string[]} */
+  const placeholderSlotNames = [];
   for (const slot of placeholderSlots) {
     const sibling = resolved[slot.placeholderFor];
     if (sibling === undefined || sibling === null || sibling === '') {
@@ -100,8 +105,36 @@ function resolveSlots(intent, provided, placeholderCounters) {
     const key = String(sibling);
     counters[key] = (counters[key] || 0) + 1;
     resolved[slot.name] = `${key[0].toUpperCase()}${key.slice(1)} ${counters[key]}`;
+    placeholderSlotNames.push(slot.name);
   }
-  return resolved;
+  return { resolved, placeholderSlotNames };
+}
+
+/**
+ * Walk a template value and report whether any string within references the
+ * named slot via `{{name}}`. Used to flag actions whose final value came from
+ * the placeholder filler so the UI can render an "edit me" badge.
+ *
+ * @param {unknown} value
+ * @param {string} slotName
+ * @returns {boolean}
+ */
+function templateReferencesSlot(value, slotName) {
+  if (typeof value === 'string') {
+    PLACEHOLDER_RE.lastIndex = 0;
+    let match;
+    while ((match = PLACEHOLDER_RE.exec(value)) !== null) {
+      if (match[1] === slotName) return true;
+    }
+    return false;
+  }
+  if (Array.isArray(value)) {
+    return value.some((v) => templateReferencesSlot(v, slotName));
+  }
+  if (value && typeof value === 'object') {
+    return Object.values(value).some((v) => templateReferencesSlot(v, slotName));
+  }
+  return false;
 }
 
 /**
@@ -156,22 +189,33 @@ function expand(entry, placeholderCounters) {
     throw new Error(`expand(): no intent registered with id "${entry.id}"`);
   }
 
-  const slots = resolveSlots(intent, entry.slots || {}, placeholderCounters);
+  const { resolved: slots, placeholderSlotNames } = resolveSlots(
+    intent,
+    entry.slots || {},
+    placeholderCounters,
+  );
 
   /** @type {Array<Record<string, unknown>>} */
   const actions = [];
+  /** @type {number[]} */
+  const placeholderIndices = [];
   for (const template of intent.actions) {
+    const usesPlaceholder = placeholderSlotNames.some((name) => templateReferencesSlot(template, name));
     const resolved = /** @type {Record<string, unknown>} */ (substitute(template, slots));
     if ('when' in resolved) {
       const condition = resolved.when;
       delete resolved.when;
       if (!condition) continue;
     }
+    if (usesPlaceholder) placeholderIndices.push(actions.length);
     actions.push(resolved);
   }
 
   const label = /** @type {string} */ (substitute(intent.label, slots));
-  return { label, actions };
+  /** @type {ExpandedDirection} */
+  const direction = { label, actions };
+  if (placeholderIndices.length) direction._placeholders = placeholderIndices;
+  return direction;
 }
 
 /**

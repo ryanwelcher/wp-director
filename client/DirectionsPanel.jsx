@@ -10,7 +10,7 @@ import { Dialog } from './Dialog.jsx';
 import { BlueprintPanel } from './Sidebar/BlueprintPanel.jsx';
 import { RecordingSettingsPanel } from './Sidebar/RecordingSettingsPanel.jsx';
 import { directionsForJSON, errorMessage } from './utils/actions.js';
-import { useTranslateMutation } from './utils/apiHooks.js';
+import { useTranslateFreeFormMutation, useTranslateMutation } from './utils/apiHooks.js';
 import { useRunState } from './context/RunContext.jsx';
 
 function menuPosition(target, width = 200) {
@@ -47,6 +47,7 @@ export function DirectionsPanel() {
     reorderDirections,
     replaceWithPendingDirection,
     resolvePendingDirection,
+    resolveUnmatchedDirection,
     setDirectionsView,
     startFromIndex,
     toggleAlwaysRun,
@@ -64,6 +65,8 @@ export function DirectionsPanel() {
   const [activeTab, setActiveTab] = useState('directions');
   const [clearDirectionsDialogOpen, setClearDirectionsDialogOpen] = useState(false);
   const translateMutation = useTranslateMutation();
+  const translateFreeFormMutation = useTranslateFreeFormMutation();
+  const [tryAnywayPending, setTryAnywayPending] = useState(() => new Set());
 
   const closePopovers = useCallback(() => {
     setMenu(null);
@@ -126,6 +129,44 @@ export function DirectionsPanel() {
     } catch (err) {
       failPendingDirection(pending._id, err);
       toast.error(errorMessage(err, 'Edit failed'));
+    }
+  }
+
+  async function tryAnywayFreeForm(index) {
+    const direction = directions[index];
+    if (!direction) return;
+    const command = direction._translation?.command;
+    if (!command) return;
+
+    const id = direction._id;
+    setTryAnywayPending((current) => {
+      const next = new Set(current);
+      next.add(id);
+      return next;
+    });
+
+    const history = directionsForJSON(directions.slice(0, index)).flatMap((group) => group.actions ?? []);
+
+    try {
+      const data = await translateFreeFormMutation.mutateAsync({ command, history });
+      const translated = data.directions ?? [];
+      if (!translated.length) {
+        throw new Error('Translation returned no directions');
+      }
+      // Replacing the unmatched pending direction at its current index keeps
+      // the free-form result anchored where the user was already looking.
+      const nextDirections = resolvePendingDirection(id, translated, command, index, { freeForm: true });
+      toast.success(nextDirections.length === 1 ? 'Added free-form direction' : `Added ${nextDirections.length} free-form directions`);
+    } catch (err) {
+      // Restore the unmatched panel so the user can retry.
+      resolveUnmatchedDirection(id, command);
+      toast.error(errorMessage(err, 'Free-form translation failed'));
+    } finally {
+      setTryAnywayPending((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
     }
   }
 
@@ -272,6 +313,9 @@ export function DirectionsPanel() {
                         }}
                         onToggleAlwaysRun={() => toggleAlwaysRun(index)}
                         onToggleStartFrom={() => toggleStartFrom(index)}
+                        onDismissUnmatched={() => deleteDirection(index)}
+                        onTryAnyway={() => tryAnywayFreeForm(index)}
+                        tryAnywayPending={tryAnywayPending.has(direction._id)}
                       />
                     );
                   })}

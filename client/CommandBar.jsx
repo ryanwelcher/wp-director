@@ -11,6 +11,7 @@ export function CommandBar() {
     cleanDirections,
     failPendingDirection,
     resolvePendingDirection,
+    resolveUnmatchedDirection,
   } = useAppState();
   const [command, setCommand] = useState('');
   const translateMutation = useTranslateMutation();
@@ -28,6 +29,14 @@ export function CommandBar() {
       const translatedDirections = data.directions ?? [];
 
       if (!translatedDirections.length) {
+        // Intent-library pipeline can return an empty directions array along
+        // with an `unmatched` fragment when nothing in the catalog fits.
+        // Surface the unmatched state in-place so the user can opt into the
+        // free-form fallback.
+        if (data.unmatched) {
+          resolveUnmatchedDirection(pending._id, data.unmatched);
+          return;
+        }
         throw new Error('Translation returned no directions');
       }
 

@@ -1416,6 +1416,97 @@ header p {
   to { transform: rotate(360deg); }
 }
 
+#step-list li.direction-group.is-unmatched {
+  border-color: #b45309;
+  background: #2a1e0d;
+}
+
+#step-list li.direction-group.is-free-form {
+  border-left: 3px solid #a855f7;
+}
+
+.direction-unmatched-state {
+  border-top: 1px solid #3b2a14;
+  color: #fbbf24;
+  display: flex;
+  flex-direction: column;
+  font-size: 0.78rem;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem 0.7rem 3.2rem;
+}
+
+.direction-unmatched-message {
+  color: #fcd34d;
+  margin: 0;
+}
+
+.direction-unmatched-message em {
+  color: #fde68a;
+  font-style: normal;
+}
+
+.direction-unmatched-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.direction-unmatched-try {
+  background: #b45309;
+  border: 1px solid #d97706;
+  border-radius: 4px;
+  color: #fef3c7;
+  cursor: pointer;
+  font-size: 0.78rem;
+  padding: 0.35rem 0.75rem;
+  transition: background 0.15s, color 0.15s;
+}
+
+.direction-unmatched-try:hover:not(:disabled) {
+  background: #d97706;
+  color: #fff7ed;
+}
+
+.direction-unmatched-try:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.direction-unmatched-dismiss {
+  background: transparent;
+  border: 1px solid #3b2a14;
+  border-radius: 4px;
+  color: #fbbf24;
+  cursor: pointer;
+  font-size: 0.78rem;
+  padding: 0.35rem 0.75rem;
+  transition: background 0.15s, color 0.15s;
+}
+
+.direction-unmatched-dismiss:hover:not(:disabled) {
+  background: #1f1707;
+  color: #fef3c7;
+}
+
+.direction-unmatched-dismiss:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.direction-placeholder-badge {
+  background: #1f2a3d;
+  border: 1px solid #334155;
+  border-radius: 999px;
+  color: #93c5fd;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  padding: 0.05rem 0.4rem;
+  text-transform: uppercase;
+}
+
+.direction-inner-item.is-placeholder {
+  color: #cbd5e1;
+}
+
 .direction-menu {
   position: absolute;
   z-index: 1000;

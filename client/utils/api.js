@@ -160,6 +160,12 @@ export const api = {
     return requestJSON(url, postOptions({ command, history }));
   },
 
+  // Always hits the legacy free-form pipeline. Used by the "Try anyway"
+  // button when an intent-library translation returned no match.
+  async translateCommandFreeForm({ command, history }) {
+    return requestJSON("/api/translate", postOptions({ command, history }));
+  },
+
   async getPluginInfo(slug, { signal } = {}) {
     const params = new URLSearchParams({ slug });
     return requestJSON(`/api/plugins/info?${params.toString()}`, { signal });

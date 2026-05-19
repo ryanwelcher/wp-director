@@ -81,6 +81,12 @@ export function useTranslateMutation() {
   });
 }
 
+export function useTranslateFreeFormMutation() {
+  return useMutation({
+    mutationFn: api.translateCommandFreeForm,
+  });
+}
+
 export function useSaveScriptMutation() {
   const queryClient = useQueryClient();
 

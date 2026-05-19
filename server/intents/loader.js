@@ -32,7 +32,7 @@ let loaded = false;
  * @property {boolean} [optional]
  * @property {*} [default]
  * @property {string[]} [values]              // for enum slots
- * @property {string} [placeholderFor]        // see expand.js placeholder fill (Phase 2)
+ * @property {string} [placeholderFor]        // see placeholder fill in expand.js
  *
  * @typedef {Object} Intent
  * @property {string} id
@@ -91,6 +91,16 @@ function validate(file, raw) {
       if (!Array.isArray(slot.values) || slot.values.length === 0) {
         throw new Error(`Intent ${file}: enum slot "${slot.name}" must declare a non-empty "values" array`);
       }
+    }
+  }
+
+  // `placeholderFor` cross-reference — done after the loop so the sibling
+  // can appear before or after the slot that references it.
+  for (const slot of intent.slots) {
+    if (slot.placeholderFor && !seenSlotNames.has(slot.placeholderFor)) {
+      throw new Error(
+        `Intent ${file}: slot "${slot.name}" placeholderFor references unknown sibling "${slot.placeholderFor}"`,
+      );
     }
   }
 

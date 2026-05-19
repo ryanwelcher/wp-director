@@ -1,0 +1,17 @@
+{
+  "id": "open-new-page",
+  "description": "Navigate to the new-page editor (Add Page) and dismiss the welcome modal if it appears.",
+  "examples": [
+    "create a new page",
+    "start a new page",
+    "open the page editor",
+    "add a new page",
+    "open new page"
+  ],
+  "slots": [],
+  "label": "Open the new page editor",
+  "actions": [
+    { "action": "navigate", "url": "/wp-admin/post-new.php?post_type=page", "waitUntil": "domcontentloaded" },
+    { "action": "tryClick", "selector": ".components-modal__header button[aria-label=\"Close\"]" }
+  ]
+}

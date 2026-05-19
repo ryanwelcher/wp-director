@@ -1,0 +1,30 @@
+{
+  "id": "insert-block",
+  "description": "Insert a single block of a given type into the current editor via the slash inserter. If the user supplied body text, set the block's content; otherwise the server fills an indexed placeholder (\"Paragraph 1\", \"Heading 1\", ...) that the user can edit inline before running.",
+  "examples": [
+    "add a heading",
+    "insert a paragraph",
+    "add a paragraph that says Welcome to the site",
+    "insert an image block",
+    "add a quote",
+    "add a list block"
+  ],
+  "slots": [
+    {
+      "name": "blockType",
+      "type": "enum",
+      "values": ["paragraph", "heading", "image", "list", "quote", "code"]
+    },
+    {
+      "name": "content",
+      "type": "string",
+      "optional": true,
+      "placeholderFor": "blockType"
+    }
+  ],
+  "label": "Insert a {{blockType}} block",
+  "actions": [
+    { "action": "wpInsertBlock", "blockType": "{{blockType}}" },
+    { "action": "wpSetBlockContent", "blockType": "{{blockType}}", "content": "{{content}}" }
+  ]
+}

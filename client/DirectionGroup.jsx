@@ -29,6 +29,12 @@ export function DirectionGroup({
   onToggleStartFrom,
   onTryAnyway,
   tryAnywayPending,
+  fixingStep,
+  fixSubmitting,
+  onStartFixStep,
+  onCancelFixStep,
+  onUpdateFixHint,
+  onSubmitFixStep,
 }) {
   const translationStatus = direction._translation?.status;
   const translationError = direction._translation?.error;
@@ -187,19 +193,75 @@ export function DirectionGroup({
         <ul className="direction-inner-list">
           {direction.actions.map((action, actionIndex) => {
             const isPlaceholder = placeholderSet?.has(actionIndex);
+            const isFixingThisStep = fixingStep?.actionIndex === actionIndex;
             return (
               <li
-                className={clsx('direction-inner-item', isPlaceholder && 'is-placeholder')}
+                className={clsx('direction-inner-item', isPlaceholder && 'is-placeholder', isFixingThisStep && 'is-fixing')}
                 key={`${action.action}-${actionIndex}`}
               >
-                {describePlain(action)}
-                {isPlaceholder && (
-                  <span
-                    className="direction-placeholder-badge"
-                    title="Auto-filled placeholder — edit before recording"
+                <div className="direction-inner-item-row">
+                  <span className="direction-inner-item-text">{describePlain(action)}</span>
+                  {isPlaceholder && (
+                    <span
+                      className="direction-placeholder-badge"
+                      title="Auto-filled placeholder — edit before recording"
+                    >
+                      placeholder
+                    </span>
+                  )}
+                  {!isFixingThisStep && isResolved && (
+                    <button
+                      className="direction-step-fix-btn"
+                      type="button"
+                      title="Fix this step with AI"
+                      aria-label="Fix this step with AI"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onStartFixStep?.(actionIndex);
+                      }}
+                    >
+                      ✨
+                    </button>
+                  )}
+                </div>
+                {isFixingThisStep && (
+                  <form
+                    className="direction-step-fix-form"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      onSubmitFixStep?.();
+                    }}
                   >
-                    placeholder
-                  </span>
+                    <input
+                      type="text"
+                      className="direction-step-fix-input"
+                      placeholder="Optional hint (e.g. selector doesn't find anything)"
+                      value={fixingStep?.hint || ''}
+                      onChange={(event) => onUpdateFixHint?.(event.target.value)}
+                      autoFocus
+                      onKeyDown={(event) => {
+                        if (event.key === 'Escape') {
+                          event.preventDefault();
+                          onCancelFixStep?.();
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="direction-step-fix-cancel"
+                      onClick={onCancelFixStep}
+                      disabled={fixSubmitting}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="direction-step-fix-submit"
+                      disabled={fixSubmitting}
+                    >
+                      {fixSubmitting ? 'Fixing…' : 'Fix'}
+                    </button>
+                  </form>
                 )}
               </li>
             );

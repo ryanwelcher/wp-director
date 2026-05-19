@@ -14,7 +14,7 @@
  */
 
 const { client } = require('../claude');
-const { getCatalog } = require('./loader');
+const { getCatalog, getIntent } = require('./loader');
 
 const MODEL = 'claude-sonnet-4-6';
 
@@ -127,16 +127,28 @@ async function classify(userText) {
 
   const toolUse = message.content.find((b) => b.type === 'tool_use');
   const input = /** @type {any} */ (toolUse?.input) || {};
-  const intents = Array.isArray(input.intents) ? input.intents : [];
-  const normalized = intents
-    .filter((e) => e && typeof e === 'object' && typeof e.id === 'string')
-    .map((e) => ({ id: e.id, slots: (e.slots && typeof e.slots === 'object') ? e.slots : {} }));
+  const raw = Array.isArray(input.intents) ? input.intents : [];
+
+  // The model is told to use only catalog ids, but occasionally invents one.
+  // Drop hallucinated ids and route to the unmatched fallback rather than
+  // letting expand() throw a 500.
+  /** @type {Array<{ id: string, slots: Record<string, unknown> }>} */
+  const normalized = [];
+  let droppedUnknown = false;
+  for (const e of raw) {
+    if (!e || typeof e !== 'object' || typeof e.id !== 'string') continue;
+    if (!getIntent(e.id)) {
+      droppedUnknown = true;
+      continue;
+    }
+    normalized.push({ id: e.id, slots: (e.slots && typeof e.slots === 'object') ? e.slots : {} });
+  }
 
   /** @type {ClassifyResult} */
   const result = { intents: normalized };
-  if (typeof input.unmatched === 'string' && input.unmatched.trim()) {
-    result.unmatched = input.unmatched.trim();
-  }
+  const modelUnmatched = typeof input.unmatched === 'string' ? input.unmatched.trim() : '';
+  if (modelUnmatched) result.unmatched = modelUnmatched;
+  else if (droppedUnknown) result.unmatched = userText;
   return result;
 }
 

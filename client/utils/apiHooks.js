@@ -114,6 +114,30 @@ export function useSaveIntentMutation() {
   });
 }
 
+export function useProposeIntentMutation() {
+  return useMutation({
+    mutationFn: api.proposeIntent,
+  });
+}
+
+export function useCheckIntentConflictsMutation() {
+  return useMutation({
+    mutationFn: api.checkIntentConflicts,
+  });
+}
+
+export function useRefineTranslationMutation() {
+  return useMutation({
+    mutationFn: api.refineTranslation,
+  });
+}
+
+export function useFixStepMutation() {
+  return useMutation({
+    mutationFn: api.fixStep,
+  });
+}
+
 export function useDeleteIntentMutation() {
   const queryClient = useQueryClient();
 

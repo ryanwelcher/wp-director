@@ -149,6 +149,12 @@ export function useDirectionsState() {
     )));
   }, []);
 
+  const replaceDirectionActions = useCallback((index, nextActions) => {
+    setDirections((current) => current.map((direction, i) => (
+      i === index ? { ...direction, actions: nextActions } : direction
+    )));
+  }, []);
+
   const deleteDirection = useCallback((index) => {
     setDirections((current) => current.filter((_, i) => i !== index));
     setStartFromIndex((current) => {
@@ -221,6 +227,7 @@ export function useDirectionsState() {
     clearDirections,
     updateDirectionLabel,
     toggleDirectionOpen,
+    replaceDirectionActions,
     deleteDirection,
     insertDirectionAt,
     reorderDirections,

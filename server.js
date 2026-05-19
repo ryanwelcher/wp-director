@@ -28,9 +28,11 @@ const {
 } = require('./server/config');
 
 const app = express();
+const previewLoadingPage = path.join(__dirname, 'server/public/preview-loading.html');
 
 app.use(express.json());
 app.use('/screencasts', express.static(SCREENCASTS_DIR));
+app.get('/preview-loading.html', (req, res) => res.sendFile(previewLoadingPage));
 
 // Route modules — each registers its own handlers on `app`.
 require('./server/routes/translate').register(app);

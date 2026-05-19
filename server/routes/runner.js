@@ -169,6 +169,22 @@ function resolveBlueprintPath(blueprint) {
   return fs.existsSync(GENERATED_BLUEPRINT) ? GENERATED_BLUEPRINT : DEFAULT_BLUEPRINT;
 }
 
+function clearDirectoryContents(dir) {
+  if (!fs.existsSync(dir)) return;
+
+  for (const entry of fs.readdirSync(dir)) {
+    fs.rmSync(path.join(dir, entry), { recursive: true, force: true });
+  }
+}
+
+function cleanupDisposablePlaywrightFiles() {
+  try {
+    clearDirectoryContents(PLAYWRIGHT_OUTPUT_DIR);
+  } catch (err) {
+    console.warn(`Could not clean disposable output: ${err.message}`);
+  }
+}
+
 /**
  * Launch a Chromium browser via the Playwright Node.js API and run each
  * script definition in order, streaming screencast frames and log output
@@ -422,6 +438,7 @@ function register(app) {
     } finally {
       if (currentRun === run) currentRun = null;
       pool.release(port, { used: instanceUsed });
+      cleanupDisposablePlaywrightFiles();
       if (!res.destroyed && !res.writableEnded) res.end();
     }
   });
@@ -484,6 +501,7 @@ function register(app) {
     } finally {
       if (currentRun === run) currentRun = null;
       pool.release(port, { used: instanceUsed });
+      cleanupDisposablePlaywrightFiles();
       if (!res.destroyed && !res.writableEnded) res.end();
     }
   });

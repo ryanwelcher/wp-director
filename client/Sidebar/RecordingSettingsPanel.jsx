@@ -40,7 +40,7 @@ export function RecordingSettingsPanel() {
     <div className="tab-panel-body">
       <div className="setting-field">
         <div className="setting-field-header">
-          <label htmlFor="typing-delay-input">Typing speed</label>
+          <label htmlFor="typing-delay-input">Typing delay</label>
           <span className="setting-field-value">{typingDelay} ms/char</span>
         </div>
         <input

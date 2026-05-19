@@ -126,15 +126,9 @@ export function useCheckIntentConflictsMutation() {
   });
 }
 
-export function useRefineTranslationMutation() {
+export function useFixDirectionMutation() {
   return useMutation({
-    mutationFn: api.refineTranslation,
-  });
-}
-
-export function useFixStepMutation() {
-  return useMutation({
-    mutationFn: api.fixStep,
+    mutationFn: api.fixDirection,
   });
 }
 

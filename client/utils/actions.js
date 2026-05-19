@@ -71,14 +71,14 @@ export function normalizeDirections(raw) {
 export function directionsForJSON(directions) {
   return directions
     .filter(isDirectionResolved)
-    .map(({ _id, _open, _fromIntent, _translation, _placeholders, _freeForm, alwaysRun, ...rest }) => rest);
+    .map(({ _id, _open, _fromIntent, _translation, _placeholders, _freeForm, _failure, alwaysRun, ...rest }) => rest);
 }
 
 export function directionsForRun(directions, alwaysRunIndices) {
   return directions.flatMap((direction, index) => {
     if (!isDirectionResolved(direction)) return [];
 
-    const { _id, _open, _fromIntent, _translation, _placeholders, _freeForm, alwaysRun, ...cleanDirection } = direction;
+    const { _id, _open, _fromIntent, _translation, _placeholders, _freeForm, _failure, alwaysRun, ...cleanDirection } = direction;
     return [
       alwaysRunIndices.has(index)
         ? { ...cleanDirection, alwaysRun: true }

@@ -184,19 +184,12 @@ export const api = {
     return requestJSON("/api/translate", postOptions({ command, history }));
   },
 
-  async refineTranslation({ originalPrompt, currentDirections, feedback, mode = "intent" }) {
-    return requestJSON(
-      "/api/translate/refine",
-      postOptions({ originalPrompt, currentDirections, feedback, mode }),
-    );
-  },
-
-  async fixStep({ step, surroundingActions, originalPrompt, hint }) {
+  async fixDirection({ actions, error, originalPrompt, label }) {
     const data = await requestJSON(
-      "/api/steps/fix",
-      postOptions({ step, surroundingActions, originalPrompt, hint }),
+      "/api/directions/fix",
+      postOptions({ actions, error, originalPrompt, label }),
     );
-    return data?.steps ?? [];
+    return data?.actions ?? [];
   },
 
   async getPluginInfo(slug, { signal } = {}) {

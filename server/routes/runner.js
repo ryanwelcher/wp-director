@@ -234,6 +234,11 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
   };
 
   let code = 0;
+  // Tracks which direction (and which script, if multiple) was active when a
+  // step failed. Carried back to the client via a `step-error` SSE event so
+  // the UI can mark exactly that direction for AI-assisted repair.
+  let activeDirectionIndex = null;
+  let activeScriptName = null;
   try {
     browser = await chromium.launch({
       headless: true,
@@ -252,6 +257,8 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
 
     for (const def of scripts) {
       throwIfRunStopped(signal);
+      activeScriptName = def.name;
+      activeDirectionIndex = null;
       send({ type: 'stdout', text: `[Playwright] Running: ${def.name}\n` });
 
       const page = await context.newPage();
@@ -285,8 +292,10 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
       throwIfRunStopped(signal);
 
       await runSteps(page, def, null, (index, total) => {
+        activeDirectionIndex = index;
         send({ type: 'step-progress', index, total });
       });
+      activeDirectionIndex = null;
       throwIfRunStopped(signal);
 
       await page.screencast.stop();
@@ -312,6 +321,18 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
     if (signal?.aborted || err.code === 'RUN_STOPPED') {
       if (run) run.stopRequested = true;
     } else {
+      // If runSteps threw while a direction was active, attribute the
+      // failure so the UI can render a Fix button on the right row.
+      // Other failures (browser/context lifecycle, navigation) don't carry
+      // a meaningful direction index — we omit the event for those.
+      if (activeDirectionIndex != null) {
+        send({
+          type: 'step-error',
+          index: activeDirectionIndex,
+          script: activeScriptName,
+          message: err.message,
+        });
+      }
       send({ type: 'stderr', text: `[Playwright] ${err.message}\n` });
       code = 1;
     }

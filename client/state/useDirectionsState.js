@@ -149,10 +149,48 @@ export function useDirectionsState() {
     )));
   }, []);
 
-  const replaceDirectionActions = useCallback((index, nextActions) => {
+  const markDirectionFailed = useCallback((index, error) => {
+    if (index == null) return;
     setDirections((current) => current.map((direction, i) => (
-      i === index ? { ...direction, actions: nextActions } : direction
+      i === index
+        ? {
+            ...direction,
+            _open: true, // expand on failure so the user can see what ran
+            _failure: {
+              error: error || 'Recording failed at this direction',
+              capturedAt: Date.now(),
+            },
+          }
+        : direction
     )));
+  }, []);
+
+  const clearDirectionFailure = useCallback((index) => {
+    setDirections((current) => current.map((direction, i) => {
+      if (i !== index) return direction;
+      if (!direction._failure) return direction;
+      const { _failure, ...rest } = direction;
+      return rest;
+    }));
+  }, []);
+
+  const clearAllFailures = useCallback(() => {
+    setDirections((current) => current.map((direction) => {
+      if (!direction._failure) return direction;
+      const { _failure, ...rest } = direction;
+      return rest;
+    }));
+  }, []);
+
+  const replaceDirectionActions = useCallback((index, nextActions) => {
+    setDirections((current) => current.map((direction, i) => {
+      if (i !== index) return direction;
+      // Replacing actions also clears any failure marker — the user has just
+      // committed to a repair, so we treat the slate as fresh until the next
+      // run produces evidence otherwise.
+      const { _failure, ...rest } = direction;
+      return { ...rest, actions: nextActions };
+    }));
   }, []);
 
   const deleteDirection = useCallback((index) => {
@@ -227,6 +265,9 @@ export function useDirectionsState() {
     clearDirections,
     updateDirectionLabel,
     toggleDirectionOpen,
+    markDirectionFailed,
+    clearDirectionFailure,
+    clearAllFailures,
     replaceDirectionActions,
     deleteDirection,
     insertDirectionAt,

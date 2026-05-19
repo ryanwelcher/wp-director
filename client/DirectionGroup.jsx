@@ -29,12 +29,9 @@ export function DirectionGroup({
   onToggleStartFrom,
   onTryAnyway,
   tryAnywayPending,
-  fixingStep,
-  fixSubmitting,
-  onStartFixStep,
-  onCancelFixStep,
-  onUpdateFixHint,
-  onSubmitFixStep,
+  fixPending,
+  onFixDirection,
+  onDismissFailure,
 }) {
   const translationStatus = direction._translation?.status;
   const translationError = direction._translation?.error;
@@ -43,6 +40,7 @@ export function DirectionGroup({
   const isUnmatched = translationStatus === 'unmatched';
   const isResolved = !translationStatus || translationStatus === 'resolved';
   const isFreeForm = !!direction._freeForm;
+  const failure = direction._failure;
   const placeholderSet = direction._placeholders?.length
     ? new Set(direction._placeholders)
     : null;
@@ -60,6 +58,7 @@ export function DirectionGroup({
     isUnmatched && 'is-unmatched',
     isFreeForm && 'is-free-form',
     isEditing && 'is-editing',
+    failure && 'has-failure',
   );
   const editInputRef = useRef(null);
 
@@ -189,79 +188,52 @@ export function DirectionGroup({
         </div>
       )}
 
+      {failure && isResolved && (
+        <div className="direction-failure">
+          <div className="direction-failure-header">
+            <span className="direction-failure-icon" aria-hidden="true">⚠</span>
+            <span className="direction-failure-title">Recording failed at this direction</span>
+            <button
+              className="direction-failure-dismiss"
+              type="button"
+              onClick={onDismissFailure}
+              aria-label="Dismiss failure marker"
+              title="Dismiss"
+            >
+              ×
+            </button>
+          </div>
+          <pre className="direction-failure-message">{failure.error}</pre>
+          <div className="direction-failure-actions">
+            <button
+              className="direction-failure-fix"
+              type="button"
+              disabled={fixPending}
+              onClick={onFixDirection}
+            >
+              {fixPending ? 'Asking AI…' : 'Fix with AI'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {direction._open && direction.actions?.length > 0 && (
         <ul className="direction-inner-list">
           {direction.actions.map((action, actionIndex) => {
             const isPlaceholder = placeholderSet?.has(actionIndex);
-            const isFixingThisStep = fixingStep?.actionIndex === actionIndex;
             return (
               <li
-                className={clsx('direction-inner-item', isPlaceholder && 'is-placeholder', isFixingThisStep && 'is-fixing')}
+                className={clsx('direction-inner-item', isPlaceholder && 'is-placeholder')}
                 key={`${action.action}-${actionIndex}`}
               >
-                <div className="direction-inner-item-row">
-                  <span className="direction-inner-item-text">{describePlain(action)}</span>
-                  {isPlaceholder && (
-                    <span
-                      className="direction-placeholder-badge"
-                      title="Auto-filled placeholder — edit before recording"
-                    >
-                      placeholder
-                    </span>
-                  )}
-                  {!isFixingThisStep && isResolved && (
-                    <button
-                      className="direction-step-fix-btn"
-                      type="button"
-                      title="Fix this step with AI"
-                      aria-label="Fix this step with AI"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onStartFixStep?.(actionIndex);
-                      }}
-                    >
-                      ✨
-                    </button>
-                  )}
-                </div>
-                {isFixingThisStep && (
-                  <form
-                    className="direction-step-fix-form"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      onSubmitFixStep?.();
-                    }}
+                {describePlain(action)}
+                {isPlaceholder && (
+                  <span
+                    className="direction-placeholder-badge"
+                    title="Auto-filled placeholder — edit before recording"
                   >
-                    <input
-                      type="text"
-                      className="direction-step-fix-input"
-                      placeholder="Optional hint (e.g. selector doesn't find anything)"
-                      value={fixingStep?.hint || ''}
-                      onChange={(event) => onUpdateFixHint?.(event.target.value)}
-                      autoFocus
-                      onKeyDown={(event) => {
-                        if (event.key === 'Escape') {
-                          event.preventDefault();
-                          onCancelFixStep?.();
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className="direction-step-fix-cancel"
-                      onClick={onCancelFixStep}
-                      disabled={fixSubmitting}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="direction-step-fix-submit"
-                      disabled={fixSubmitting}
-                    >
-                      {fixSubmitting ? 'Fixing…' : 'Fix'}
-                    </button>
-                  </form>
+                    placeholder
+                  </span>
                 )}
               </li>
             );

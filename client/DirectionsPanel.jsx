@@ -12,8 +12,7 @@ import { BlueprintPanel } from './Sidebar/BlueprintPanel.jsx';
 import { RecordingSettingsPanel } from './Sidebar/RecordingSettingsPanel.jsx';
 import { directionsForJSON, errorMessage } from './utils/actions.js';
 import {
-  useFixStepMutation,
-  useRefineTranslationMutation,
+  useFixDirectionMutation,
   useTranslateFreeFormMutation,
   useTranslateMutation,
 } from './utils/apiHooks.js';
@@ -44,6 +43,7 @@ export function DirectionsPanel() {
     alwaysRunIndices,
     cleanDirections,
     clearDirectionsOnly,
+    clearDirectionFailure,
     deleteDirection,
     directions,
     directionsView,
@@ -73,14 +73,11 @@ export function DirectionsPanel() {
   const [clearDirectionsDialogOpen, setClearDirectionsDialogOpen] = useState(false);
   const translateMutation = useTranslateMutation();
   const translateFreeFormMutation = useTranslateFreeFormMutation();
-  const refineMutation = useRefineTranslationMutation();
-  const fixStepMutation = useFixStepMutation();
+  const fixDirectionMutation = useFixDirectionMutation();
   const [tryAnywayPending, setTryAnywayPending] = useState(() => new Set());
+  const [fixPendingIndex, setFixPendingIndex] = useState(null);
+  const [fixProposal, setFixProposal] = useState(null);
   const [saveIntentTarget, setSaveIntentTarget] = useState(null);
-  const [refineValue, setRefineValue] = useState('');
-  const [refineUndo, setRefineUndo] = useState(null);
-  const [fixingStep, setFixingStep] = useState(null);
-  const [stepFixProposal, setStepFixProposal] = useState(null);
 
   const closePopovers = useCallback(() => {
     setMenu(null);
@@ -177,114 +174,47 @@ export function DirectionsPanel() {
     }
   }
 
-  async function submitRefine() {
-    const feedback = refineValue.trim();
-    if (!feedback || directions.length === 0) return;
-    // Use the most recent translation prompt as the "original" the model
-    // should treat as the baseline. Falls back to the joined labels if no
-    // translation history is available (e.g. all directions inserted from
-    // the picker).
-    const lastTranslated = [...directions].reverse().find((d) => d._translation?.command);
-    const originalPrompt = lastTranslated?._translation?.command
-      || directions.map((d) => d.label).join('; ');
-    // Refine in the same mode the directions were produced in: if any are
-    // free-form we use the free-form pipeline so the model can revise them
-    // beyond the intent catalog.
-    const mode = directions.some((d) => d._freeForm) ? 'freeform' : 'intent';
-    const currentDirections = directionsForJSON(directions);
-
+  async function requestFixDirection(index) {
+    const direction = directions[index];
+    if (!direction || !direction._failure) return;
+    setFixPendingIndex(index);
     try {
-      const data = await refineMutation.mutateAsync({
-        originalPrompt,
-        currentDirections,
-        feedback,
-        mode,
+      const actions = await fixDirectionMutation.mutateAsync({
+        actions: direction.actions || [],
+        error: direction._failure.error,
+        originalPrompt: direction._translation?.command,
+        label: direction.label,
       });
-      const next = data?.directions ?? [];
-      if (!next.length) {
-        toast.error(data?.unmatched
-          ? 'Refinement did not match any catalog intent. Try a more specific feedback or switch to free-form.'
-          : 'Refinement returned no directions.');
+      if (!Array.isArray(actions) || actions.length === 0) {
+        toast.error('AI returned no replacement actions.');
         return;
       }
-      // Save undo snapshot before replacing.
-      setRefineUndo({ directions, startFromIndex, alwaysRunIndices: new Set(alwaysRunIndices) });
-      clearDirectionsOnly();
-      next.forEach((direction, index) => insertDirectionAt(
-        { ...direction, ...(mode === 'freeform' ? { _freeForm: true } : { _fromIntent: true }) },
+      setFixProposal({
         index,
-      ));
-      setRefineValue('');
-      toast.success(`Refined: ${next.length} direction(s).`);
-    } catch (err) {
-      toast.error(errorMessage(err, 'Refine failed'));
-    }
-  }
-
-  function undoRefine() {
-    if (!refineUndo) return;
-    clearDirectionsOnly();
-    refineUndo.directions.forEach((direction, index) => insertDirectionAt(direction, index));
-    setRefineUndo(null);
-    toast.success('Refinement undone.');
-  }
-
-  async function requestStepFix({ directionIndex, actionIndex, hint }) {
-    const direction = directions[directionIndex];
-    if (!direction) return;
-    const step = direction.actions?.[actionIndex];
-    if (!step) return;
-    const surrounding = direction.actions
-      .filter((_, i) => i !== actionIndex)
-      .map((a) => ({ ...a }));
-    const originalPrompt = direction._translation?.command || direction.label;
-    try {
-      const steps = await fixStepMutation.mutateAsync({
-        step,
-        surroundingActions: surrounding,
-        originalPrompt,
-        hint: hint || undefined,
-      });
-      if (!Array.isArray(steps) || steps.length === 0) {
-        toast.error('Fix returned no replacement.');
-        return;
-      }
-      setStepFixProposal({
-        directionIndex,
-        actionIndex,
-        original: step,
-        replacement: steps,
+        originalActions: direction.actions || [],
+        replacement: actions,
         fromIntent: !!direction._fromIntent,
+        errorMessage: direction._failure.error,
       });
     } catch (err) {
-      toast.error(errorMessage(err, 'Step fix failed'));
+      toast.error(errorMessage(err, 'Fix failed'));
     } finally {
-      setFixingStep(null);
+      setFixPendingIndex(null);
     }
   }
 
-  function acceptStepFix() {
-    if (!stepFixProposal) return;
-    const { directionIndex, actionIndex, replacement } = stepFixProposal;
-    // Splice the replacement into the action list of the targeted direction.
-    // Mutate via the existing state setter to preserve indices for run markers.
-    const direction = directions[directionIndex];
-    if (!direction) {
-      setStepFixProposal(null);
-      return;
-    }
-    const nextActions = [
-      ...direction.actions.slice(0, actionIndex),
-      ...replacement,
-      ...direction.actions.slice(actionIndex + 1),
-    ];
-    replaceDirectionActions(directionIndex, nextActions);
-    setStepFixProposal(null);
-    toast.success(replacement.length === 1 ? 'Step replaced.' : `Step replaced with ${replacement.length} actions.`);
+  function acceptFixDirection() {
+    if (!fixProposal) return;
+    const { index, replacement } = fixProposal;
+    replaceDirectionActions(index, replacement);
+    setFixProposal(null);
+    toast.success(replacement.length === 1
+      ? 'Direction repaired (1 action).'
+      : `Direction repaired (${replacement.length} actions).`);
   }
 
-  function rejectStepFix() {
-    setStepFixProposal(null);
+  function rejectFixDirection() {
+    setFixProposal(null);
   }
 
   async function tryAnywayFreeForm(index) {
@@ -471,16 +401,9 @@ export function DirectionsPanel() {
                         onDismissUnmatched={() => deleteDirection(index)}
                         onTryAnyway={() => tryAnywayFreeForm(index)}
                         tryAnywayPending={tryAnywayPending.has(direction._id)}
-                        fixingStep={fixingStep?.directionIndex === index ? fixingStep : null}
-                        onStartFixStep={(actionIndex) => setFixingStep({ directionIndex: index, actionIndex, hint: '' })}
-                        onCancelFixStep={() => setFixingStep(null)}
-                        onUpdateFixHint={(hint) => setFixingStep((current) => (current ? { ...current, hint } : current))}
-                        onSubmitFixStep={() => requestStepFix({
-                          directionIndex: index,
-                          actionIndex: fixingStep?.actionIndex,
-                          hint: fixingStep?.hint,
-                        })}
-                        fixSubmitting={fixStepMutation.isPending && fixingStep?.directionIndex === index}
+                        fixPending={fixPendingIndex === index}
+                        onFixDirection={() => requestFixDirection(index)}
+                        onDismissFailure={() => clearDirectionFailure(index)}
                       />
                     );
                   })}
@@ -511,48 +434,6 @@ export function DirectionsPanel() {
                     × Clear directions
                   </button>
                 </div>
-
-                {hasDirections && (
-                  <form
-                    className="direction-refine-form"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      submitRefine();
-                    }}
-                  >
-                    <label className="direction-refine-label" htmlFor="direction-refine-input">
-                      Refine with AI
-                    </label>
-                    <div className="direction-refine-row">
-                      <input
-                        id="direction-refine-input"
-                        type="text"
-                        className="direction-refine-input"
-                        placeholder="e.g. put the heading before the paragraph"
-                        value={refineValue}
-                        onChange={(event) => setRefineValue(event.target.value)}
-                        disabled={refineMutation.isPending}
-                      />
-                      <button
-                        className="direction-refine-submit"
-                        type="submit"
-                        disabled={!refineValue.trim() || refineMutation.isPending}
-                      >
-                        {refineMutation.isPending ? 'Refining…' : 'Refine'}
-                      </button>
-                      {refineUndo && (
-                        <button
-                          className="direction-refine-undo"
-                          type="button"
-                          onClick={undoRefine}
-                          disabled={refineMutation.isPending}
-                        >
-                          Undo
-                        </button>
-                      )}
-                    </div>
-                  </form>
-                )}
               </>
             )}
   
@@ -624,32 +505,33 @@ export function DirectionsPanel() {
         />
       )}
 
-      {stepFixProposal && (
+      {fixProposal && (
         <Dialog
-          title="Replace step with AI fix?"
+          title="Apply AI fix to failed direction?"
           description={
-            stepFixProposal.fromIntent
-              ? 'This step came from an intent. The fix applies to the current step list only — the underlying intent file is unchanged.'
-              : 'Review the proposed replacement before applying.'
+            fixProposal.fromIntent
+              ? 'This direction came from an intent. The fix applies to the current step list only — the underlying intent file is unchanged.'
+              : 'Review the proposed replacement before applying. The original error from the failed run is shown for reference.'
           }
-          onClose={rejectStepFix}
+          onClose={rejectFixDirection}
           className="app-dialog--wide"
         >
-          <div className="step-fix-diff">
-            <div className="step-fix-side">
-              <h3>Current</h3>
-              <pre>{JSON.stringify(stepFixProposal.original, null, 2)}</pre>
+          <pre className="direction-fix-error">{fixProposal.errorMessage}</pre>
+          <div className="direction-fix-diff">
+            <div className="direction-fix-side">
+              <h3>Current ({fixProposal.originalActions.length})</h3>
+              <pre>{JSON.stringify(fixProposal.originalActions, null, 2)}</pre>
             </div>
-            <div className="step-fix-side">
-              <h3>Proposed{stepFixProposal.replacement.length > 1 ? ` (${stepFixProposal.replacement.length} steps)` : ''}</h3>
-              <pre>{JSON.stringify(stepFixProposal.replacement, null, 2)}</pre>
+            <div className="direction-fix-side">
+              <h3>Proposed ({fixProposal.replacement.length})</h3>
+              <pre>{JSON.stringify(fixProposal.replacement, null, 2)}</pre>
             </div>
           </div>
           <div className="app-dialog-actions">
-            <button className="app-dialog-btn app-dialog-btn--secondary" type="button" onClick={rejectStepFix}>
+            <button className="app-dialog-btn app-dialog-btn--secondary" type="button" onClick={rejectFixDirection}>
               Reject
             </button>
-            <button className="app-dialog-btn app-dialog-btn--primary" type="button" onClick={acceptStepFix}>
+            <button className="app-dialog-btn app-dialog-btn--primary" type="button" onClick={acceptFixDirection}>
               Accept replacement
             </button>
           </div>

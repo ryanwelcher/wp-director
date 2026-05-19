@@ -1,11 +1,14 @@
 import clsx from 'clsx';
+import { useEffect, useRef } from 'react';
 import { describePlain } from './utils/actions.js';
 
 export function DirectionGroup({
   direction,
   dragging,
   dragOver,
+  editValue = '',
   index,
+  isEditing,
   isAlwaysRun,
   isActiveStep,
   isSkipped,
@@ -16,6 +19,9 @@ export function DirectionGroup({
   onDragOver,
   onDragStart,
   onDrop,
+  onEditCancel,
+  onEditChange,
+  onEditSubmit,
   onLabelChange,
   onMenu,
   onToggleAlwaysRun,
@@ -36,14 +42,23 @@ export function DirectionGroup({
     isAlwaysRun && 'always-run',
     isTranslating && 'is-translating',
     isTranslationError && 'has-translation-error',
+    isEditing && 'is-editing',
   );
+  const editInputRef = useRef(null);
+
+  useEffect(() => {
+    if (isEditing) {
+      editInputRef.current?.focus();
+      editInputRef.current?.select();
+    }
+  }, [isEditing]);
 
   return (
     <li
       ref={itemRef}
       className={className}
       aria-busy={isTranslating}
-      draggable={isResolved}
+      draggable={isResolved && !isEditing}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onDragOver={onDragOver}
@@ -57,7 +72,7 @@ export function DirectionGroup({
           className="direction-label-input"
           value={direction.label}
           title="Edit label"
-          disabled={!isResolved}
+          disabled={!isResolved || isEditing}
           onChange={(event) => onLabelChange(event.target.value)}
           onDragStart={(event) => event.preventDefault()}
         />
@@ -65,7 +80,7 @@ export function DirectionGroup({
           className="direction-start-btn"
           title={isStartFrom ? 'Clear preview start point' : 'Preview from this step'}
           type="button"
-          disabled={!isResolved}
+          disabled={!isResolved || isEditing}
           onClick={onToggleStartFrom}
         >
           &#9655;
@@ -74,15 +89,48 @@ export function DirectionGroup({
           className="direction-pin-btn"
           title={isAlwaysRun ? 'Remove always-run' : 'Always run (even when skipping earlier steps)'}
           type="button"
-          disabled={!isResolved}
+          disabled={!isResolved || isEditing}
           onClick={onToggleAlwaysRun}
         >
           &#128204;
         </button>
-        <button className="direction-menu-btn" title="More actions" type="button" onClick={onMenu}>
+        <button className="direction-menu-btn" title="More actions" type="button" disabled={!isResolved || isEditing} onClick={onMenu}>
           &#8943;
         </button>
       </div>
+
+      {isEditing && isResolved && (
+        <form
+          className="direction-edit-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onEditSubmit();
+          }}
+        >
+          <input
+            ref={editInputRef}
+            className="direction-edit-input"
+            type="text"
+            value={editValue}
+            aria-label="Additional context for this direction"
+            placeholder="Tell AI what to change or clarify..."
+            onChange={(event) => onEditChange(event.target.value)}
+            onDragStart={(event) => event.preventDefault()}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                onEditCancel();
+              }
+            }}
+          />
+          <button className="direction-edit-btn direction-edit-btn--secondary" type="button" onClick={onEditCancel}>
+            Cancel
+          </button>
+          <button className="direction-edit-btn direction-edit-btn--primary" type="submit" disabled={!editValue.trim()}>
+            Send
+          </button>
+        </form>
+      )}
 
       {isTranslating && (
         <div className="direction-translation-state">

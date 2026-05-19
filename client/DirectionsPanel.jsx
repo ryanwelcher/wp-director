@@ -13,6 +13,7 @@ import { directionsForJSON, errorMessage, flattenDirectionActions } from './util
 import {
   useDirectionLoader,
   useSaveDirectionMutation,
+  useTranslateMutation,
 } from './utils/apiHooks.js';
 import { useRunState } from './context/RunContext.jsx';
 
@@ -44,9 +45,12 @@ export function DirectionsPanel() {
     deleteDirection,
     directions,
     directionsView,
+    failPendingDirection,
     insertDirectionAt,
     libraryEntries,
     reorderDirections,
+    replaceWithPendingDirection,
+    resolvePendingDirection,
     setDirectionsView,
     startFromIndex,
     toggleAlwaysRun,
@@ -60,10 +64,12 @@ export function DirectionsPanel() {
   const [dragOverIndex, setDragOverIndex] = useState(null);
   const [menu, setMenu] = useState(null);
   const [picker, setPicker] = useState(null);
+  const [editDirection, setEditDirection] = useState(null);
   const [activeTab, setActiveTab] = useState('directions');
   const [clearDirectionsDialogOpen, setClearDirectionsDialogOpen] = useState(false);
   const loadDirection = useDirectionLoader();
   const saveDirectionMutation = useSaveDirectionMutation();
+  const translateMutation = useTranslateMutation();
 
   const closePopovers = useCallback(() => {
     setMenu(null);
@@ -103,6 +109,46 @@ export function DirectionsPanel() {
     } catch (err) {
       toast.error(errorMessage(err, 'Save failed'));
       return null;
+    }
+  }
+
+  function buildEditCommand(direction, context) {
+    return [
+      'Retranslate this existing direction using the user\'s additional context.',
+      'Treat the context as a clarification for the current direction, not as a standalone new direction.',
+      'Return replacement direction(s) for this direction only.',
+      `Current direction intent: ${direction.label}`,
+      `Current direction JSON:\n${JSON.stringify(directionsForJSON([direction])[0] ?? { label: direction.label, actions: direction.actions ?? [] }, null, 2)}`,
+      `User added context: ${context}`,
+    ].join('\n\n');
+  }
+
+  async function submitDirectionEdit(index) {
+    const direction = directions[index];
+    if (!direction) return;
+
+    const context = editDirection?.value?.trim();
+    if (!context) return;
+
+    const history = directionsForJSON(directions.slice(0, index)).flatMap((group) => group.actions ?? []);
+    const command = buildEditCommand(direction, context);
+    const pending = replaceWithPendingDirection(index, direction.label, context);
+    setEditDirection(null);
+    if (!pending) return;
+
+    try {
+      const data = await translateMutation.mutateAsync({ command, history });
+      const translatedDirections = data.directions ?? [];
+
+      if (!translatedDirections.length) {
+        throw new Error('Translation returned no directions');
+      }
+
+      const nextDirections = resolvePendingDirection(pending._id, translatedDirections, context, index);
+      toast.success(nextDirections.length === 1 ? 'Updated direction' : `Updated ${nextDirections.length} directions`);
+    } catch (err) {
+      failPendingDirection(pending._id, err);
+      toast.error(errorMessage(err, 'Edit failed'));
     }
   }
 
@@ -193,7 +239,9 @@ export function DirectionsPanel() {
                         direction={direction}
                         dragging={draggingIndex === index}
                         dragOver={dragOverIndex === index}
+                        editValue={editDirection?.index === index ? editDirection.value : ''}
                         index={index}
+                        isEditing={editDirection?.index === index}
                         isAlwaysRun={isAlwaysRun}
                         isActiveStep={activeStepIndex === index}
                         isSkipped={isSkipped}
@@ -234,6 +282,11 @@ export function DirectionsPanel() {
                           setDraggingIndex(null);
                           setDragOverIndex(null);
                         }}
+                        onEditCancel={() => setEditDirection(null)}
+                        onEditChange={(value) => setEditDirection((current) => (
+                          current?.index === index ? { ...current, value } : current
+                        ))}
+                        onEditSubmit={() => submitDirectionEdit(index)}
                         onLabelChange={(label) => updateDirectionLabel(index, label)}
                         onMenu={(event) => {
                           event.stopPropagation();
@@ -310,6 +363,9 @@ export function DirectionsPanel() {
             position={menu.position}
             onClose={() => setMenu(null)}
             onDelete={() => deleteDirection(menu.index)}
+            onEdit={() => {
+              setEditDirection({ index: menu.index, value: '' });
+            }}
             onInsert={() => setPicker({ anchorIndex: menu.index, position: menu.position })}
             onSave={() => saveDirection(menu.index)}
             onToggle={() => toggleDirectionOpen(menu.index)}

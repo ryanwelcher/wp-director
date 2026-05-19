@@ -13,9 +13,9 @@ function remapMovedIndex(index, from, to) {
   return index;
 }
 
-function pendingDirection(command) {
+function pendingDirection(command, label = command) {
   return withDirectionId({
-    label: command,
+    label,
     actions: [],
     _translation: {
       status: 'pending',
@@ -71,11 +71,32 @@ export function useDirectionsState() {
     return direction;
   }, []);
 
-  const resolvePendingDirection = useCallback((id, raw, command) => {
+  const replaceWithPendingDirection = useCallback((index, label, command) => {
+    if (index < 0 || index >= directions.length) return null;
+
+    const direction = pendingDirection(command, label);
+    setDirections((current) => current.map((item, i) => (
+      i === index ? direction : item
+    )));
+    return direction;
+  }, [directions.length]);
+
+  const resolvePendingDirection = useCallback((id, raw, command, replaceIndex = null) => {
     const nextDirections = translatedDirections(raw, command);
+    const delta = nextDirections.length - 1;
+
     setDirections((current) => current.flatMap((direction) => (
       direction._id === id ? nextDirections : [direction]
     )));
+
+    if (replaceIndex != null && delta !== 0) {
+      setStartFromIndex((current) => {
+        if (current == null || current <= replaceIndex) return current;
+        return current + delta;
+      });
+      setAlwaysRunIndices((current) => new Set([...current].map((i) => (i > replaceIndex ? i + delta : i))));
+    }
+
     return nextDirections;
   }, []);
 
@@ -176,6 +197,7 @@ export function useDirectionsState() {
     replaceDirections,
     appendDirections,
     appendPendingDirection,
+    replaceWithPendingDirection,
     resolvePendingDirection,
     failPendingDirection,
     clearDirections,

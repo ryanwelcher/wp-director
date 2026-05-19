@@ -2540,7 +2540,7 @@ header p {
 
 .direction-picker-slot-btn--primary:hover:not(:disabled) { background: #1d4ed8; }
 
-/* --- Phase 5: refine, save-as-intent, per-step fix --- */
+/* --- Phase 5: save-as-intent + failure-triggered direction fix --- */
 
 .app-dialog--wide {
   width: min(640px, calc(100vw - 2rem));

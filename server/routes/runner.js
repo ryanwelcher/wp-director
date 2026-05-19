@@ -3,7 +3,7 @@
 /**
  * Test-runner endpoints.
  *
- *   POST /api/run        → save + run a single recording, stream logs over SSE
+ *   POST /api/run        → play a single disposable run, stream logs over SSE
  *   POST /api/run/batch  → run multiple saved recordings, stream logs over SSE
  *
  * Both endpoints:
@@ -16,18 +16,19 @@
  *   3. Launch a Chromium browser via the Playwright Node.js API, create a
  *      browser context pointed at the acquired Playground port, and execute
  *      each script's step definitions in order.
- *   4. Stream stdout/stderr and live screencast frames back to the client as
+ *   4. Stream stdout/stderr and live browser frames back to the client as
  *      SSE events.
  *   5. Call pool.release() so the used slot is rebooted in the background,
  *      ready for the run after next.
  *
  * ## SSE event contract
  *
- *   { type: 'stdout',     text: string }          — log line from Playwright/ffmpeg
+ *   { type: 'stdout',     text: string }          — log line from Playwright
  *   { type: 'stderr',     text: string }          — error line
- *   { type: 'screencast', data: string }          — base64 JPEG frame for live preview
- *   { type: 'screencastVideo', uri: string }      — public URI for the saved screencast video
- *   { type: 'done',       code: number, file?: string }  — terminal event; client closes
+ *   { type: 'screencast', data: string }          — base64 JPEG frame from the live browser
+ *   { type: 'videoReady', name: string, videoUrl: string, createdAt: string }
+ *                                            — latest disposable video is ready to replay
+ *   { type: 'done',       code: number, video?: object }  — terminal event; client closes
  */
 
 const fs = require('fs');
@@ -36,8 +37,7 @@ const {
   STEPS_DIR,
   OUTPUT_DIR,
   PLAYWRIGHT_OUTPUT_DIR,
-  PREVIEW_OUTPUT_DIR,
-  SCREENCASTS_DIR,
+  DISPOSABLE_OUTPUT_DIR,
   DEFAULT_BLUEPRINT,
   GENERATED_BLUEPRINT,
 } = require('../config');
@@ -169,11 +169,27 @@ function resolveBlueprintPath(blueprint) {
   return fs.existsSync(GENERATED_BLUEPRINT) ? GENERATED_BLUEPRINT : DEFAULT_BLUEPRINT;
 }
 
+function clearDirectoryContents(dir) {
+  if (!fs.existsSync(dir)) return;
+
+  for (const entry of fs.readdirSync(dir)) {
+    fs.rmSync(path.join(dir, entry), { recursive: true, force: true });
+  }
+}
+
+function cleanupDisposablePlaywrightFiles() {
+  try {
+    clearDirectoryContents(PLAYWRIGHT_OUTPUT_DIR);
+  } catch (err) {
+    console.warn(`Could not clean disposable output: ${err.message}`);
+  }
+}
+
 /**
  * Launch a Chromium browser via the Playwright Node.js API and run each
  * script definition in order, streaming screencast frames and log output
- * back to the caller via `send`. Optionally records a WebM video per script
- * and post-processes it to MP4.
+ * back to the caller via `send`. Each script writes Playwright's captured WebM
+ * to the directory chosen by `outputDirForScript`.
  *
  * @param {Object} opts
  * @param {object[]} opts.scripts                   Step-definition objects to run, in order.
@@ -181,13 +197,13 @@ function resolveBlueprintPath(blueprint) {
  * @param {string}   opts.blueprintPath             Path to the active blueprint file.
  * @param {any}      opts.videoSize                 Target browser viewport/video size.
  * @param {(data: any) => void} opts.send           SSE writer.
- * @param {Object}   [opts.doneExtra]               Extra fields merged into the `done` event.
- * @param {boolean}  [opts.preview]                 Stream live frames and skip saving a recording entry.
+ * @param {(script: object) => string} [opts.outputDirForScript] Chooses the output directory for a script video.
+ * @param {(video: { script: object, videoDir: string, videoPath: string, createdAt: string }) => object | void} [opts.onVideoReady]
  * @param {() => void} [opts.onInstanceUsed]         Called once the Playground instance is actually touched.
  * @param {ReturnType<typeof createRunControl>} [opts.run]
  * @returns {Promise<void>}
  */
-async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send, doneExtra = {}, preview = false, onInstanceUsed = null, run = null }) {
+async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send, outputDirForScript = null, onVideoReady = null, onInstanceUsed = null, run = null }) {
   // IMPORTANT: When running multiple scripts, we are running all of them on the same Playground instance - this may or may not be desired.
   // If we want actions to be executed on the same Playground instance this is fine, but if we want a fresh Playground instance for each script, we need to acquire and release one for each script.
   const { chromium } = require('playwright');
@@ -198,7 +214,6 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
 
   const recordingSize = normalizeVideoSize(videoSize);
   const screencastSize = screencastSizeForVideoSize(recordingSize);
-  const shouldSaveRecording = !preview;
   send({ type: 'stdout', text: `[Playwright] Video size: ${sizeKey(recordingSize)}\n` });
 
   /** @type {import('playwright').BrowserContextOptions} */
@@ -210,8 +225,7 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
 
   let browser = null;
   let context = null;
-  let latestPreviewVideoPath = null;
-  let latestPreviewVideoFilename = null;
+  let latestVideo = null;
   let instanceUsed = false;
   const markInstanceUsed = () => {
     if (instanceUsed) return;
@@ -247,16 +261,13 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
       });
       throwIfRunStopped(signal);
 
-      let recordedVideoPath = null;
       const outputSlug = nameToFilename(def.name).replace(/\.json$/i, '');
       const outputStamp = timestamp();
-      const outputDirname = timestampedDirname(shouldSaveRecording ? outputSlug : `preview-${outputSlug}`, outputStamp);
-      const outputRoot = shouldSaveRecording ? OUTPUT_DIR : PREVIEW_OUTPUT_DIR;
-      const videoDir = uniqueDir(path.join(outputRoot, outputDirname));
-      recordedVideoPath = path.join(videoDir, 'video.webm');
+      const videoDir = outputDirForScript
+        ? outputDirForScript(def)
+        : uniqueDir(path.join(OUTPUT_DIR, timestampedDirname(outputSlug, outputStamp)));
+      const recordedVideoPath = path.join(videoDir, 'video.webm');
       fs.mkdirSync(videoDir, { recursive: true });
-      latestPreviewVideoPath = recordedVideoPath;
-      latestPreviewVideoFilename = `${path.basename(videoDir)}.webm`;
 
       // Load the site before starting the screencast so the video does not start with a blank screen.
       // Use the blueprint's landingPage if specified; otherwise fall back to the WP admin dashboard.
@@ -283,7 +294,16 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
       const video = page.video();
       await page.close();
       if (run?.page === page) run.page = null;
-      if (video && recordedVideoPath) await video.saveAs(recordedVideoPath);
+      let savedVideo = false;
+      if (video && recordedVideoPath) {
+        await video.saveAs(recordedVideoPath);
+        savedVideo = true;
+      }
+      if (savedVideo && code === 0) {
+        const createdAt = new Date().toISOString();
+        const readyVideo = onVideoReady?.({ script: def, videoDir, videoPath: recordedVideoPath, createdAt });
+        if (readyVideo) latestVideo = readyVideo;
+      }
     }
 
     await context.close();
@@ -323,14 +343,7 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
     if (run?.browser === browser) run.browser = null;
   }
 
-  if (latestPreviewVideoPath && latestPreviewVideoFilename && fs.existsSync(latestPreviewVideoPath)) {
-    const publicPath = path.join(SCREENCASTS_DIR, latestPreviewVideoFilename);
-    fs.mkdirSync(SCREENCASTS_DIR, { recursive: true });
-    fs.copyFileSync(latestPreviewVideoPath, publicPath);
-    send({ type: 'screencastVideo', uri: `/screencasts/${latestPreviewVideoFilename}` });
-  }
-
-  send({ type: 'done', code, ...(wasStopped() ? { stopped: true } : {}), ...doneExtra });
+  send({ type: 'done', code, ...(latestVideo ? { video: latestVideo } : {}), ...(wasStopped() ? { stopped: true } : {}) });
 }
 
 function register(app) {
@@ -342,14 +355,13 @@ function register(app) {
     }
   });
 
-  // Single-recording run: write the posted steps to a file and run them directly.
+  // Single Play run: execute posted steps and keep only the latest disposable WebM.
   app.post('/api/run', async (req, res) => {
     const {
       name = `recording-${Date.now()}`,
       actions = [],
       blueprint = null,
       videoSize = null,
-      preview = false,
       endPause,
       stepPause,
       typingDelay,
@@ -357,9 +369,8 @@ function register(app) {
     } = req.body;
     if (!actions.length) return res.status(400).json({ error: 'no actions provided' });
 
-    if (!fs.existsSync(STEPS_DIR)) fs.mkdirSync(STEPS_DIR);
-    const filename = nameToFilename(name);
-    const filePath = path.join(STEPS_DIR, filename);
+    try { fs.rmSync(DISPOSABLE_OUTPUT_DIR, { recursive: true, force: true }); } catch {}
+
     const recordingSettings = normalizeRecordingSettings({ endPause, stepPause, typingDelay, videoSize });
     const scriptData = {
       name,
@@ -367,7 +378,6 @@ function register(app) {
       blueprint,
       recordingSettings,
     };
-    fs.writeFileSync(filePath, JSON.stringify(scriptData, null, 2));
 
     sseHeaders(res);
     const send = sseSender(res);
@@ -404,8 +414,17 @@ function register(app) {
         blueprintPath,
         videoSize,
         send,
-        doneExtra: preview ? {} : { file: filePath },
-        preview,
+        outputDirForScript: () => path.join(DISPOSABLE_OUTPUT_DIR, 'latest'),
+        onVideoReady: ({ script, videoDir, createdAt }) => {
+          const video = {
+            name: script.name,
+            createdAt,
+            videoUrl: '/api/previews/latest/video',
+          };
+          fs.writeFileSync(path.join(videoDir, 'video.json'), JSON.stringify({ name: video.name, createdAt }, null, 2));
+          send({ type: 'videoReady', ...video });
+          return video;
+        },
         onInstanceUsed: () => { instanceUsed = true; },
         run,
       });
@@ -419,6 +438,7 @@ function register(app) {
     } finally {
       if (currentRun === run) currentRun = null;
       pool.release(port, { used: instanceUsed });
+      cleanupDisposablePlaywrightFiles();
       if (!res.destroyed && !res.writableEnded) res.end();
     }
   });
@@ -481,6 +501,7 @@ function register(app) {
     } finally {
       if (currentRun === run) currentRun = null;
       pool.release(port, { used: instanceUsed });
+      cleanupDisposablePlaywrightFiles();
       if (!res.destroyed && !res.writableEnded) res.end();
     }
   });

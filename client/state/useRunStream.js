@@ -93,8 +93,10 @@ export function useRunStream({
 
       await readSSE(res, (msg) => {
         if (runId !== runIdRef.current) return;
-        handleRunMessage(msg);
-        if (msg.type !== 'done') return;
+        if (msg.type !== 'done') {
+          handleRunMessage(msg);
+          return;
+        }
 
         receivedDone = true;
         clearRunAbortController(controller);
@@ -104,6 +106,7 @@ export function useRunStream({
         stopPreview();
         setRunning(false);
         setActiveStepIndex(null);
+        handlePreviewMessage(msg);
 
         if (msg.stopped) markStopped();
         else markDone(msg.code);
@@ -137,6 +140,7 @@ export function useRunStream({
     }
   }, [
     clearRunAbortController,
+    handlePreviewMessage,
     handleRunMessage,
     markDone,
     markFailed,

@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo } from 'react';
+import { createContext, useCallback, useContext, useMemo } from 'react';
 import { useRunActions } from '../state/useRunActions.js';
 import { useRunLog } from '../state/useRunLog.js';
 import { useRunPreview } from '../state/useRunPreview.js';
@@ -23,6 +23,10 @@ export function RunProvider({ children }) {
 
   const runLog = useRunLog();
   const runPreview = useRunPreview();
+  const previewMessageHandler = runPreview.handlePreviewMessage;
+  const handlePreviewMessage = useCallback((msg) => {
+    previewMessageHandler(msg);
+  }, [previewMessageHandler]);
   const {
     activeStepIndex,
     running,
@@ -31,7 +35,7 @@ export function RunProvider({ children }) {
     stopRun,
   } = useRunStream({
     appendLog: runLog.appendLog,
-    handlePreviewMessage: runPreview.handlePreviewMessage,
+    handlePreviewMessage,
     markDone: runLog.markDone,
     markFailed: runLog.markFailed,
     markStopped: runLog.markStopped,

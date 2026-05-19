@@ -14,31 +14,28 @@ export function useRunActions({
   startRunRequest,
   streamRun,
 }) {
-  const runActions = useCallback(async ({ preview: previewOnly = false, scriptName } = {}) => {
+  const runActions = useCallback(async ({ scriptName } = {}) => {
     if (!runDirections.length) return;
 
-    const runName = scriptName?.trim() || name.trim() || `${previewOnly ? 'preview' : 'recording'}-${Date.now()}`;
+    const runName = scriptName?.trim() || name.trim() || `play-${Date.now()}`;
     const body = {
       name: runName,
       actions: runDirections,
       blueprint,
-      videoSize: previewOnly ? undefined : currentVideoSize,
-      preview: previewOnly || undefined,
-      endPause: previewOnly ? undefined : currentEndPause,
+      videoSize: currentVideoSize,
+      endPause: currentEndPause,
       stepPause: currentStepPause,
       typingDelay: currentTypingDelay,
     };
 
-    if (previewOnly && startFromIndex != null && startFromIndex > 0) {
+    if (startFromIndex != null && startFromIndex > 0) {
       body.startFrom = startFromIndex;
     }
 
     const { fetchPromise, controller } = startRunRequest('/api/run', body);
     await streamRun(fetchPromise, {
       controller,
-      onDone: (msg) => {
-        if (!msg.stopped && !previewOnly) loadRecordings();
-      },
+      onDone: () => {},
     });
   }, [
     blueprint,

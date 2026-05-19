@@ -78,7 +78,7 @@ export function DirectionGroup({
         />
         <button
           className="direction-start-btn"
-          title={isStartFrom ? 'Clear preview start point' : 'Preview from this step'}
+          title={isStartFrom ? 'Clear play start point' : 'Play from this step'}
           type="button"
           disabled={!isResolved || isEditing}
           onClick={onToggleStartFrom}

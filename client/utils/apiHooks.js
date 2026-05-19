@@ -51,6 +51,15 @@ export function useDeleteRecordingMutation() {
   });
 }
 
+export function useSaveLatestPreviewMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: api.saveLatestPreview,
+    onSuccess: () => invalidate(queryClient, queryKeys.recordings),
+  });
+}
+
 export function useDirectionLoader() {
   const queryClient = useQueryClient();
 

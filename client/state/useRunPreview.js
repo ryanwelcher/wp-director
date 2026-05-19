@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 const IDLE_PREVIEW = {
   mode: 'idle',
@@ -9,33 +9,41 @@ const IDLE_PREVIEW = {
   title: '',
   playgroundPort: null,
   isLive: false,
+  saveable: false,
 };
 
 export function useRunPreview() {
-  const lastScreencastVideoRef = useRef('');
   const [preview, setPreview] = useState(IDLE_PREVIEW);
 
   const startPreview = useCallback(() => {
-    lastScreencastVideoRef.current = '';
-    setPreview({ mode: 'connecting', imageSrc: '', recordedAt: null, videoSrc: '', poster: '', title: '', playgroundPort: null, isLive: false });
+    setPreview({ mode: 'connecting', imageSrc: '', recordedAt: null, videoSrc: '', poster: '', title: '', playgroundPort: null, isLive: false, saveable: false });
   }, []);
 
   const stopPreview = useCallback(() => {
-    const videoSrc = lastScreencastVideoRef.current;
     setPreview((current) => (
-      videoSrc
-        ? (
-          current.mode === 'video' && current.videoSrc === videoSrc
-            ? current
-            : { mode: 'video', imageSrc: '', recordedAt: null, videoSrc, poster: current.imageSrc, title: '', playgroundPort: null, isLive: false }
-        )
-        : (current.mode === 'image' ? { ...current, isLive: false, playgroundPort: null } : IDLE_PREVIEW)
+      current.mode === 'image' || current.mode === 'video'
+        ? { ...current, isLive: false, playgroundPort: null }
+        : IDLE_PREVIEW
     ));
   }, []);
 
-  const showPreviewVideo = useCallback((videoSrc, { recordedAt = null, title = '' } = {}) => {
-    lastScreencastVideoRef.current = videoSrc;
-    setPreview({ mode: 'video', imageSrc: '', recordedAt, videoSrc, poster: '', title, playgroundPort: null, isLive: false });
+  const showPreviewVideo = useCallback((videoSrc, { recordedAt = null, title = '', saveable = false } = {}) => {
+    setPreview({ mode: 'video', imageSrc: '', recordedAt, videoSrc, poster: '', title, playgroundPort: null, isLive: false, saveable });
+  }, []);
+
+  const showPlayableVideo = useCallback((video) => {
+    if (!video?.videoUrl) return;
+    setPreview({
+      mode: 'video',
+      imageSrc: '',
+      recordedAt: video.createdAt ?? null,
+      videoSrc: `${video.videoUrl}?t=${Date.now()}`,
+      poster: '',
+      title: video.name ?? 'Play',
+      playgroundPort: null,
+      isLive: false,
+      saveable: true,
+    });
   }, []);
 
   const handlePreviewMessage = useCallback((msg) => {
@@ -58,24 +66,20 @@ export function useRunPreview() {
         title: '',
         playgroundPort: null,
         isLive: true,
+        saveable: false,
       });
       return;
     }
 
-    if (msg.type === 'screencastVideo') {
-      lastScreencastVideoRef.current = msg.uri;
-      setPreview((current) => ({
-        mode: 'video',
-        imageSrc: '',
-        recordedAt: null,
-        videoSrc: msg.uri,
-        poster: current.imageSrc,
-        title: '',
-        playgroundPort: null,
-        isLive: false,
-      }));
+    if (msg.type === 'videoReady') {
+      showPlayableVideo(msg);
+      return;
     }
-  }, []);
+
+    if (msg.type === 'done' && msg.video) {
+      showPlayableVideo(msg.video);
+    }
+  }, [showPlayableVideo]);
 
   return {
     preview,

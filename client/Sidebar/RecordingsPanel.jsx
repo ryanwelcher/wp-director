@@ -140,8 +140,8 @@ export function RecordingsPanel() {
                     <button
                       className="recording-preview-btn recording-action-btn secondary"
                       type="button"
-                      aria-label={`Preview ${recording.name}`}
-                      title="Preview"
+                      aria-label={`Play ${recording.name}`}
+                      title="Play"
                       disabled={running}
                       onClick={() => showPreviewVideo(videoUrl, {
                         recordedAt: recording.createdAt,

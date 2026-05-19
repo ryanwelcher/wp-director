@@ -135,6 +135,10 @@ export const api = {
     });
   },
 
+  async saveLatestPreview({ name }) {
+    return requestJSON("/api/previews/latest/save", postOptions({ name }));
+  },
+
   async previewBlueprint(blueprint) {
     return requestJSON("/api/preview-blueprint", postOptions({ blueprint }));
   },

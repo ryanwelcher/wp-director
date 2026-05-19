@@ -66,20 +66,16 @@ export function DirectionToolbar() {
     URL.revokeObjectURL(link.href);
   }
 
-  async function handleRun(preview, scriptName) {
+  async function handlePlay() {
     try {
-      await runActions({ preview, scriptName });
+      await runActions();
     } catch {
       // The run context already surfaces the failure through a toast.
     }
   }
 
   function executeNamedAction(action, scriptName) {
-    if (action === 'record') {
-      handleRun(false, scriptName);
-    } else if (action === 'preview') {
-      handleRun(true, scriptName);
-    } else if (action === 'save') {
+    if (action === 'save') {
       saveScript(scriptName);
     } else if (action === 'export') {
       exportTxt(scriptName);
@@ -131,10 +127,10 @@ export function DirectionToolbar() {
             className="primary"
             type="button"
             disabled={!hasResolvedDirections}
-            title={poolLabel ?? (startFromIndex !== null ? 'Record full script (preview start point ignored)' : 'Record')}
-            onClick={() => runWithScriptName('record')}
+            title={poolLabel ?? (startFromIndex !== null ? 'Play from preview start point' : 'Play')}
+            onClick={handlePlay}
           >
-            &#9654; Record
+            &#9654; Play
           </button>
         )}
 
@@ -144,17 +140,6 @@ export function DirectionToolbar() {
           </button>
         )}
 
-        {!running && (
-          <button
-            className="secondary"
-            type="button"
-            disabled={!hasResolvedDirections}
-            title={poolLabel ?? 'Preview'}
-            onClick={() => runWithScriptName('preview')}
-          >
-            &#9654; Preview
-          </button>
-        )}
       </div>
 
       {pendingNamedAction && (

@@ -6,14 +6,6 @@ const ACTION_COPY = {
     confirmLabel: 'Export TXT',
     description: 'Enter a script name before exporting the current script.',
   },
-  preview: {
-    confirmLabel: 'Preview',
-    description: 'Enter a script name before previewing the current script.',
-  },
-  record: {
-    confirmLabel: 'Record',
-    description: 'Enter a script name before recording the current script.',
-  },
   save: {
     confirmLabel: 'Save Script',
     description: 'Enter a script name before saving the current script.',

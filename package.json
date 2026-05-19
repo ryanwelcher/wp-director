@@ -10,7 +10,8 @@
     "record:actions": "playwright test recordings/actions-runner.spec.js",
     "record:action": "playwright test recordings/actions-runner.spec.js --grep",
     "show-report": "playwright show-report",
-    "show-trace": "playwright show-trace"
+    "show-trace": "playwright show-trace",
+    "clean:previews": "rm -rf output/.previews"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

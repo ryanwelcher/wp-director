@@ -1,3 +1,5 @@
+import browserSizePresets from '../../shared/browser-size-presets.json';
+
 export const WP_SCREENS = {
   dashboard: 'Dashboard',
   posts: 'Posts',
@@ -19,14 +21,10 @@ export const WP_SCREENS = {
   profile: 'Profile',
 };
 
-export const BROWSER_SIZE_PRESETS = [
-  { label: 'Mobile', value: '390x844' },
-  { label: 'Tablet', value: '768x1024' },
-  { label: '720p', value: '1280x720' },
-  { label: '1080p', value: '1920x1080' },
-  { label: 'QHD', value: '2560x1440' },
-  { label: '4K', value: '3840x2160' },
-];
+export const BROWSER_SIZE_PRESETS = browserSizePresets.map(({ label, width, height }) => ({
+  label,
+  value: `${width}x${height}`,
+}));
 
 export const DEFAULT_VIDEO_SIZE_VALUE = '1920x1080';
 

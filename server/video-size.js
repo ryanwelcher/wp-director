@@ -1,13 +1,14 @@
 // @ts-check
 
-const VIDEO_SIZE_PRESETS = Object.freeze([
-  Object.freeze({ width: 1280, height: 720 }),
-  Object.freeze({ width: 1920, height: 1080 }),
-  Object.freeze({ width: 2560, height: 1440 }),
-  Object.freeze({ width: 3840, height: 2160 }),
-]);
+const BROWSER_SIZE_PRESETS = require('../shared/browser-size-presets.json');
 
-const DEFAULT_VIDEO_SIZE = VIDEO_SIZE_PRESETS[1];
+const VIDEO_SIZE_PRESETS = Object.freeze(BROWSER_SIZE_PRESETS.map(({ width, height }) => (
+  Object.freeze({ width, height })
+)));
+
+const DEFAULT_VIDEO_SIZE = VIDEO_SIZE_PRESETS.find((size) => (
+  size.width === 1920 && size.height === 1080
+)) ?? VIDEO_SIZE_PRESETS[0];
 const MAX_SCREENCAST_WIDTH = 1280;
 const MIN_VIDEO_SIZE = 320;
 const MAX_VIDEO_SIZE = 7680;

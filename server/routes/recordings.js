@@ -33,7 +33,7 @@ const { VIDEO_SIZE_PRESETS } = require('../video-size');
  */
 function allowedSizesFor(sourceSize) {
   const smaller = VIDEO_SIZE_PRESETS
-    .filter((p) => p.width < sourceSize.width)
+    .filter((p) => p.width < sourceSize.width && p.height < sourceSize.height)
     .map((p) => ({ width: p.width, height: p.height }));
   return [{ width: sourceSize.width, height: sourceSize.height }, ...smaller]
     .sort((a, b) => b.width - a.width);

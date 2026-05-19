@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Loading Playground preview</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; }
+
+      body {
+        align-items: center;
+        background: #0f1117;
+        color: #e2e8f0;
+        display: flex;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        justify-content: center;
+        margin: 0;
+        min-height: 100vh;
+      }
+
+      main {
+        background: #111827;
+        border: 1px solid #1e2433;
+        border-radius: 8px;
+        padding: 1.5rem;
+        width: min(420px, calc(100vw - 2rem));
+      }
+
+      h1 {
+        font-size: 1rem;
+        line-height: 1.35;
+        margin: 0 0 0.45rem;
+      }
+
+      p {
+        color: #94a3b8;
+        font-size: 0.86rem;
+        line-height: 1.45;
+        margin: 0;
+      }
+
+      .bar {
+        background: #1a2035;
+        border-radius: 999px;
+        height: 0.35rem;
+        margin-top: 1rem;
+        overflow: hidden;
+      }
+
+      .bar::before {
+        animation: loading 1s ease-in-out infinite;
+        background: #6366f1;
+        content: "";
+        display: block;
+        height: 100%;
+        width: 40%;
+      }
+
+      @keyframes loading {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(260%); }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Loading Playground preview</h1>
+      <p>Starting a WordPress Playground instance with the current blueprint.</p>
+      <div class="bar" aria-hidden="true"></div>
+    </main>
+  </body>
+</html>

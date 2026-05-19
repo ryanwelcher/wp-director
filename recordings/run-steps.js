@@ -177,8 +177,8 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       const pluginSearchInput = page.locator('#search-plugins');
       await pluginSearchInput.waitFor({ state: 'visible' });
       await typeSlow(pluginSearchInput, step.slug, stepTypingDelay(step, settings));
-      const submitBtn = page.locator('#search-submit');
-      await submitBtn.click();
+      // #search-submit is hide-if-js — WP debounces an AJAX search on keyup
+      // from #search-plugins, so the install button appears without a submit click.
       const installBtn = page.locator(`.plugin-card-${step.slug} .install-now`);
       await installBtn.waitFor({ timeout: 15_000 });
       await highlightAndClick(page, installBtn);

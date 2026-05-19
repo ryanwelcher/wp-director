@@ -2344,3 +2344,109 @@ header p {
   flex-shrink: 0;
   margin: 0.2rem 0;
 }
+
+.direction-picker-filter {
+  background: #11192a;
+  border: 1px solid #2d3a50;
+  border-radius: 4px;
+  color: #e2e8f0;
+  font-size: 0.8rem;
+  margin: 0.3rem 0.5rem 0.4rem;
+  padding: 0.3rem 0.5rem;
+}
+
+.direction-picker-list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.direction-picker-empty {
+  color: #64748b;
+  font-size: 0.8rem;
+  margin: 0;
+  padding: 0.6rem 1rem;
+}
+
+.direction-picker-item--user { color: #fcd34d; }
+.direction-picker-item--open { background: #243046; }
+
+.direction-picker-slot-count {
+  color: #64748b;
+  font-size: 0.75rem;
+  margin-left: 0.3rem;
+}
+
+.direction-picker-intent { display: flex; flex-direction: column; }
+
+.direction-picker-slot-form {
+  background: #11192a;
+  border-top: 1px solid #2d3a50;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.direction-picker-slot-row {
+  align-items: center;
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: 90px 1fr;
+}
+
+.direction-picker-slot-label {
+  color: #94a3b8;
+  font-size: 0.75rem;
+  text-align: right;
+  word-break: break-word;
+}
+
+.direction-picker-slot-required {
+  color: #f87171;
+  margin-left: 0.2rem;
+}
+
+.direction-picker-slot-input {
+  background: #1a2235;
+  border: 1px solid #2d3a50;
+  border-radius: 3px;
+  color: #e2e8f0;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.4rem;
+  width: 100%;
+}
+
+.direction-picker-slot-input--checkbox {
+  justify-self: start;
+  width: auto;
+}
+
+.direction-picker-slot-actions {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: flex-end;
+  margin-top: 0.25rem;
+}
+
+.direction-picker-slot-btn {
+  background: #243046;
+  border: 1px solid #2d3a50;
+  border-radius: 3px;
+  color: #cbd5e1;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.75rem;
+}
+
+.direction-picker-slot-btn:hover:not(:disabled) { background: #2d3a50; }
+
+.direction-picker-slot-btn--primary {
+  background: #2563eb;
+  border-color: #3b82f6;
+  color: white;
+}
+
+.direction-picker-slot-btn--primary:hover:not(:disabled) { background: #1d4ed8; }
+
+.direction-picker-slot-btn:disabled { opacity: 0.4; cursor: not-allowed; }

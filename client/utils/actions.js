@@ -71,26 +71,20 @@ export function normalizeDirections(raw) {
 export function directionsForJSON(directions) {
   return directions
     .filter(isDirectionResolved)
-    .map(({ _id, _open, _fromDirection, _translation, alwaysRun, ...rest }) => rest);
+    .map(({ _id, _open, _fromIntent, _translation, alwaysRun, ...rest }) => rest);
 }
 
 export function directionsForRun(directions, alwaysRunIndices) {
   return directions.flatMap((direction, index) => {
     if (!isDirectionResolved(direction)) return [];
 
-    const { _id, _open, _fromDirection, _translation, alwaysRun, ...cleanDirection } = direction;
+    const { _id, _open, _fromIntent, _translation, alwaysRun, ...cleanDirection } = direction;
     return [
       alwaysRunIndices.has(index)
         ? { ...cleanDirection, alwaysRun: true }
         : cleanDirection,
     ];
   });
-}
-
-export function flattenDirectionActions(actions = []) {
-  return actions.flatMap((item) => (
-    item?.label != null && Array.isArray(item.actions) ? item.actions : [item]
-  ));
 }
 
 export function videoSizeFromValue(value) {

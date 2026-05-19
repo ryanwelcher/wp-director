@@ -28,10 +28,10 @@ export function useSavedScriptsQuery() {
   });
 }
 
-export function useDirectionLibraryQuery() {
+export function useIntentCatalogQuery() {
   return useQuery({
-    queryKey: queryKeys.directions.all,
-    queryFn: api.listDirections,
+    queryKey: queryKeys.intents.all,
+    queryFn: api.listIntents,
   });
 }
 
@@ -60,13 +60,19 @@ export function useSaveLatestPreviewMutation() {
   });
 }
 
-export function useDirectionLoader() {
+export function useIntentLoader() {
   const queryClient = useQueryClient();
 
-  return useCallback((filename) => queryClient.fetchQuery({
-    queryKey: queryKeys.directions.detail(filename),
-    queryFn: ({ signal }) => api.getDirection(filename, { signal }),
+  return useCallback((id) => queryClient.fetchQuery({
+    queryKey: queryKeys.intents.detail(id),
+    queryFn: ({ signal }) => api.getIntent(id, { signal }),
   }), [queryClient]);
+}
+
+export function useExpandIntentMutation() {
+  return useMutation({
+    mutationFn: api.expandIntent,
+  });
 }
 
 export function useTranslateMutation() {
@@ -93,23 +99,23 @@ export function useDeleteScriptMutation() {
   });
 }
 
-export function useSaveDirectionMutation() {
+export function useSaveIntentMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: api.saveDirection,
-    onSuccess: () => invalidate(queryClient, queryKeys.directions.all),
+    mutationFn: api.saveIntent,
+    onSuccess: () => invalidate(queryClient, queryKeys.intents.all),
   });
 }
 
-export function useDeleteDirectionMutation() {
+export function useDeleteIntentMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: api.deleteDirection,
-    onSuccess: (_data, filename) => {
-      queryClient.removeQueries({ queryKey: queryKeys.directions.detail(filename) });
-      return invalidate(queryClient, queryKeys.directions.all);
+    mutationFn: api.deleteIntent,
+    onSuccess: (_data, id) => {
+      queryClient.removeQueries({ queryKey: queryKeys.intents.detail(id) });
+      return invalidate(queryClient, queryKeys.intents.all);
     },
   });
 }

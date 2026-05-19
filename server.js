@@ -26,6 +26,11 @@ const {
   GENERATED_BLUEPRINT,
 } = require('./server/config');
 
+// One-shot migration of any leftover directions/*.json into the intent catalog.
+// Must run before the loader reads intents/ so migrated files appear on first
+// catalog fetch.
+require('./server/intents/migrate').migrate();
+
 const app = express();
 const previewLoadingPage = path.join(__dirname, 'server/public/preview-loading.html');
 
@@ -36,7 +41,7 @@ app.get('/preview-loading.html', (req, res) => res.sendFile(previewLoadingPage))
 require('./server/routes/translate').register(app);
 require('./server/routes/blueprint').register(app);
 require('./server/routes/scripts').register(app);
-require('./server/routes/directions').register(app);
+require('./server/routes/intents').register(app);
 require('./server/routes/runner').register(app);
 require('./server/routes/recordings').register(app);
 require('./server/routes/previews').register(app);

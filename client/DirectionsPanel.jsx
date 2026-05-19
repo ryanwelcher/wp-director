@@ -9,12 +9,8 @@ import { PoolStatusIndicators } from './PoolStatusIndicators.jsx';
 import { Dialog } from './Dialog.jsx';
 import { BlueprintPanel } from './Sidebar/BlueprintPanel.jsx';
 import { RecordingSettingsPanel } from './Sidebar/RecordingSettingsPanel.jsx';
-import { directionsForJSON, errorMessage, flattenDirectionActions } from './utils/actions.js';
-import {
-  useDirectionLoader,
-  useSaveDirectionMutation,
-  useTranslateMutation,
-} from './utils/apiHooks.js';
+import { directionsForJSON, errorMessage } from './utils/actions.js';
+import { useTranslateMutation } from './utils/apiHooks.js';
 import { useRunState } from './context/RunContext.jsx';
 
 function menuPosition(target, width = 200) {
@@ -47,7 +43,7 @@ export function DirectionsPanel() {
     directionsView,
     failPendingDirection,
     insertDirectionAt,
-    libraryEntries,
+    intentCatalog,
     reorderDirections,
     replaceWithPendingDirection,
     resolvePendingDirection,
@@ -67,8 +63,6 @@ export function DirectionsPanel() {
   const [editDirection, setEditDirection] = useState(null);
   const [activeTab, setActiveTab] = useState('directions');
   const [clearDirectionsDialogOpen, setClearDirectionsDialogOpen] = useState(false);
-  const loadDirection = useDirectionLoader();
-  const saveDirectionMutation = useSaveDirectionMutation();
   const translateMutation = useTranslateMutation();
 
   const closePopovers = useCallback(() => {
@@ -83,33 +77,16 @@ export function DirectionsPanel() {
     if (node) node.scrollIntoView({ block: 'nearest' });
   }, []);
 
-  async function insertDirection(filename, insertIndex) {
-    try {
-      const data = await loadDirection(filename);
-      const flatSteps = flattenDirectionActions(data.actions ?? []);
-      const index = insertIndex ?? directions.length;
-      insertDirectionAt({ label: data.name, actions: flatSteps, _fromDirection: true }, index);
-      toast.success(`Inserted "${data.name}"`);
-    } catch (err) {
-      toast.error(errorMessage(err, 'Could not load direction'));
+  function insertIntent(expandedDirections, insertIndex) {
+    if (!expandedDirections?.length) return;
+    let index = insertIndex ?? directions.length;
+    for (const direction of expandedDirections) {
+      insertDirectionAt({ ...direction, _fromIntent: true }, index);
+      index += 1;
     }
-  }
-
-  async function saveDirection(index) {
-    const group = directions[index];
-    if (!group) return;
-
-    try {
-      const data = await saveDirectionMutation.mutateAsync({
-        name: group.label,
-        actions: directionsForJSON([group]),
-      });
-      toast.success(`Saved direction "${group.label}"`);
-      return data;
-    } catch (err) {
-      toast.error(errorMessage(err, 'Save failed'));
-      return null;
-    }
+    toast.success(expandedDirections.length === 1
+      ? `Inserted "${expandedDirections[0].label}"`
+      : `Inserted ${expandedDirections.length} directions`);
   }
 
   function buildEditCommand(direction, context) {
@@ -367,7 +344,6 @@ export function DirectionsPanel() {
               setEditDirection({ index: menu.index, value: '' });
             }}
             onInsert={() => setPicker({ anchorIndex: menu.index, position: menu.position })}
-            onSave={() => saveDirection(menu.index)}
             onToggle={() => toggleDirectionOpen(menu.index)}
           />
         </>
@@ -378,10 +354,10 @@ export function DirectionsPanel() {
           <button className="popover-backdrop" type="button" aria-label="Close direction picker" onClick={closePopovers} />
           <DirectionPicker
             anchorIndex={picker.anchorIndex}
-            entries={libraryEntries}
+            entries={intentCatalog}
             position={picker.position}
             onClose={() => setPicker(null)}
-            onSelect={insertDirection}
+            onSelect={insertIntent}
           />
         </>
       )}

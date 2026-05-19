@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../utils/api.js';
 import {
-  useDirectionLibraryQuery,
+  useIntentCatalogQuery,
   useRecordingsQuery,
   useSavedScriptsQuery,
 } from '../utils/apiHooks.js';
@@ -11,11 +11,11 @@ export function useServerCollections() {
   const [selectedScriptNames, setSelectedScriptNames] = useState([]);
   const queryClient = useQueryClient();
   const savedScriptsQuery = useSavedScriptsQuery();
-  const directionLibraryQuery = useDirectionLibraryQuery();
+  const intentCatalogQuery = useIntentCatalogQuery();
   const recordingsQuery = useRecordingsQuery();
 
   const savedScripts = savedScriptsQuery.data ?? [];
-  const libraryEntries = directionLibraryQuery.data ?? [];
+  const intentCatalog = intentCatalogQuery.data ?? [];
   const recordings = recordingsQuery.data ?? [];
   const savedScriptNames = useMemo(() => (
     new Set(savedScripts.map((script) => script.name))
@@ -34,8 +34,8 @@ export function useServerCollections() {
     queryClient.invalidateQueries({ queryKey: queryKeys.scripts })
   ), [queryClient]);
 
-  const loadDirectionLibrary = useCallback(() => (
-    queryClient.invalidateQueries({ queryKey: queryKeys.directions.all })
+  const loadIntentCatalog = useCallback(() => (
+    queryClient.invalidateQueries({ queryKey: queryKeys.intents.all })
   ), [queryClient]);
 
   const loadRecordings = useCallback(() => (
@@ -46,10 +46,10 @@ export function useServerCollections() {
     savedScripts,
     selectedScripts,
     setSelectedScripts,
-    libraryEntries,
+    intentCatalog,
     recordings,
     loadSavedScripts,
-    loadDirectionLibrary,
+    loadIntentCatalog,
     loadRecordings,
   };
 }

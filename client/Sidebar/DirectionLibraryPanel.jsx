@@ -4,30 +4,30 @@ import { toast } from 'react-toastify';
 import { Dialog } from '../Dialog.jsx';
 import { useAppState } from '../context/AppStateContext.jsx';
 import { errorMessage } from '../utils/actions.js';
-import { useDeleteDirectionMutation } from '../utils/apiHooks.js';
+import { useDeleteIntentMutation } from '../utils/apiHooks.js';
 import { SectionBadge } from './SectionBadge.jsx';
 import { TrashIcon } from './TrashIcon.jsx';
 
 export function DirectionLibraryPanel() {
-  const { libraryEntries } = useAppState();
-  const deleteDirectionMutation = useDeleteDirectionMutation();
-  const [pendingDeleteDirection, setPendingDeleteDirection] = useState(null);
-  const deletingDirection = deleteDirectionMutation.isPending;
+  const { intentCatalog } = useAppState();
+  const deleteIntentMutation = useDeleteIntentMutation();
+  const [pendingDeleteIntent, setPendingDeleteIntent] = useState(null);
+  const deletingIntent = deleteIntentMutation.isPending;
 
   function closeDeleteDialog() {
-    if (!deletingDirection) setPendingDeleteDirection(null);
+    if (!deletingIntent) setPendingDeleteIntent(null);
   }
 
-  async function confirmDeleteDirection() {
-    if (!pendingDeleteDirection) return;
+  async function confirmDeleteIntent() {
+    if (!pendingDeleteIntent) return;
 
     try {
-      await deleteDirectionMutation.mutateAsync(pendingDeleteDirection.filename);
-      toast.success(`Deleted direction "${pendingDeleteDirection.name}"`);
+      await deleteIntentMutation.mutateAsync(pendingDeleteIntent.id);
+      toast.success(`Deleted intent "${pendingDeleteIntent.id}"`);
     } catch (err) {
       toast.error(errorMessage(err, 'Delete failed'));
     } finally {
-      setPendingDeleteDirection(null);
+      setPendingDeleteIntent(null);
     }
   }
 
@@ -35,32 +35,32 @@ export function DirectionLibraryPanel() {
     <>
       <details id="directions-section">
         <summary>
-          <span>Directions</span>
-          <SectionBadge hidden={libraryEntries.length === 0}>{libraryEntries.length}</SectionBadge>
+          <span>Intents</span>
+          <SectionBadge hidden={intentCatalog.length === 0}>{intentCatalog.length}</SectionBadge>
         </summary>
         <div className="directions-body">
           <div id="directions-list">
-            {!libraryEntries.length && <p className="hint">No directions yet.</p>}
+            {!intentCatalog.length && <p className="hint">No intents yet.</p>}
 
-            {libraryEntries.map((entry) => (
-              <div className={clsx('direction-item', entry.builtin && 'direction-item--builtin')} key={entry.filename}>
-                <span className="direction-name">{entry.name}</span>
+            {intentCatalog.map((intent) => (
+              <div className={clsx('direction-item', !intent.userSaved && 'direction-item--builtin')} key={intent.id}>
+                <span className="direction-name" title={intent.description}>{intent.id}</span>
                 <span className="direction-meta">
-                  {entry.directionCount} step{entry.directionCount !== 1 ? 's' : ''}
+                  {intent.slots.length ? `${intent.slots.length} slot${intent.slots.length === 1 ? '' : 's'}` : 'no slots'}
                 </span>
-                {entry.builtin ? (
-                  <span className="direction-builtin-badge" title="Built-in direction">&#128274;</span>
-                ) : (
+                {intent.userSaved ? (
                   <button
                     className="direction-delete-btn sidebar-delete-icon-btn danger"
                     type="button"
-                    aria-label={`Delete ${entry.name}`}
+                    aria-label={`Delete ${intent.id}`}
                     title="Delete"
-                    disabled={deletingDirection && deleteDirectionMutation.variables === entry.filename}
-                    onClick={() => setPendingDeleteDirection(entry)}
+                    disabled={deletingIntent && deleteIntentMutation.variables === intent.id}
+                    onClick={() => setPendingDeleteIntent(intent)}
                   >
                     <TrashIcon />
                   </button>
+                ) : (
+                  <span className="direction-builtin-badge" title="Built-in intent">&#128274;</span>
                 )}
               </div>
             ))}
@@ -68,18 +68,18 @@ export function DirectionLibraryPanel() {
         </div>
       </details>
 
-      {pendingDeleteDirection && (
+      {pendingDeleteIntent && (
         <Dialog
-          title="Delete saved direction?"
-          description={`Delete "${pendingDeleteDirection.name}"? This cannot be undone.`}
-          closeDisabled={deletingDirection}
+          title="Delete saved intent?"
+          description={`Delete "${pendingDeleteIntent.id}"? This cannot be undone.`}
+          closeDisabled={deletingIntent}
           onClose={closeDeleteDialog}
         >
           <div className="app-dialog-actions">
             <button
               className="app-dialog-btn app-dialog-btn--secondary"
               type="button"
-              disabled={deletingDirection}
+              disabled={deletingIntent}
               onClick={closeDeleteDialog}
             >
               Cancel
@@ -87,10 +87,10 @@ export function DirectionLibraryPanel() {
             <button
               className="app-dialog-btn app-dialog-btn--danger"
               type="button"
-              disabled={deletingDirection}
-              onClick={confirmDeleteDirection}
+              disabled={deletingIntent}
+              onClick={confirmDeleteIntent}
             >
-              {deletingDirection ? 'Deleting...' : 'Delete direction'}
+              {deletingIntent ? 'Deleting...' : 'Delete intent'}
             </button>
           </div>
         </Dialog>

@@ -144,7 +144,14 @@ export const api = {
   },
 
   async translateCommand({ command, history }) {
-    return requestJSON("/api/translate", postOptions({ command, history }));
+    // Dev opt-in: visiting the app with ?v=2 routes translation through the
+    // intent-library pipeline. See plans/translate-intent-library.md Phase 1.
+    let url = "/api/translate";
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("v") === "2") url += "?v=2";
+    }
+    return requestJSON(url, postOptions({ command, history }));
   },
 
   async getPluginInfo(slug, { signal } = {}) {

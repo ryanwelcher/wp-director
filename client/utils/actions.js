@@ -19,8 +19,19 @@ export const WP_SCREENS = {
   profile: 'Profile',
 };
 
+export const BROWSER_SIZE_PRESETS = [
+  { label: 'Mobile', value: '390x844' },
+  { label: 'Tablet', value: '768x1024' },
+  { label: '720p', value: '1280x720' },
+  { label: '1080p', value: '1920x1080' },
+  { label: 'QHD', value: '2560x1440' },
+  { label: '4K', value: '3840x2160' },
+];
+
 export const DEFAULT_VIDEO_SIZE_VALUE = '1920x1080';
-export const VIDEO_SIZE_VALUES = ['1280x720', DEFAULT_VIDEO_SIZE_VALUE, '3840x2160'];
+
+const MIN_VIDEO_SIZE = 320;
+const MAX_VIDEO_SIZE = 7680;
 
 let nextDirectionId = 1;
 
@@ -93,19 +104,42 @@ export function flattenDirectionActions(actions = []) {
   ));
 }
 
+function parseSizeValue(value) {
+  if (typeof value === 'string') {
+    const match = value.trim().match(/^(\d{2,5})x(\d{2,5})$/i);
+    if (!match) return null;
+    return { width: Number(match[1]), height: Number(match[2]) };
+  }
+
+  if (value && typeof value === 'object') {
+    return { width: Number(value.width), height: Number(value.height) };
+  }
+
+  return null;
+}
+
+function isValidSize(size) {
+  return Number.isInteger(size?.width)
+    && Number.isInteger(size?.height)
+    && size.width >= MIN_VIDEO_SIZE
+    && size.height >= MIN_VIDEO_SIZE
+    && size.width <= MAX_VIDEO_SIZE
+    && size.height <= MAX_VIDEO_SIZE;
+}
+
+export function isValidVideoSizeValue(value) {
+  return isValidSize(parseSizeValue(value));
+}
+
 export function videoSizeFromValue(value) {
-  const [width, height] = videoSizeValueFromSize(value).split('x').map(Number);
-  return { width, height };
+  const size = parseSizeValue(value);
+  if (isValidSize(size)) return size;
+  return videoSizeFromValue(DEFAULT_VIDEO_SIZE_VALUE);
 }
 
 export function videoSizeValueFromSize(value) {
-  if (typeof value === 'string' && VIDEO_SIZE_VALUES.includes(value)) return value;
-
-  if (value && typeof value === 'object') {
-    const candidate = `${Number(value.width)}x${Number(value.height)}`;
-    if (VIDEO_SIZE_VALUES.includes(candidate)) return candidate;
-  }
-
+  const size = parseSizeValue(value);
+  if (isValidSize(size)) return `${size.width}x${size.height}`;
   return DEFAULT_VIDEO_SIZE_VALUE;
 }
 

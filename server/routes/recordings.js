@@ -26,14 +26,22 @@ const { VIDEO_SIZE_PRESETS } = require('../video-size');
 
 /**
  * Resolutions a recording can be downloaded at: the captured source size,
- * plus any preset whose width is strictly smaller. Sorted largest-first.
+ * plus any smaller preset with the same aspect ratio. Sorted largest-first.
  *
  * @param {{ width: number, height: number }} sourceSize
  * @returns {{ width: number, height: number }[]}
  */
+function sameAspectRatio(size, sourceSize) {
+  return size.width * sourceSize.height === size.height * sourceSize.width;
+}
+
 function allowedSizesFor(sourceSize) {
   const smaller = VIDEO_SIZE_PRESETS
-    .filter((p) => p.width < sourceSize.width && p.height < sourceSize.height)
+    .filter((p) => (
+      p.width < sourceSize.width
+      && p.height < sourceSize.height
+      && sameAspectRatio(p, sourceSize)
+    ))
     .map((p) => ({ width: p.width, height: p.height }));
   return [{ width: sourceSize.width, height: sourceSize.height }, ...smaller]
     .sort((a, b) => b.width - a.width);
@@ -63,7 +71,13 @@ function resolveDownloadSize(query, sourceSize) {
   }
 
   const isAllowedPreset = VIDEO_SIZE_PRESETS.some(
-    (p) => p.width === width && p.height === height && p.width < sourceSize.width,
+    (p) => (
+      p.width === width
+      && p.height === height
+      && p.width < sourceSize.width
+      && p.height < sourceSize.height
+      && sameAspectRatio(p, sourceSize)
+    ),
   );
   if (!isAllowedPreset) return { kind: 'error', status: 400 };
 

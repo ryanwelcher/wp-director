@@ -53,21 +53,17 @@ function resolveSlots(intent, provided) {
   for (const slot of intent.slots) {
     const value = provided[slot.name];
     if (value === undefined || value === null || value === '') {
-      if (slot.optional) {
-        resolved[slot.name] = slot.default !== undefined ? slot.default : undefined;
-      } else if (slot.default !== undefined) {
+      if (slot.default !== undefined) {
         resolved[slot.name] = slot.default;
-      } else {
+      } else if (!slot.optional) {
         throw new Error(`Intent "${intent.id}": missing required slot "${slot.name}"`);
       }
       continue;
     }
-    if (slot.type === 'enum') {
-      if (!slot.values || !slot.values.includes(String(value))) {
-        throw new Error(
-          `Intent "${intent.id}": slot "${slot.name}" value "${value}" not in enum [${(slot.values || []).join(', ')}]`,
-        );
-      }
+    if (slot.type === 'enum' && !slot.values.includes(String(value))) {
+      throw new Error(
+        `Intent "${intent.id}": slot "${slot.name}" value "${value}" not in enum [${slot.values.join(', ')}]`,
+      );
     }
     resolved[slot.name] = value;
   }
@@ -129,12 +125,12 @@ function expand(entry) {
   /** @type {Array<Record<string, unknown>>} */
   const actions = [];
   for (const template of intent.actions) {
-    if ('when' in template) {
-      const condition = substitute(template.when, slots);
+    const resolved = /** @type {Record<string, unknown>} */ (substitute(template, slots));
+    if ('when' in resolved) {
+      const condition = resolved.when;
+      delete resolved.when;
       if (!condition) continue;
     }
-    const resolved = /** @type {Record<string, unknown>} */ (substitute(template, slots));
-    delete resolved.when;
     actions.push(resolved);
   }
 

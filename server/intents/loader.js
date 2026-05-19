@@ -97,36 +97,27 @@ function validate(file, raw) {
   return /** @type {Intent} */ (intent);
 }
 
+/**
+ * Load (or reload) the catalog from disk. Called lazily on first lookup and
+ * again at runtime in Phase 5 when a new intent file is saved.
+ */
 function load() {
   catalog = new Map();
-  if (!fs.existsSync(INTENTS_DIR)) {
-    loaded = true;
-    return;
-  }
-  const files = fs.readdirSync(INTENTS_DIR).filter((f) => f.endsWith('.json'));
-  for (const file of files) {
-    const fullPath = path.join(INTENTS_DIR, file);
-    const raw = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+  loaded = true;
+  if (!fs.existsSync(INTENTS_DIR)) return;
+  for (const file of fs.readdirSync(INTENTS_DIR)) {
+    if (!file.endsWith('.json')) continue;
+    const raw = JSON.parse(fs.readFileSync(path.join(INTENTS_DIR, file), 'utf8'));
     const intent = validate(file, raw);
     if (catalog.has(intent.id)) {
       throw new Error(`Intent ${file}: duplicate id "${intent.id}" (already defined in another file)`);
     }
     catalog.set(intent.id, intent);
   }
-  loaded = true;
 }
 
 function ensureLoaded() {
   if (!loaded) load();
-}
-
-/**
- * Force a reload of the catalog from disk. Used when an intent file is
- * written at runtime (Phase 5) so subsequent translations see it.
- */
-function reload() {
-  loaded = false;
-  load();
 }
 
 /** @returns {Intent[]} */
@@ -144,4 +135,4 @@ function getIntent(id) {
   return catalog.get(id);
 }
 
-module.exports = { getCatalog, getIntent, reload };
+module.exports = { getCatalog, getIntent, reload: load };

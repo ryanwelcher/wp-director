@@ -24,9 +24,13 @@ const { OUTPUT_DIR } = require('../config');
 const { findVideoFile, probeVideoSize, spawnMp4Transcode, spawnWebmDownscale } = require('../video');
 const { VIDEO_SIZE_PRESETS } = require('../video-size');
 
+const MAX_DOWNLOAD_SIZE = VIDEO_SIZE_PRESETS.find((size) => size.width === 3840 && size.height === 2160)
+  ?? VIDEO_SIZE_PRESETS[VIDEO_SIZE_PRESETS.length - 1];
+
 /**
  * Resolutions a recording can be downloaded at: the captured source size,
- * plus any smaller preset with the same aspect ratio. Sorted largest-first.
+ * exact same-aspect presets, and larger same-aspect sizes fit into presets up
+ * to 4K. Sorted largest-first.
  *
  * @param {{ width: number, height: number }} sourceSize
  * @returns {{ width: number, height: number }[]}
@@ -35,15 +39,47 @@ function sameAspectRatio(size, sourceSize) {
   return size.width * sourceSize.height === size.height * sourceSize.width;
 }
 
+function sizeKey(size) {
+  return `${size.width}x${size.height}`;
+}
+
+function fitsWithin(size, maxSize) {
+  return size.width <= maxSize.width && size.height <= maxSize.height;
+}
+
+function fitSourceRatioWithin(sourceSize, bounds) {
+  const scale = Math.min(bounds.width / sourceSize.width, bounds.height / sourceSize.height);
+  if (!Number.isFinite(scale) || scale <= 0) return null;
+  return {
+    width: Math.round(sourceSize.width * scale),
+    height: Math.round(sourceSize.height * scale),
+  };
+}
+
 function allowedSizesFor(sourceSize) {
-  const smaller = VIDEO_SIZE_PRESETS
+  const exactPresetSizes = VIDEO_SIZE_PRESETS
     .filter((p) => (
-      p.width < sourceSize.width
-      && p.height < sourceSize.height
+      fitsWithin(p, MAX_DOWNLOAD_SIZE)
       && sameAspectRatio(p, sourceSize)
     ))
     .map((p) => ({ width: p.width, height: p.height }));
-  return [{ width: sourceSize.width, height: sourceSize.height }, ...smaller]
+
+  const upscaleSizes = VIDEO_SIZE_PRESETS
+    .filter((preset) => fitsWithin(preset, MAX_DOWNLOAD_SIZE))
+    .map((preset) => fitSourceRatioWithin(sourceSize, preset))
+    .filter((size) => (
+      size
+      && size.width > sourceSize.width
+      && size.height > sourceSize.height
+      && fitsWithin(size, MAX_DOWNLOAD_SIZE)
+    ));
+
+  const sizesByKey = new Map([
+    [sizeKey(sourceSize), { width: sourceSize.width, height: sourceSize.height }],
+    ...exactPresetSizes.map((size) => [sizeKey(size), size]),
+    ...upscaleSizes.map((size) => [sizeKey(size), size]),
+  ]);
+  return [...sizesByKey.values()]
     .sort((a, b) => b.width - a.width);
 }
 
@@ -70,16 +106,10 @@ function resolveDownloadSize(query, sourceSize) {
     return { kind: 'source' };
   }
 
-  const isAllowedPreset = VIDEO_SIZE_PRESETS.some(
-    (p) => (
-      p.width === width
-      && p.height === height
-      && p.width < sourceSize.width
-      && p.height < sourceSize.height
-      && sameAspectRatio(p, sourceSize)
-    ),
+  const isAllowedSize = allowedSizesFor(sourceSize).some(
+    (size) => size.width === width && size.height === height,
   );
-  if (!isAllowedPreset) return { kind: 'error', status: 400 };
+  if (!isAllowedSize) return { kind: 'error', status: 400 };
 
   return { kind: 'scale', size: { width, height } };
 }

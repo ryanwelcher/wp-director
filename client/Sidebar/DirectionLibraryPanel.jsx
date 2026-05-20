@@ -23,7 +23,7 @@ export function DirectionLibraryPanel() {
 
     try {
       await deleteIntentMutation.mutateAsync(pendingDeleteIntent.id);
-      toast.success(`Deleted intent "${pendingDeleteIntent.id}"`);
+      toast.success(`Deleted "${pendingDeleteIntent.id}"`);
     } catch (err) {
       toast.error(errorMessage(err, 'Delete failed'));
     } finally {
@@ -35,12 +35,12 @@ export function DirectionLibraryPanel() {
     <>
       <details id="directions-section">
         <summary>
-          <span>Intents</span>
+          <span>Directions</span>
           <SectionBadge hidden={intentCatalog.length === 0}>{intentCatalog.length}</SectionBadge>
         </summary>
         <div className="directions-body">
           <div id="directions-list">
-            {!intentCatalog.length && <p className="hint">No intents yet.</p>}
+            {!intentCatalog.length && <p className="hint">No saved directions yet.</p>}
 
             {intentCatalog.map((intent) => (
               <div className={clsx('direction-item', !intent.userSaved && 'direction-item--builtin')} key={intent.id}>
@@ -60,7 +60,7 @@ export function DirectionLibraryPanel() {
                     <TrashIcon />
                   </button>
                 ) : (
-                  <span className="direction-builtin-badge" title="Built-in intent">&#128274;</span>
+                  <span className="direction-builtin-badge" title="Built-in direction">&#128274;</span>
                 )}
               </div>
             ))}
@@ -70,7 +70,7 @@ export function DirectionLibraryPanel() {
 
       {pendingDeleteIntent && (
         <Dialog
-          title="Delete saved intent?"
+          title="Delete saved direction?"
           description={`Delete "${pendingDeleteIntent.id}"? This cannot be undone.`}
           closeDisabled={deletingIntent}
           onClose={closeDeleteDialog}
@@ -90,7 +90,7 @@ export function DirectionLibraryPanel() {
               disabled={deletingIntent}
               onClick={confirmDeleteIntent}
             >
-              {deletingIntent ? 'Deleting...' : 'Delete intent'}
+              {deletingIntent ? 'Deleting...' : 'Delete'}
             </button>
           </div>
         </Dialog>

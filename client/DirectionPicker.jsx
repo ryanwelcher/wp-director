@@ -48,7 +48,7 @@ export function DirectionPicker({ anchorIndex, entries, onClose, onSelect, posit
       onSelect(directions, insertIndex);
       onClose();
     } catch (err) {
-      toast.error(errorMessage(err, 'Could not insert intent'));
+      toast.error(errorMessage(err, 'Could not insert direction'));
     }
   }
 
@@ -79,7 +79,7 @@ export function DirectionPicker({ anchorIndex, entries, onClose, onSelect, posit
       <input
         className="direction-picker-filter"
         type="text"
-        placeholder="Filter intents…"
+        placeholder="Filter directions…"
         value={filter}
         onChange={(event) => setFilter(event.target.value)}
         autoFocus
@@ -87,7 +87,7 @@ export function DirectionPicker({ anchorIndex, entries, onClose, onSelect, posit
 
       <div className="direction-picker-list">
         {filteredEntries.length === 0 && (
-          <p className="direction-picker-empty">No intents match "{filter}".</p>
+          <p className="direction-picker-empty">No directions match "{filter}".</p>
         )}
 
         {filteredEntries.map((intent) => {

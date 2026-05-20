@@ -162,15 +162,15 @@ export function DirectionsPanel() {
       const data = await translateMutation.mutateAsync({ command: prompt, history });
       const next = data.directions ?? [];
       if (!next.length) {
-        toast.info('Saved intent — but re-classification produced no directions. Check the proposal\'s examples.');
+        toast.info('Saved — but re-running the prompt produced no directions. Check the proposal\'s examples.');
         return;
       }
       for (const direction of next) {
         insertDirectionAt({ ...direction, _fromIntent: true }, directions.length);
       }
-      toast.success(`Saved intent — re-ran the prompt; ${next.length} direction(s) added.`);
+      toast.success(`Saved — re-ran the prompt; ${next.length} direction(s) added.`);
     } catch (err) {
-      toast.error(errorMessage(err, 'Intent saved but re-run failed'));
+      toast.error(errorMessage(err, 'Saved but re-run failed'));
     }
   }
 
@@ -510,7 +510,7 @@ export function DirectionsPanel() {
           title="Apply AI fix to failed direction?"
           description={
             fixProposal.fromIntent
-              ? 'This direction came from an intent. The fix applies to the current step list only — the underlying intent file is unchanged.'
+              ? 'This is a saved direction. The fix applies to the current step list only — the saved version is unchanged.'
               : 'Review the proposed replacement before applying. The original error from the failed run is shown for reference.'
           }
           onClose={rejectFixDirection}

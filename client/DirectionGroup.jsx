@@ -164,8 +164,8 @@ export function DirectionGroup({
       {isUnmatched && (
         <div className="direction-unmatched-state">
           <p className="direction-unmatched-message">
-            No catalog intent matched <em>“{unmatchedCommand}”</em>. See the
-            {' '}<strong>Intents</strong> panel in the sidebar for what's supported.
+            No saved direction matched <em>“{unmatchedCommand}”</em>. See the
+            {' '}<strong>Directions</strong> panel in the sidebar for what's supported.
           </p>
           <div className="direction-unmatched-actions">
             <button

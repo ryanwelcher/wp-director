@@ -81,7 +81,7 @@ export function DirectionMenu({ direction, onClose, onDelete, onEdit, onInsert, 
       {canSaveAsIntent && (
         <button className="direction-menu-item direction-menu-save" type="button" onClick={handleClick(onSaveAsIntent)}>
           <MenuIcon name="save" />
-          <span>Save as intent…</span>
+          <span>Save for reuse…</span>
         </button>
       )}
       <div className="direction-menu-divider" />

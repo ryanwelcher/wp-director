@@ -69,7 +69,7 @@ export function SaveAsIntentDialog({ prompt, directions, existingIds, onClose, o
         setProposal(normalizeProposal(raw, prompt));
       } catch (err) {
         if (cancelled) return;
-        toast.error(errorMessage(err, 'Could not draft intent proposal'));
+        toast.error(errorMessage(err, 'Could not draft proposal'));
       } finally {
         if (!cancelled) setProposalLoaded(true);
       }
@@ -137,7 +137,7 @@ export function SaveAsIntentDialog({ prompt, directions, existingIds, onClose, o
       setConflictsChecked(true);
       setOverrideConflicts(false);
       if (found.length === 0) {
-        toast.success('No conflicts — examples are unique to this intent.');
+        toast.success('No conflicts — these phrases are unique.');
       }
     } catch (err) {
       toast.error(errorMessage(err, 'Conflict check failed'));
@@ -156,7 +156,7 @@ export function SaveAsIntentDialog({ prompt, directions, existingIds, onClose, o
     };
     try {
       await saveMutation.mutateAsync(payload, { skipConflictCheck: overrideConflicts });
-      toast.success(`Saved intent "${payload.id}"`);
+      toast.success(`Saved "${payload.id}"`);
       onSaved({ ...payload, prompt });
     } catch (err) {
       // 409 from server with `conflicts` field — re-render them inline so
@@ -165,7 +165,7 @@ export function SaveAsIntentDialog({ prompt, directions, existingIds, onClose, o
       if (Array.isArray(data?.conflicts) && data.conflicts.length) {
         setConflicts(data.conflicts);
         setConflictsChecked(true);
-        toast.error('Examples collide with existing intents — see below.');
+        toast.error('Examples collide with existing directions — see below.');
         return;
       }
       toast.error(errorMessage(err, 'Save failed'));
@@ -178,8 +178,8 @@ export function SaveAsIntentDialog({ prompt, directions, existingIds, onClose, o
 
   return (
     <Dialog
-      title="Save as intent"
-      description="Promote this free-form result into a reusable intent. Edit the AI draft below before saving."
+      title="Save direction for reuse"
+      description="Save this direction so you can quickly reuse it later. Edit the AI draft below before saving."
       onClose={onClose}
       className="app-dialog--wide"
       closeDisabled={saving}
@@ -189,7 +189,7 @@ export function SaveAsIntentDialog({ prompt, directions, existingIds, onClose, o
         {proposing && (
           <div className="save-intent-loading">
             <span className="direction-spinner" aria-hidden="true" />
-            <span>Drafting intent from your prompt…</span>
+            <span>Drafting from your prompt…</span>
           </div>
         )}
 
@@ -215,7 +215,7 @@ export function SaveAsIntentDialog({ prompt, directions, existingIds, onClose, o
                 className="save-intent-input"
                 value={proposal.description}
                 onChange={(e) => setProposal((current) => ({ ...current, description: e.target.value }))}
-                placeholder="One sentence — what does this intent do?"
+                placeholder="One sentence — what does this direction do?"
               />
             </label>
 
@@ -271,7 +271,7 @@ export function SaveAsIntentDialog({ prompt, directions, existingIds, onClose, o
                     ))}
                   </tbody>
                 </table>
-                <p className="save-intent-hint">Slot table is read-only in the AI draft. Adjust by editing the saved intent file later if needed.</p>
+                <p className="save-intent-hint">Slot table is read-only in the AI draft. Adjust by editing the saved file later if needed.</p>
               </fieldset>
             )}
 
@@ -311,7 +311,7 @@ export function SaveAsIntentDialog({ prompt, directions, existingIds, onClose, o
                     checked={overrideConflicts}
                     onChange={(e) => setOverrideConflicts(e.target.checked)}
                   />
-                  Save anyway — I understand these examples will not classify to this intent
+                  Save anyway — I understand these examples will not match this direction
                 </label>
               )}
             </div>
@@ -334,7 +334,7 @@ export function SaveAsIntentDialog({ prompt, directions, existingIds, onClose, o
           onClick={handleSave}
           disabled={!canSave || saving}
         >
-          {saving ? 'Saving…' : 'Save intent'}
+          {saving ? 'Saving…' : 'Save'}
         </button>
       </div>
     </Dialog>

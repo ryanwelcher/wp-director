@@ -4,7 +4,7 @@
   "description": "Quickly record demo and support videos for WordPress sites",
   "scripts": {
     "start": "nodemon --watch server.js --watch server --watch public --watch client --watch vite.config.js server.js",
-    "start:prod": "pnpm run client:build && NODE_ENV=production node server.js",
+    "start:prod": "vite build && NODE_ENV=production node server.js",
     "client:build": "vite build",
     "record": "playwright test",
     "record:actions": "playwright test recordings/actions-runner.spec.js",

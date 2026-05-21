@@ -7,6 +7,8 @@
  * `runPlaywrightApi` in `server/routes/runner.js` (Playwright library API).
  */
 
+const { ensureOverlayHost } = require('./overlay');
+
 const HIGHLIGHT_HOLD = 700;
 const DEFAULT_END_PAUSE = 2000;
 const DEFAULT_STEP_PAUSE = 0;
@@ -26,9 +28,9 @@ function stepTypingDelay(step, settings, fallback = DEFAULT_TYPING_DELAY) {
  * Scroll `locator` into view, inject a pulsing blue ring around it for
  * `HIGHLIGHT_HOLD` ms, click it, then remove the ring.
  *
- * The ring is injected into the top-level page (not into any iframe) so it
- * renders above the editor-canvas iframe overlay. The animation is CSS
- * keyframe-based and inlined to avoid any stylesheet dependency.
+ * The ring is appended to a top-layer popover host (see `overlay.js`) so it
+ * paints above any WordPress popover/modal/dropdown regardless of z-index or
+ * stacking context.
  *
  * @param {import('@playwright/test').Page} page
  * @param {import('@playwright/test').Locator} locator
@@ -38,6 +40,7 @@ async function highlightAndClick(page, locator) {
   await locator.scrollIntoViewIfNeeded();
   const box = await locator.boundingBox();
   if (box) {
+    await ensureOverlayHost(page);
     await page.evaluate(({ cx, cy, d }) => {
       if (!document.getElementById('psdd-highlight-style')) {
         const style = document.createElement('style');
@@ -52,12 +55,13 @@ async function highlightAndClick(page, locator) {
       const ring = document.createElement('div');
       ring.id = 'psdd-click-ring';
       ring.style.cssText = `
-        position:fixed;z-index:999998;pointer-events:none;
+        position:fixed;pointer-events:none;
         left:${cx - d / 2}px;top:${cy - d / 2}px;width:${d}px;height:${d}px;
         border:3px solid #3b82f6;border-radius:50%;
         box-shadow:0 0 12px rgba(59,130,246,.5);
         animation:psdd-pulse .9s ease-in-out;`;
-      document.body.appendChild(ring);
+      const host = document.getElementById('psdd-overlay-host');
+      (host ?? document.body).appendChild(ring);
     }, {
       cx: box.x + box.width / 2,
       cy: box.y + box.height / 2,

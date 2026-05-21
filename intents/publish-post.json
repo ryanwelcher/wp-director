@@ -1,0 +1,17 @@
+{
+  "id": "publish-post",
+  "description": "Open the pre-publish panel and confirm the publish action in the block editor.",
+  "examples": [
+    "publish the post",
+    "publish this post",
+    "publish",
+    "hit publish"
+  ],
+  "slots": [],
+  "label": "Publish the post",
+  "actions": [
+    { "action": "highlightClick", "selector": ".editor-post-publish-panel__toggle" },
+    { "action": "waitForSelector", "selector": ".editor-post-publish-panel" },
+    { "action": "highlightClick", "selector": ".editor-post-publish-button" }
+  ]
+}

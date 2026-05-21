@@ -11,7 +11,8 @@
     "record:action": "playwright test recordings/actions-runner.spec.js --grep",
     "show-report": "playwright show-report",
     "show-trace": "playwright show-trace",
-    "clean:previews": "rm -rf output/.previews"
+    "clean:previews": "rm -rf output/.previews",
+    "test:classify": "node tests/translate/test-classify.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

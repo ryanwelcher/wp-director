@@ -1,0 +1,20 @@
+{
+  "id": "go-to-dashboard-home",
+  "description": "Go to Dashboard Home",
+  "examples": [
+    "Go to Dashboard Home"
+  ],
+  "slots": [],
+  "label": "Go to Dashboard Home",
+  "actions": [
+    {
+      "action": "wpAdminMenuClick",
+      "item": "Home"
+    },
+    {
+      "action": "waitForSelector",
+      "selector": "#wpbody"
+    }
+  ],
+  "userSaved": true
+}

@@ -1,0 +1,16 @@
+{
+  "id": "insert-a-paragraph-block",
+  "description": "Insert a paragraph block",
+  "examples": [
+    "Insert a paragraph block"
+  ],
+  "slots": [],
+  "label": "Insert a paragraph block",
+  "actions": [
+    {
+      "action": "wpInsertBlock",
+      "blockType": "paragraph"
+    }
+  ],
+  "userSaved": true
+}

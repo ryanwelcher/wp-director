@@ -1,0 +1,15 @@
+{
+  "id": "toggle-inspector",
+  "description": "Toggle the Settings (inspector) sidebar in the block editor — opens it if closed, closes it if open.",
+  "examples": [
+    "toggle the inspector",
+    "open the settings sidebar",
+    "close the settings sidebar",
+    "toggle the editor settings panel"
+  ],
+  "slots": [],
+  "label": "Toggle the inspector sidebar",
+  "actions": [
+    { "action": "highlightClick", "selector": "button[aria-label=\"Settings\"]" }
+  ]
+}

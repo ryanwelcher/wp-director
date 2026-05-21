@@ -1,0 +1,16 @@
+{
+  "id": "dismiss-welcome-modal",
+  "description": "Wait for the block editor welcome guide modal to appear and close it. Use when a recording explicitly needs to surface and dismiss the modal; for routine new-post / new-page flows it is already handled by their respective intents.",
+  "examples": [
+    "dismiss the welcome modal",
+    "close the welcome guide",
+    "dismiss the welcome guide",
+    "close the editor welcome modal"
+  ],
+  "slots": [],
+  "label": "Dismiss the welcome guide",
+  "actions": [
+    { "action": "waitForSelector", "selector": ".edit-post-welcome-guide" },
+    { "action": "click", "selector": ".edit-post-welcome-guide button[aria-label='Close']" }
+  ]
+}

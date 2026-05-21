@@ -11,6 +11,7 @@ blueprints/blueprint.preview.json
 scripts/*.json
 /directions/*
 !/directions/.gitkeep
+/directions.bak/
 .DS_Store
 plans/
 prd/

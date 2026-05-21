@@ -238,11 +238,10 @@ function _spawnSlot(index, blueprintPath) {
 
 /**
  * Boot both slots with `defaultBlueprintPath`. Slot 0 is awaited first so any
- * first-run file downloads (PHP zips, etc.) are cached before slot 1 starts —
- * prevents a race where two processes write the same .partial file
- * simultaneously. Resolves once slot 0 is warm (or rejects if slot 0 fails).
- * Slot 1 then warms silently in the background; if it fails only a console
- * warning is emitted.
+ * first-run file downloads are cached before slot 1 starts, preventing a race
+ * where both processes write the same .partial file simultaneously. Resolves
+ * once slot 0 is warm (or rejects if slot 0 fails). Slot 1 then warms
+ * silently in the background — if it fails only a console warning is emitted.
  *
  * @param {string} defaultBlueprintPath
  * @returns {Promise<void>}

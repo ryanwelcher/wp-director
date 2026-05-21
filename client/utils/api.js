@@ -35,7 +35,12 @@ async function readJSONResponse(res) {
   const data = parseJSON(text);
 
   if (!res.ok) {
-    throw new Error(responseMessage(res, text, data));
+    const error = new Error(responseMessage(res, text, data));
+    // Attach the parsed body so callers can surface structured fields
+    // (e.g. the `conflicts` array on a 409 from POST /api/intents).
+    error.status = res.status;
+    if (data && typeof data === "object") error.data = data;
+    throw error;
   }
 
   if (text && data === null) {
@@ -63,9 +68,9 @@ export const queryKeys = {
     default: ["blueprint", "default"],
     current: ["blueprint", "current"],
   },
-  directions: {
-    all: ["directions"],
-    detail: (filename) => ["directions", filename],
+  intents: {
+    all: ["intents"],
+    detail: (id) => ["intents", id],
   },
   recordings: ["recordings"],
   scripts: ["scripts"],
@@ -98,21 +103,40 @@ export const api = {
     return requestJSON(`/api/scripts/${filename}`, { method: "DELETE" });
   },
 
-  async listDirections({ signal } = {}) {
-    const data = await requestJSON("/api/directions", { signal });
+  async listIntents({ signal } = {}) {
+    const data = await requestJSON("/api/intents", { signal });
+    return data?.intents ?? [];
+  },
+
+  async getIntent(id, { signal } = {}) {
+    const data = await requestJSON(`/api/intents/${id}`, { signal });
+    return data?.intent ?? null;
+  },
+
+  async saveIntent(intent, { skipConflictCheck = false } = {}) {
+    return requestJSON("/api/intents", postOptions({ intent, skipConflictCheck }));
+  },
+
+  async deleteIntent(id) {
+    return requestJSON(`/api/intents/${id}`, { method: "DELETE" });
+  },
+
+  async proposeIntent({ prompt, directions }) {
+    const data = await requestJSON("/api/intents/propose", postOptions({ prompt, directions }));
+    return data?.proposal ?? null;
+  },
+
+  async checkIntentConflicts({ proposedId, examples }) {
+    const data = await requestJSON(
+      "/api/intents/check-conflicts",
+      postOptions({ proposedId, examples }),
+    );
+    return data?.conflicts ?? [];
+  },
+
+  async expandIntent({ id, slots }) {
+    const data = await requestJSON("/api/intents/expand", postOptions({ id, slots }));
     return data?.directions ?? [];
-  },
-
-  async getDirection(filename, { signal } = {}) {
-    return requestJSON(`/api/directions/${filename}`, { signal });
-  },
-
-  async saveDirection({ name, actions }) {
-    return requestJSON("/api/directions/save", postOptions({ name, actions }));
-  },
-
-  async deleteDirection(filename) {
-    return requestJSON(`/api/directions/${filename}`, { method: "DELETE" });
   },
 
   async listRecordings({ signal } = {}) {
@@ -145,6 +169,20 @@ export const api = {
 
   async translateCommand({ command, history }) {
     return requestJSON("/api/translate", postOptions({ command, history }));
+  },
+
+  // Free-form fallback used by the "Try anyway" button when the classifier
+  // returns no matching intent.
+  async translateCommandFreeForm({ command, history }) {
+    return requestJSON("/api/translate/freeform", postOptions({ command, history }));
+  },
+
+  async fixDirection({ actions, error, originalPrompt, label, userContext }) {
+    const data = await requestJSON(
+      "/api/directions/fix",
+      postOptions({ actions, error, originalPrompt, label, userContext }),
+    );
+    return data?.actions ?? [];
   },
 
   async getPluginInfo(slug, { signal } = {}) {

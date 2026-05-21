@@ -1,0 +1,27 @@
+{
+  "id": "change-background-color",
+  "description": "Change the background color of a block by opening the Background color picker in the editor settings sidebar and clicking the named swatch. Self-selects the target block first; defaults to the first paragraph.",
+  "examples": [
+    "set the paragraph background to Accent 1",
+    "change the heading background color to Accent 3",
+    "make the background color Accent 2",
+    "set the second paragraph background to Accent 4"
+  ],
+  "slots": [
+    { "name": "colorName", "type": "string" },
+    {
+      "name": "blockType",
+      "type": "enum",
+      "optional": true,
+      "default": "paragraph",
+      "values": ["paragraph", "heading", "image", "list", "quote", "code"]
+    },
+    { "name": "index", "type": "number", "optional": true, "default": 0 }
+  ],
+  "label": "Set the {{blockType}} background color to {{colorName}}",
+  "actions": [
+    { "action": "wpSelectBlock", "blockType": "{{blockType}}", "index": "{{index}}" },
+    { "action": "highlightClick", "selector": "[aria-label=\"Editor settings\"] button:has-text(\"Background\")" },
+    { "action": "highlightClick", "selector": "[role=\"option\"][aria-label=\"{{colorName}}\"]" }
+  ]
+}

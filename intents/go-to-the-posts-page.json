@@ -1,0 +1,20 @@
+{
+  "id": "go-to-the-posts-page",
+  "description": "Go to the Posts page",
+  "examples": [
+    "Go to the Posts page"
+  ],
+  "slots": [],
+  "label": "Go to the Posts page",
+  "actions": [
+    {
+      "action": "wpAdminMenuClick",
+      "item": "Posts"
+    },
+    {
+      "action": "waitForSelector",
+      "selector": "#wpbody"
+    }
+  ],
+  "userSaved": true
+}

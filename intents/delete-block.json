@@ -1,0 +1,23 @@
+{
+  "id": "delete-block",
+  "description": "Delete an existing block from the editor canvas by type (and optionally by zero-based index when multiple blocks of the same type exist).",
+  "examples": [
+    "delete the paragraph",
+    "remove the first heading",
+    "delete the second paragraph",
+    "remove the image block",
+    "delete the quote"
+  ],
+  "slots": [
+    {
+      "name": "blockType",
+      "type": "enum",
+      "values": ["paragraph", "heading", "image", "list", "quote", "code"]
+    },
+    { "name": "index", "type": "number", "optional": true, "default": 0 }
+  ],
+  "label": "Delete the {{blockType}} block",
+  "actions": [
+    { "action": "wpDeleteBlock", "blockType": "{{blockType}}", "index": "{{index}}" }
+  ]
+}

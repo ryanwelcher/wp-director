@@ -1,0 +1,16 @@
+{
+  "id": "enable-letter-spacing-control",
+  "description": "Enable Letter spacing control",
+  "examples": [
+    "Enable Letter spacing control"
+  ],
+  "slots": [],
+  "label": "Enable Letter spacing control",
+  "actions": [
+    {
+      "action": "highlightClick",
+      "selector": "[role=\"menuitemcheckbox\"][aria-label=\"Show Letter spacing\"]"
+    }
+  ],
+  "userSaved": true
+}

@@ -12,6 +12,7 @@ function isAbortError(err) {
 export function useRunStream({
   appendLog,
   handlePreviewMessage,
+  markDirectionFailed,
   markDone,
   markFailed,
   markStopped,
@@ -70,8 +71,13 @@ export function useRunStream({
       return;
     }
 
+    if (msg.type === 'step-error') {
+      markDirectionFailed?.(msg.index, msg.message);
+      return;
+    }
+
     handlePreviewMessage(msg);
-  }, [appendLog, handlePreviewMessage]);
+  }, [appendLog, handlePreviewMessage, markDirectionFailed]);
 
   const streamRun = useCallback(async (fetchPromise, { controller, onDone }) => {
     let receivedDone = false;

@@ -1,0 +1,21 @@
+{
+  "id": "log-in",
+  "description": "Log into WordPress at /wp-login.php using the supplied (or default admin/password) credentials.",
+  "examples": [
+    "log in",
+    "log into WordPress",
+    "sign in",
+    "log in as admin"
+  ],
+  "slots": [
+    { "name": "username", "type": "string", "optional": true, "default": "admin" },
+    { "name": "password", "type": "string", "optional": true, "default": "password" }
+  ],
+  "label": "Log in as {{username}}",
+  "actions": [
+    { "action": "navigate", "url": "/wp-login.php" },
+    { "action": "slowType", "selector": "#user_login", "text": "{{username}}" },
+    { "action": "slowType", "selector": "#user_pass", "text": "{{password}}" },
+    { "action": "highlightClick", "selector": "#wp-submit" }
+  ]
+}

@@ -13,13 +13,6 @@ const MENU_ICONS = {
       <path d="M5 12h14" />
     </>
   ),
-  save: (
-    <>
-      <path d="M5 4h11l3 3v13H5Z" />
-      <path d="M8 4v6h8" />
-      <path d="M8 20v-6h8v6" />
-    </>
-  ),
   stepsHidden: (
     <>
       <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
@@ -44,7 +37,7 @@ function MenuIcon({ name }) {
   );
 }
 
-export function DirectionMenu({ direction, onClose, onDelete, onEdit, onInsert, onSave, onToggle, position }) {
+export function DirectionMenu({ direction, onClose, onDelete, onEdit, onInsert, onToggle, position }) {
   if (!position) return null;
   const isResolved = !direction._translation?.status || direction._translation.status === 'resolved';
 
@@ -68,12 +61,6 @@ export function DirectionMenu({ direction, onClose, onDelete, onEdit, onInsert, 
         <MenuIcon name="insert" />
         <span>Insert direction</span>
       </button>
-      {isResolved && !direction._fromDirection && (
-        <button className="direction-menu-item direction-menu-save" type="button" onClick={handleClick(onSave)}>
-          <MenuIcon name="save" />
-          <span>Save direction</span>
-        </button>
-      )}
       {isResolved && (
         <button className="direction-menu-item direction-menu-edit" type="button" onClick={handleClick(onEdit)}>
           <MenuIcon name="edit" />

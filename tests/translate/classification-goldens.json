@@ -1,0 +1,214 @@
+[
+  {
+    "name": "install plugin — bare slug",
+    "command": "install Jetpack",
+    "expected": [{ "id": "install-plugin", "slots": { "slug": "jetpack" } }]
+  },
+  {
+    "name": "install plugin — alternate phrasing",
+    "command": "add the Yoast SEO plugin to this site",
+    "expected": [{ "id": "install-plugin", "slots": { "slug": "wordpress-seo" } }]
+  },
+  {
+    "name": "install plugin — activate flag",
+    "command": "install and activate Akismet",
+    "expected": [{ "id": "install-plugin", "slots": { "slug": "akismet", "activate": true } }]
+  },
+  {
+    "name": "install plugin — hyphenated slug",
+    "command": "install hello dolly",
+    "expected": [{ "id": "install-plugin", "slots": { "slug": "hello-dolly" } }]
+  },
+  {
+    "name": "install theme — name + activate",
+    "command": "install and activate the Astra theme",
+    "expected": [{ "id": "install-theme", "slots": { "slug": "astra", "activate": true } }]
+  },
+  {
+    "name": "install theme — twenty twenty-four",
+    "command": "install the Twenty Twenty-Four theme",
+    "expected": [{ "id": "install-theme", "slots": { "slug": "twentytwentyfour" } }]
+  },
+  {
+    "name": "navigate-admin — Plugins",
+    "command": "go to Plugins",
+    "expected": [{ "id": "navigate-admin", "slots": { "section": "Plugins" } }]
+  },
+  {
+    "name": "navigate-admin — submenu",
+    "command": "open Settings > General",
+    "expected": [{ "id": "navigate-admin", "slots": { "section": "General" } }]
+  },
+  {
+    "name": "navigate-admin — Users",
+    "command": "navigate to the Users page",
+    "expected": [{ "id": "navigate-admin", "slots": { "section": "Users" } }]
+  },
+  {
+    "name": "open new post",
+    "command": "create a new post",
+    "expected": [{ "id": "open-new-post", "slots": {} }]
+  },
+  {
+    "name": "open new post — alt phrasing",
+    "command": "start a new post",
+    "expected": [{ "id": "open-new-post", "slots": {} }]
+  },
+  {
+    "name": "open new page",
+    "command": "create a new page",
+    "expected": [{ "id": "open-new-page", "slots": {} }]
+  },
+  {
+    "name": "open site editor",
+    "command": "open the site editor",
+    "expected": [{ "id": "open-site-editor", "slots": {} }]
+  },
+  {
+    "name": "log in — default",
+    "command": "log into WordPress",
+    "expected": [{ "id": "log-in", "slots": {} }]
+  },
+  {
+    "name": "log in — explicit user",
+    "command": "log in as editor",
+    "expected": [{ "id": "log-in", "slots": { "username": "editor" } }]
+  },
+  {
+    "name": "set post title",
+    "command": "set the title to Hello World",
+    "expected": [{ "id": "set-post-title", "slots": { "title": "Hello World" } }]
+  },
+  {
+    "name": "set post title — programmatic",
+    "command": "programmatically set the title to Draft",
+    "expected": [{ "id": "set-post-title", "slots": { "title": "Draft", "programmatic": true } }]
+  },
+  {
+    "name": "insert block — paragraph",
+    "command": "insert a paragraph",
+    "expected": [{ "id": "insert-block", "slots": { "blockType": "paragraph" } }]
+  },
+  {
+    "name": "insert block — heading with content",
+    "command": "add a heading that says Welcome",
+    "expected": [{ "id": "insert-block", "slots": { "blockType": "heading", "content": "Welcome" } }]
+  },
+  {
+    "name": "insert block — image",
+    "command": "insert an image block",
+    "expected": [{ "id": "insert-block", "slots": { "blockType": "image" } }]
+  },
+  {
+    "name": "insert block — repetition",
+    "command": "add three paragraphs",
+    "expected": [
+      { "id": "insert-block", "slots": { "blockType": "paragraph" } },
+      { "id": "insert-block", "slots": { "blockType": "paragraph" } },
+      { "id": "insert-block", "slots": { "blockType": "paragraph" } }
+    ]
+  },
+  {
+    "name": "delete block",
+    "command": "delete the heading",
+    "expected": [{ "id": "delete-block", "slots": { "blockType": "heading" } }]
+  },
+  {
+    "name": "select block — indexed",
+    "command": "select the second paragraph",
+    "expected": [{ "id": "select-block", "slots": { "blockType": "paragraph", "index": 1 } }]
+  },
+  {
+    "name": "open block inserter",
+    "command": "open the block inserter",
+    "expected": [{ "id": "open-block-inserter", "slots": {} }]
+  },
+  {
+    "name": "save site editor",
+    "command": "save the site editor",
+    "expected": [{ "id": "save-site-editor", "slots": {} }]
+  },
+  {
+    "name": "publish post",
+    "command": "publish the post",
+    "expected": [{ "id": "publish-post", "slots": {} }]
+  },
+  {
+    "name": "dismiss welcome modal",
+    "command": "dismiss the welcome modal",
+    "expected": [{ "id": "dismiss-welcome-modal", "slots": {} }]
+  },
+  {
+    "name": "change font size — large",
+    "command": "make the paragraph font size large",
+    "expected": [{ "id": "change-font-size", "slots": { "size": "Large" } }]
+  },
+  {
+    "name": "change text color",
+    "command": "set the paragraph text color to Accent 1",
+    "expected": [{ "id": "change-text-color", "slots": { "colorName": "Accent 1" } }]
+  },
+  {
+    "name": "change background color",
+    "command": "set the paragraph background color to Accent 2",
+    "expected": [{ "id": "change-background-color", "slots": { "colorName": "Accent 2" } }]
+  },
+  {
+    "name": "toggle inspector",
+    "command": "toggle the inspector",
+    "expected": [{ "id": "toggle-inspector", "slots": {} }]
+  },
+  {
+    "name": "command palette — bare open",
+    "command": "open the command palette",
+    "expected": [{ "id": "open-command-palette", "slots": {} }]
+  },
+  {
+    "name": "command palette — with command",
+    "command": "open the command palette and run \"Add new post\"",
+    "expected": [{ "id": "open-command-palette", "slots": { "command": "Add new post" } }]
+  },
+  {
+    "name": "composite — install plugin then create post",
+    "command": "install Jetpack and create a new post",
+    "expected": [
+      { "id": "install-plugin", "slots": { "slug": "jetpack" } },
+      { "id": "open-new-post", "slots": {} }
+    ]
+  },
+  {
+    "name": "unmatched — open-ended request",
+    "command": "make my site look nice",
+    "expected": []
+  },
+  {
+    "name": "unmatched — gibberish",
+    "command": "bongo bongo",
+    "expected": []
+  },
+  {
+    "name": "unmatched — nonsense phrase",
+    "command": "zip zap",
+    "expected": []
+  },
+  {
+    "name": "unmatched — off-topic request",
+    "command": "invent an infinite energy source",
+    "expected": []
+  },
+  {
+    "name": "unmatched — literal word \"unmatched\"",
+    "command": "unmatched",
+    "expected": []
+  },
+  {
+    "name": "open new post — \"add a new post\" prefers dedicated intent",
+    "command": "add a new post",
+    "expected": [{ "id": "open-new-post", "slots": {} }]
+  },
+  {
+    "name": "open new page — \"add a new page\" prefers dedicated intent",
+    "command": "add a new page",
+    "expected": [{ "id": "open-new-page", "slots": {} }]
+  }
+]

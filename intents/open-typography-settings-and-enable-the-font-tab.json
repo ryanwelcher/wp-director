@@ -1,0 +1,20 @@
+{
+  "id": "open-typography-settings-and-enable-the-font-tab",
+  "description": "Open typography settings and enable the font tab",
+  "examples": [
+    "Open typography settings and enable the font tab"
+  ],
+  "slots": [],
+  "label": "Open typography settings and enable the font tab",
+  "actions": [
+    {
+      "action": "highlightClick",
+      "selector": "button[aria-label=\"Typography options\"]"
+    },
+    {
+      "action": "highlightClick",
+      "selector": "[role=\"menuitemcheckbox\"][aria-label=\"Show Font\"]"
+    }
+  ],
+  "userSaved": true
+}

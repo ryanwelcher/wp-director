@@ -1,0 +1,19 @@
+{
+  "id": "set-post-title",
+  "description": "Set the post or page title inside the block editor. Defaults to visible slow-typing; set programmatic:true for instant silent fill.",
+  "examples": [
+    "set the title to Hello World",
+    "make the title \"My New Post\"",
+    "title it \"About Us\"",
+    "programmatically set the title to Welcome",
+    "silently set the title to Draft"
+  ],
+  "slots": [
+    { "name": "title", "type": "string" },
+    { "name": "programmatic", "type": "boolean", "optional": true, "default": false }
+  ],
+  "label": "Set the post title to \"{{title}}\"",
+  "actions": [
+    { "action": "wpSetPostTitle", "title": "{{title}}", "programmatic": "{{programmatic}}" }
+  ]
+}

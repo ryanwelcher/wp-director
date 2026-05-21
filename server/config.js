@@ -22,8 +22,6 @@ module.exports = {
   PLAYWRIGHT_OUTPUT_DIR:   path.join(ROOT, 'output', '.playwright'),
   DISPOSABLE_OUTPUT_DIR,
   PREVIEW_OUTPUT_DIR:      DISPOSABLE_OUTPUT_DIR,
-  DIRECTIONS_DIR:          path.join(ROOT, 'directions'),
-  BUILTIN_DIRECTIONS_DIR:  path.join(__dirname, 'directions'),
 
   // Blueprint files
   DEFAULT_BLUEPRINT:   path.join(ROOT, 'blueprints', 'blueprint.json'),           // checked-in default
@@ -41,6 +39,6 @@ module.exports = {
   // Playground-ready timeout
   PLAYGROUND_READY_TIMEOUT_MS: 120_000,
 
-  // Filename validation — safe on-disk names for scripts and directions
+  // Filename validation — safe on-disk names for scripts
   SAFE_FILENAME_RE: /^[a-z0-9-]+\.json$/i,
 };

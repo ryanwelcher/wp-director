@@ -1,0 +1,20 @@
+{
+  "id": "install-theme",
+  "description": "Install a WordPress theme from the theme directory by slug, optionally activating it after install.",
+  "examples": [
+    "install the Twenty Twenty-Four theme",
+    "install Blockbase",
+    "install and activate the Astra theme",
+    "add the Twenty Twenty-Three theme to this site",
+    "install theme twentytwentyfour"
+  ],
+  "slots": [
+    { "name": "slug", "type": "string" },
+    { "name": "name", "type": "string", "optional": true },
+    { "name": "activate", "type": "boolean", "optional": true, "default": false }
+  ],
+  "label": "Install the {{slug}} theme",
+  "actions": [
+    { "action": "wpInstallTheme", "slug": "{{slug}}", "name": "{{name}}", "activate": "{{activate}}" }
+  ]
+}

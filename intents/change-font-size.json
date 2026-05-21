@@ -1,0 +1,31 @@
+{
+  "id": "change-font-size",
+  "description": "Change the font size of a block via the Typography Size radio in the editor settings sidebar. Self-selects the target block first; defaults to the first paragraph if no block is specified.",
+  "examples": [
+    "make the paragraph font size large",
+    "set the paragraph to extra large",
+    "change the heading font size to small",
+    "set the second paragraph to medium font size",
+    "make the font extra extra large"
+  ],
+  "slots": [
+    {
+      "name": "size",
+      "type": "enum",
+      "values": ["Small", "Medium", "Large", "Extra Large", "Extra Extra Large"]
+    },
+    {
+      "name": "blockType",
+      "type": "enum",
+      "optional": true,
+      "default": "paragraph",
+      "values": ["paragraph", "heading", "image", "list", "quote", "code"]
+    },
+    { "name": "index", "type": "number", "optional": true, "default": 0 }
+  ],
+  "label": "Set the {{blockType}} font size to {{size}}",
+  "actions": [
+    { "action": "wpSelectBlock", "blockType": "{{blockType}}", "index": "{{index}}" },
+    { "action": "highlightClick", "selector": "[aria-label=\"Editor settings\"] [role=\"radio\"][aria-label=\"{{size}}\"]" }
+  ]
+}

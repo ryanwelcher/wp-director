@@ -1,9 +1,0 @@
-{
-  "name": "Open Site Editor",
-  "actions": [
-    {
-      "label": "Navigate to the Site Editor",
-      "actions": [{ "action": "navigate", "url": "/wp-admin/site-editor.php", "waitUntil": "domcontentloaded" }]
-    }
-  ]
-}

@@ -1,0 +1,17 @@
+{
+  "id": "open-new-post",
+  "description": "Navigate to the new-post editor (Add Post) and dismiss the welcome modal if it appears.",
+  "examples": [
+    "create a new post",
+    "start a new post",
+    "open the post editor",
+    "add a new post",
+    "open new post"
+  ],
+  "slots": [],
+  "label": "Open the new post editor",
+  "actions": [
+    { "action": "navigate", "url": "/wp-admin/post-new.php", "waitUntil": "domcontentloaded" },
+    { "action": "tryClick", "selector": ".components-modal__header button[aria-label=\"Close\"]" }
+  ]
+}

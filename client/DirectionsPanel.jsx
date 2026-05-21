@@ -9,12 +9,8 @@ import { PoolStatusIndicators } from './PoolStatusIndicators.jsx';
 import { Dialog } from './Dialog.jsx';
 import { BlueprintPanel } from './Sidebar/BlueprintPanel.jsx';
 import { RecordingSettingsPanel } from './Sidebar/RecordingSettingsPanel.jsx';
-import { directionsForJSON, errorMessage, flattenDirectionActions } from './utils/actions.js';
-import {
-  useDirectionLoader,
-  useSaveDirectionMutation,
-  useTranslateMutation,
-} from './utils/apiHooks.js';
+import { directionsForJSON, errorMessage } from './utils/actions.js';
+import { useTranslateFreeFormMutation, useTranslateMutation } from './utils/apiHooks.js';
 import { useRunState } from './context/RunContext.jsx';
 
 function menuPosition(target, width = 200) {
@@ -47,10 +43,11 @@ export function DirectionsPanel() {
     directionsView,
     failPendingDirection,
     insertDirectionAt,
-    libraryEntries,
+    intentCatalog,
     reorderDirections,
     replaceWithPendingDirection,
     resolvePendingDirection,
+    resolveUnmatchedDirection,
     setDirectionsView,
     startFromIndex,
     toggleAlwaysRun,
@@ -67,9 +64,9 @@ export function DirectionsPanel() {
   const [editDirection, setEditDirection] = useState(null);
   const [activeTab, setActiveTab] = useState('directions');
   const [clearDirectionsDialogOpen, setClearDirectionsDialogOpen] = useState(false);
-  const loadDirection = useDirectionLoader();
-  const saveDirectionMutation = useSaveDirectionMutation();
   const translateMutation = useTranslateMutation();
+  const translateFreeFormMutation = useTranslateFreeFormMutation();
+  const [tryAnywayPending, setTryAnywayPending] = useState(() => new Set());
 
   const closePopovers = useCallback(() => {
     setMenu(null);
@@ -83,33 +80,16 @@ export function DirectionsPanel() {
     if (node) node.scrollIntoView({ block: 'nearest' });
   }, []);
 
-  async function insertDirection(filename, insertIndex) {
-    try {
-      const data = await loadDirection(filename);
-      const flatSteps = flattenDirectionActions(data.actions ?? []);
-      const index = insertIndex ?? directions.length;
-      insertDirectionAt({ label: data.name, actions: flatSteps, _fromDirection: true }, index);
-      toast.success(`Inserted "${data.name}"`);
-    } catch (err) {
-      toast.error(errorMessage(err, 'Could not load direction'));
+  function insertIntent(expandedDirections, insertIndex) {
+    if (!expandedDirections?.length) return;
+    let index = insertIndex ?? directions.length;
+    for (const direction of expandedDirections) {
+      insertDirectionAt({ ...direction, _fromIntent: true }, index);
+      index += 1;
     }
-  }
-
-  async function saveDirection(index) {
-    const group = directions[index];
-    if (!group) return;
-
-    try {
-      const data = await saveDirectionMutation.mutateAsync({
-        name: group.label,
-        actions: directionsForJSON([group]),
-      });
-      toast.success(`Saved direction "${group.label}"`);
-      return data;
-    } catch (err) {
-      toast.error(errorMessage(err, 'Save failed'));
-      return null;
-    }
+    toast.success(expandedDirections.length === 1
+      ? `Inserted "${expandedDirections[0].label}"`
+      : `Inserted ${expandedDirections.length} directions`);
   }
 
   function buildEditCommand(direction, context) {
@@ -149,6 +129,44 @@ export function DirectionsPanel() {
     } catch (err) {
       failPendingDirection(pending._id, err);
       toast.error(errorMessage(err, 'Edit failed'));
+    }
+  }
+
+  async function tryAnywayFreeForm(index) {
+    const direction = directions[index];
+    if (!direction) return;
+    const command = direction._translation?.command;
+    if (!command) return;
+
+    const id = direction._id;
+    setTryAnywayPending((current) => {
+      const next = new Set(current);
+      next.add(id);
+      return next;
+    });
+
+    const history = directionsForJSON(directions.slice(0, index)).flatMap((group) => group.actions ?? []);
+
+    try {
+      const data = await translateFreeFormMutation.mutateAsync({ command, history });
+      const translated = data.directions ?? [];
+      if (!translated.length) {
+        throw new Error('Translation returned no directions');
+      }
+      // Replacing the unmatched pending direction at its current index keeps
+      // the free-form result anchored where the user was already looking.
+      const nextDirections = resolvePendingDirection(id, translated, command, index, { freeForm: true });
+      toast.success(nextDirections.length === 1 ? 'Added free-form direction' : `Added ${nextDirections.length} free-form directions`);
+    } catch (err) {
+      // Restore the unmatched panel so the user can retry.
+      resolveUnmatchedDirection(id, command);
+      toast.error(errorMessage(err, 'Free-form translation failed'));
+    } finally {
+      setTryAnywayPending((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
     }
   }
 
@@ -295,6 +313,9 @@ export function DirectionsPanel() {
                         }}
                         onToggleAlwaysRun={() => toggleAlwaysRun(index)}
                         onToggleStartFrom={() => toggleStartFrom(index)}
+                        onDismissUnmatched={() => deleteDirection(index)}
+                        onTryAnyway={() => tryAnywayFreeForm(index)}
+                        tryAnywayPending={tryAnywayPending.has(direction._id)}
                       />
                     );
                   })}
@@ -367,7 +388,6 @@ export function DirectionsPanel() {
               setEditDirection({ index: menu.index, value: '' });
             }}
             onInsert={() => setPicker({ anchorIndex: menu.index, position: menu.position })}
-            onSave={() => saveDirection(menu.index)}
             onToggle={() => toggleDirectionOpen(menu.index)}
           />
         </>
@@ -378,10 +398,10 @@ export function DirectionsPanel() {
           <button className="popover-backdrop" type="button" aria-label="Close direction picker" onClick={closePopovers} />
           <DirectionPicker
             anchorIndex={picker.anchorIndex}
-            entries={libraryEntries}
+            entries={intentCatalog}
             position={picker.position}
             onClose={() => setPicker(null)}
-            onSelect={insertDirection}
+            onSelect={insertIntent}
           />
         </>
       )}

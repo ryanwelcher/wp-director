@@ -1,0 +1,15 @@
+{
+  "id": "save-site-editor",
+  "description": "Save the current changes in the Site Editor (clicks Save in the top bar and confirms in the publish panel).",
+  "examples": [
+    "save in the site editor",
+    "save site editor changes",
+    "save the site editor",
+    "save my site editor work"
+  ],
+  "slots": [],
+  "label": "Save changes in the Site Editor",
+  "actions": [
+    { "action": "wpSiteEditorSave" }
+  ]
+}

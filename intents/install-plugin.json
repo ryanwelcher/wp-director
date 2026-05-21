@@ -1,0 +1,19 @@
+{
+  "id": "install-plugin",
+  "description": "Install a WordPress plugin from the plugin directory by slug, optionally activating it after install.",
+  "examples": [
+    "install Jetpack",
+    "install the Jetpack plugin",
+    "add Jetpack to this site",
+    "install and activate Jetpack",
+    "install hello dolly"
+  ],
+  "slots": [
+    { "name": "slug", "type": "string" },
+    { "name": "activate", "type": "boolean", "optional": true, "default": false }
+  ],
+  "label": "Install the {{slug}} plugin",
+  "actions": [
+    { "action": "wpInstallPlugin", "slug": "{{slug}}", "activate": "{{activate}}" }
+  ]
+}

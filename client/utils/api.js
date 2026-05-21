@@ -63,9 +63,9 @@ export const queryKeys = {
     default: ["blueprint", "default"],
     current: ["blueprint", "current"],
   },
-  directions: {
-    all: ["directions"],
-    detail: (filename) => ["directions", filename],
+  intents: {
+    all: ["intents"],
+    detail: (id) => ["intents", id],
   },
   recordings: ["recordings"],
   scripts: ["scripts"],
@@ -98,21 +98,27 @@ export const api = {
     return requestJSON(`/api/scripts/${filename}`, { method: "DELETE" });
   },
 
-  async listDirections({ signal } = {}) {
-    const data = await requestJSON("/api/directions", { signal });
+  async listIntents({ signal } = {}) {
+    const data = await requestJSON("/api/intents", { signal });
+    return data?.intents ?? [];
+  },
+
+  async getIntent(id, { signal } = {}) {
+    const data = await requestJSON(`/api/intents/${id}`, { signal });
+    return data?.intent ?? null;
+  },
+
+  async saveIntent(intent) {
+    return requestJSON("/api/intents", postOptions({ intent }));
+  },
+
+  async deleteIntent(id) {
+    return requestJSON(`/api/intents/${id}`, { method: "DELETE" });
+  },
+
+  async expandIntent({ id, slots }) {
+    const data = await requestJSON("/api/intents/expand", postOptions({ id, slots }));
     return data?.directions ?? [];
-  },
-
-  async getDirection(filename, { signal } = {}) {
-    return requestJSON(`/api/directions/${filename}`, { signal });
-  },
-
-  async saveDirection({ name, actions }) {
-    return requestJSON("/api/directions/save", postOptions({ name, actions }));
-  },
-
-  async deleteDirection(filename) {
-    return requestJSON(`/api/directions/${filename}`, { method: "DELETE" });
   },
 
   async listRecordings({ signal } = {}) {
@@ -145,6 +151,12 @@ export const api = {
 
   async translateCommand({ command, history }) {
     return requestJSON("/api/translate", postOptions({ command, history }));
+  },
+
+  // Free-form fallback used by the "Try anyway" button when the classifier
+  // returns no matching intent.
+  async translateCommandFreeForm({ command, history }) {
+    return requestJSON("/api/translate/freeform", postOptions({ command, history }));
   },
 
   async getPluginInfo(slug, { signal } = {}) {

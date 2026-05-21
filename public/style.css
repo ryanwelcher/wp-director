@@ -2765,8 +2765,14 @@ header p {
 .direction-fix-diff {
   display: grid;
   gap: 0.75rem;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: 0.85rem;
+  max-width: 100%;
+}
+
+.direction-fix-side {
+  min-width: 0;
+  overflow-x: auto;
 }
 
 .direction-fix-side h3 {
@@ -2783,6 +2789,7 @@ header p {
   border-radius: 5px;
   color: #e2e8f0;
   font-size: 0.78rem;
+  max-width: 100%;
   max-height: 280px;
   overflow: auto;
   padding: 0.55rem 0.7rem;

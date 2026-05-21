@@ -2696,6 +2696,33 @@ header p {
   word-break: break-word;
 }
 
+.direction-failure-hint {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.78rem;
+  min-height: 2.4rem;
+  padding: 0.4rem 0.55rem;
+  resize: vertical;
+  width: 100%;
+}
+
+.direction-failure-hint::placeholder {
+  color: rgba(254, 202, 202, 0.55);
+}
+
+.direction-failure-hint:focus {
+  border-color: rgba(248, 113, 113, 0.55);
+  outline: none;
+}
+
+.direction-failure-hint:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .direction-failure-actions {
   display: flex;
   justify-content: flex-end;

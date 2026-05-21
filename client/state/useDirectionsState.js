@@ -159,10 +159,21 @@ export function useDirectionsState() {
             _failure: {
               error: error || 'Recording failed at this direction',
               capturedAt: Date.now(),
+              hint: '',
             },
           }
         : direction
     )));
+  }, []);
+
+  const updateDirectionFailureHint = useCallback((index, hint) => {
+    setDirections((current) => current.map((direction, i) => {
+      if (i !== index || !direction._failure) return direction;
+      return {
+        ...direction,
+        _failure: { ...direction._failure, hint },
+      };
+    }));
   }, []);
 
   const clearDirectionFailure = useCallback((index) => {
@@ -266,6 +277,7 @@ export function useDirectionsState() {
     updateDirectionLabel,
     toggleDirectionOpen,
     markDirectionFailed,
+    updateDirectionFailureHint,
     clearDirectionFailure,
     clearAllFailures,
     replaceDirectionActions,

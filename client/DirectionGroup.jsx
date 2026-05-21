@@ -31,6 +31,7 @@ export function DirectionGroup({
   tryAnywayPending,
   fixPending,
   onFixDirection,
+  onFailureHintChange,
   onDismissFailure,
 }) {
   const translationStatus = direction._translation?.status;
@@ -204,6 +205,14 @@ export function DirectionGroup({
             </button>
           </div>
           <pre className="direction-failure-message">{failure.error}</pre>
+          <textarea
+            className="direction-failure-hint"
+            value={failure.hint ?? ''}
+            onChange={(event) => onFailureHintChange?.(event.target.value)}
+            disabled={fixPending}
+            placeholder='Add a hint for the AI (optional) — e.g. "the install button moved to the right column in WP 6.5"'
+            rows={2}
+          />
           <div className="direction-failure-actions">
             <button
               className="direction-failure-fix"

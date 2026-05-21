@@ -23,6 +23,7 @@
 const { client, STEPS_PROMPT } = require('../claude');
 
 const MODEL = 'claude-sonnet-4-6';
+const MAX_USER_CONTEXT_LENGTH = 2000;
 
 const FIX_PREAMBLE = `${STEPS_PROMPT}
 
@@ -35,6 +36,9 @@ You will receive:
 - The Playwright error message from the moment of failure
 - The user's original natural-language prompt that produced this direction (when available)
 - Optionally a one-line label describing the direction's intent
+- Optionally a user-supplied hint describing the user's own diagnosis or suggested fix
+
+When a user hint is provided, treat it as **authoritative**: it represents the user's diagnosis of what went wrong or how to repair the direction, and they have visibility into the WordPress UI you do not. Follow the hint unless it clearly contradicts the action vocabulary (e.g. it asks for an action type that doesn't exist) or the rest of the action context. If the hint and the Playwright error point in different directions, prefer the hint.
 
 Your job is to emit a replacement \`actions\` array. Guidelines:
 
@@ -75,6 +79,7 @@ async function fixDirection(req, res) {
     error,
     originalPrompt,
     label,
+    userContext,
   } = req.body ?? {};
   if (!Array.isArray(actions) || actions.length === 0) {
     return res.status(400).json({ error: 'actions must be a non-empty array' });
@@ -87,11 +92,20 @@ async function fixDirection(req, res) {
   if (!errorMessage) {
     return res.status(400).json({ error: 'error.message (or error string) required' });
   }
+  const trimmedUserContext = typeof userContext === 'string' ? userContext.trim() : '';
+  if (trimmedUserContext.length > MAX_USER_CONTEXT_LENGTH) {
+    return res.status(400).json({
+      error: `userContext must be ${MAX_USER_CONTEXT_LENGTH} characters or fewer`,
+    });
+  }
 
   const userBlock = [
     label ? `Direction label: ${label}` : null,
     originalPrompt ? `Original user prompt: ${originalPrompt}` : null,
     `Playwright error from the failed run:\n${errorMessage}`,
+    trimmedUserContext
+      ? `User hint (authoritative — trust this over your own diagnosis unless it clearly contradicts the action vocabulary):\n${trimmedUserContext}`
+      : null,
     `Actions that ran (the last one before the error is the most likely culprit, but any may need adjustment):\n${JSON.stringify(actions, null, 2)}`,
   ].filter(Boolean).join('\n\n');
 

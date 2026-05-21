@@ -177,10 +177,10 @@ export const api = {
     return requestJSON("/api/translate/freeform", postOptions({ command, history }));
   },
 
-  async fixDirection({ actions, error, originalPrompt, label }) {
+  async fixDirection({ actions, error, originalPrompt, label, userContext }) {
     const data = await requestJSON(
       "/api/directions/fix",
-      postOptions({ actions, error, originalPrompt, label }),
+      postOptions({ actions, error, originalPrompt, label, userContext }),
     );
     return data?.actions ?? [];
   },

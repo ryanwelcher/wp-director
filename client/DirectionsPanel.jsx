@@ -60,6 +60,7 @@ export function DirectionsPanel() {
     toggleAlwaysRun,
     toggleDirectionOpen,
     toggleStartFrom,
+    updateDirectionFailureHint,
     updateDirectionLabel,
   } = useAppState();
   const { activeStepIndex } = useRunState();
@@ -184,6 +185,7 @@ export function DirectionsPanel() {
         error: direction._failure.error,
         originalPrompt: direction._translation?.command,
         label: direction.label,
+        userContext: direction._failure.hint?.trim() || undefined,
       });
       if (!Array.isArray(actions) || actions.length === 0) {
         toast.error('AI returned no replacement actions.');
@@ -403,6 +405,7 @@ export function DirectionsPanel() {
                         tryAnywayPending={tryAnywayPending.has(direction._id)}
                         fixPending={fixPendingIndex === index}
                         onFixDirection={() => requestFixDirection(index)}
+                        onFailureHintChange={(hint) => updateDirectionFailureHint(index, hint)}
                         onDismissFailure={() => clearDirectionFailure(index)}
                       />
                     );

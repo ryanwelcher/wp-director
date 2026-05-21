@@ -1,8 +1,5 @@
 [
   { "label": "Mobile", "width": 390, "height": 844 },
   { "label": "Tablet", "width": 768, "height": 1024 },
-  { "label": "720p", "width": 1280, "height": 720 },
-  { "label": "1080p", "width": 1920, "height": 1080 },
-  { "label": "QHD", "width": 2560, "height": 1440 },
-  { "label": "4K", "width": 3840, "height": 2160 }
+  { "label": "Desktop", "width": 1920, "height": 1080 }
 ]

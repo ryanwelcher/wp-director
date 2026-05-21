@@ -35,7 +35,12 @@ async function readJSONResponse(res) {
   const data = parseJSON(text);
 
   if (!res.ok) {
-    throw new Error(responseMessage(res, text, data));
+    const error = new Error(responseMessage(res, text, data));
+    // Attach the parsed body so callers can surface structured fields
+    // (e.g. the `conflicts` array on a 409 from POST /api/intents).
+    error.status = res.status;
+    if (data && typeof data === "object") error.data = data;
+    throw error;
   }
 
   if (text && data === null) {
@@ -108,12 +113,25 @@ export const api = {
     return data?.intent ?? null;
   },
 
-  async saveIntent(intent) {
-    return requestJSON("/api/intents", postOptions({ intent }));
+  async saveIntent(intent, { skipConflictCheck = false } = {}) {
+    return requestJSON("/api/intents", postOptions({ intent, skipConflictCheck }));
   },
 
   async deleteIntent(id) {
     return requestJSON(`/api/intents/${id}`, { method: "DELETE" });
+  },
+
+  async proposeIntent({ prompt, directions }) {
+    const data = await requestJSON("/api/intents/propose", postOptions({ prompt, directions }));
+    return data?.proposal ?? null;
+  },
+
+  async checkIntentConflicts({ proposedId, examples }) {
+    const data = await requestJSON(
+      "/api/intents/check-conflicts",
+      postOptions({ proposedId, examples }),
+    );
+    return data?.conflicts ?? [];
   },
 
   async expandIntent({ id, slots }) {
@@ -157,6 +175,14 @@ export const api = {
   // returns no matching intent.
   async translateCommandFreeForm({ command, history }) {
     return requestJSON("/api/translate/freeform", postOptions({ command, history }));
+  },
+
+  async fixDirection({ actions, error, originalPrompt, label, userContext }) {
+    const data = await requestJSON(
+      "/api/directions/fix",
+      postOptions({ actions, error, originalPrompt, label, userContext }),
+    );
+    return data?.actions ?? [];
   },
 
   async getPluginInfo(slug, { signal } = {}) {

@@ -109,8 +109,28 @@ export function useSaveIntentMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: api.saveIntent,
+    mutationFn: ({ intent, skipConflictCheck = false }) => (
+      api.saveIntent(intent, { skipConflictCheck })
+    ),
     onSuccess: () => invalidate(queryClient, queryKeys.intents.all),
+  });
+}
+
+export function useProposeIntentMutation() {
+  return useMutation({
+    mutationFn: api.proposeIntent,
+  });
+}
+
+export function useCheckIntentConflictsMutation() {
+  return useMutation({
+    mutationFn: api.checkIntentConflicts,
+  });
+}
+
+export function useFixDirectionMutation() {
+  return useMutation({
+    mutationFn: api.fixDirection,
   });
 }
 

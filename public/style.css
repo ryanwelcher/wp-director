@@ -2630,4 +2630,355 @@ header p {
 
 .direction-picker-slot-btn--primary:hover:not(:disabled) { background: #1d4ed8; }
 
+/* --- Phase 5: save-as-intent + failure-triggered direction fix --- */
+
+.app-dialog--wide {
+  width: min(640px, calc(100vw - 2rem));
+}
+
+.direction-group.has-failure {
+  border-left: 3px solid #f87171;
+}
+
+.direction-failure {
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  border-radius: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.4rem 0.5rem 0.55rem;
+  padding: 0.55rem 0.7rem;
+}
+
+.direction-failure-header {
+  align-items: center;
+  color: #fecaca;
+  display: flex;
+  font-size: 0.82rem;
+  font-weight: 600;
+  gap: 0.4rem;
+}
+
+.direction-failure-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.direction-failure-title {
+  flex: 1;
+}
+
+.direction-failure-dismiss {
+  background: transparent;
+  border: none;
+  color: #fca5a5;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.2rem;
+}
+
+.direction-failure-dismiss:hover {
+  color: #fecaca;
+}
+
+.direction-failure-message {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 4px;
+  color: #fecaca;
+  font-size: 0.78rem;
+  margin: 0;
+  max-height: 140px;
+  overflow: auto;
+  padding: 0.45rem 0.6rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.direction-failure-hint {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.78rem;
+  min-height: 2.4rem;
+  padding: 0.4rem 0.55rem;
+  resize: vertical;
+  width: 100%;
+}
+
+.direction-failure-hint::placeholder {
+  color: rgba(254, 202, 202, 0.55);
+}
+
+.direction-failure-hint:focus {
+  border-color: rgba(248, 113, 113, 0.55);
+  outline: none;
+}
+
+.direction-failure-hint:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.direction-failure-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.direction-failure-fix {
+  background: #dc2626;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.35rem 0.8rem;
+}
+
+.direction-failure-fix:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.direction-failure-fix:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.direction-fix-error {
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  border-radius: 5px;
+  color: #fecaca;
+  font-size: 0.78rem;
+  margin-top: 0.85rem;
+  max-height: 140px;
+  overflow: auto;
+  padding: 0.5rem 0.65rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.direction-fix-diff {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 0.85rem;
+  max-width: 100%;
+}
+
+.direction-fix-side {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.direction-fix-side h3 {
+  color: #cbd5e1;
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+  text-transform: uppercase;
+}
+
+.direction-fix-side pre {
+  background: #0f172a;
+  border: 1px solid #1f2937;
+  border-radius: 5px;
+  color: #e2e8f0;
+  font-size: 0.78rem;
+  max-width: 100%;
+  max-height: 280px;
+  overflow: auto;
+  padding: 0.55rem 0.7rem;
+}
+
+.save-intent-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+}
+
+.save-intent-loading {
+  align-items: center;
+  color: #cbd5e1;
+  display: flex;
+  font-size: 0.85rem;
+  gap: 0.5rem;
+  padding: 0.6rem 0;
+}
+
+.save-intent-field {
+  border: none;
+  color: #cbd5e1;
+  display: flex;
+  flex-direction: column;
+  font-size: 0.82rem;
+  gap: 0.35rem;
+  padding: 0;
+}
+
+.save-intent-label {
+  color: #94a3b8;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.save-intent-input {
+  background: #1a2035;
+  border: 1px solid #374151;
+  border-radius: 5px;
+  color: #f8fafc;
+  font-size: 0.88rem;
+  outline: none;
+  padding: 0.42rem 0.6rem;
+  width: 100%;
+}
+
+.save-intent-input:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.18);
+}
+
+.save-intent-input.has-error {
+  border-color: #f87171;
+}
+
+.save-intent-error {
+  color: #fca5a5;
+  font-size: 0.76rem;
+}
+
+.save-intent-example-row {
+  align-items: center;
+  display: flex;
+  gap: 0.4rem;
+}
+
+.save-intent-icon-btn {
+  background: transparent;
+  border: 1px solid #374151;
+  border-radius: 4px;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 0.2rem 0.45rem;
+}
+
+.save-intent-icon-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.save-intent-icon-btn:hover:not(:disabled) {
+  color: #fca5a5;
+}
+
+.save-intent-secondary {
+  align-self: flex-start;
+  background: transparent;
+  border: 1px dashed #374151;
+  border-radius: 5px;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 0.78rem;
+  padding: 0.3rem 0.65rem;
+}
+
+.save-intent-secondary:hover:not(:disabled) {
+  border-color: #6b7280;
+  color: #e2e8f0;
+}
+
+.save-intent-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.save-intent-hint {
+  color: #94a3b8;
+  font-size: 0.74rem;
+  margin-top: 0.2rem;
+}
+
+.save-intent-slot-table {
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  width: 100%;
+}
+
+.save-intent-slot-table th,
+.save-intent-slot-table td {
+  border-bottom: 1px solid #1f2937;
+  padding: 0.3rem 0.45rem;
+  text-align: left;
+}
+
+.save-intent-slot-table th {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.save-intent-action-preview summary {
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.save-intent-action-preview pre {
+  background: #0f172a;
+  border: 1px solid #1f2937;
+  border-radius: 5px;
+  color: #e2e8f0;
+  font-size: 0.76rem;
+  margin-top: 0.4rem;
+  max-height: 220px;
+  overflow: auto;
+  padding: 0.55rem 0.7rem;
+}
+
+.save-intent-conflicts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.save-intent-conflicts-header {
+  align-items: center;
+  display: flex;
+  gap: 0.6rem;
+}
+
+.save-intent-ok {
+  color: #4ade80;
+  font-size: 0.78rem;
+}
+
+.save-intent-conflict-list {
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  border-radius: 5px;
+  color: #fecaca;
+  font-size: 0.8rem;
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem 0.7rem;
+}
+
+.save-intent-conflict {
+  padding: 0.15rem 0;
+}
+
+.save-intent-override {
+  align-items: center;
+  color: #fca5a5;
+  display: flex;
+  font-size: 0.78rem;
+  gap: 0.4rem;
+}
+
 .direction-picker-slot-btn:disabled { opacity: 0.4; cursor: not-allowed; }

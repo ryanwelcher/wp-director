@@ -37,6 +37,7 @@ require('./server/routes/translate').register(app);
 require('./server/routes/blueprint').register(app);
 require('./server/routes/scripts').register(app);
 require('./server/routes/intents').register(app);
+require('./server/routes/directions').register(app);
 require('./server/routes/runner').register(app);
 require('./server/routes/recordings').register(app);
 require('./server/routes/previews').register(app);

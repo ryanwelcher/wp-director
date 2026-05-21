@@ -29,6 +29,10 @@ export function DirectionGroup({
   onToggleStartFrom,
   onTryAnyway,
   tryAnywayPending,
+  fixPending,
+  onFixDirection,
+  onFailureHintChange,
+  onDismissFailure,
 }) {
   const translationStatus = direction._translation?.status;
   const translationError = direction._translation?.error;
@@ -37,6 +41,7 @@ export function DirectionGroup({
   const isUnmatched = translationStatus === 'unmatched';
   const isResolved = !translationStatus || translationStatus === 'resolved';
   const isFreeForm = !!direction._freeForm;
+  const failure = direction._failure;
   const placeholderSet = direction._placeholders?.length
     ? new Set(direction._placeholders)
     : null;
@@ -54,6 +59,7 @@ export function DirectionGroup({
     isUnmatched && 'is-unmatched',
     isFreeForm && 'is-free-form',
     isEditing && 'is-editing',
+    failure && 'has-failure',
   );
   const editInputRef = useRef(null);
 
@@ -178,6 +184,43 @@ export function DirectionGroup({
               onClick={onDismissUnmatched}
             >
               Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      {failure && isResolved && (
+        <div className="direction-failure">
+          <div className="direction-failure-header">
+            <span className="direction-failure-icon" aria-hidden="true">⚠</span>
+            <span className="direction-failure-title">Recording failed at this direction</span>
+            <button
+              className="direction-failure-dismiss"
+              type="button"
+              onClick={onDismissFailure}
+              aria-label="Dismiss failure marker"
+              title="Dismiss"
+            >
+              ×
+            </button>
+          </div>
+          <pre className="direction-failure-message">{failure.error}</pre>
+          <textarea
+            className="direction-failure-hint"
+            value={failure.hint ?? ''}
+            onChange={(event) => onFailureHintChange?.(event.target.value)}
+            disabled={fixPending}
+            placeholder='Add a hint for the AI (optional) — e.g. "the install button moved to the right column in WP 6.5"'
+            rows={2}
+          />
+          <div className="direction-failure-actions">
+            <button
+              className="direction-failure-fix"
+              type="button"
+              disabled={fixPending}
+              onClick={onFixDirection}
+            >
+              {fixPending ? 'Asking AI…' : 'Fix with AI'}
             </button>
           </div>
         </div>

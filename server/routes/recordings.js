@@ -22,10 +22,10 @@ const path = require('path');
 const rangeParser = require('range-parser');
 const { OUTPUT_DIR } = require('../config');
 const { findVideoFile, probeVideoSize, spawnMp4Transcode, spawnWebmDownscale } = require('../video');
-const { VIDEO_SIZE_PRESETS } = require('../video-size');
+const DOWNLOAD_SIZE_PRESETS = require('../../shared/download-size-presets.json');
 
-const MAX_DOWNLOAD_SIZE = VIDEO_SIZE_PRESETS.find((size) => size.width === 3840 && size.height === 2160)
-  ?? VIDEO_SIZE_PRESETS[VIDEO_SIZE_PRESETS.length - 1];
+const MAX_DOWNLOAD_SIZE = DOWNLOAD_SIZE_PRESETS.find((size) => size.width === 3840 && size.height === 2160)
+  ?? DOWNLOAD_SIZE_PRESETS[DOWNLOAD_SIZE_PRESETS.length - 1];
 
 /**
  * Resolutions a recording can be downloaded at: the captured source size,
@@ -57,14 +57,14 @@ function fitSourceRatioWithin(sourceSize, bounds) {
 }
 
 function allowedSizesFor(sourceSize) {
-  const exactPresetSizes = VIDEO_SIZE_PRESETS
+  const exactPresetSizes = DOWNLOAD_SIZE_PRESETS
     .filter((p) => (
       fitsWithin(p, MAX_DOWNLOAD_SIZE)
       && sameAspectRatio(p, sourceSize)
     ))
     .map((p) => ({ width: p.width, height: p.height }));
 
-  const upscaleSizes = VIDEO_SIZE_PRESETS
+  const upscaleSizes = DOWNLOAD_SIZE_PRESETS
     .filter((preset) => fitsWithin(preset, MAX_DOWNLOAD_SIZE))
     .map((preset) => fitSourceRatioWithin(sourceSize, preset))
     .filter((size) => (

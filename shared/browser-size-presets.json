@@ -1,0 +1,5 @@
+[
+  { "label": "Mobile", "width": 390, "height": 844 },
+  { "label": "Tablet", "width": 768, "height": 1024 },
+  { "label": "Desktop", "width": 1920, "height": 1080 }
+]

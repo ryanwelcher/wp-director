@@ -180,5 +180,35 @@
     "name": "unmatched — open-ended request",
     "command": "make my site look nice",
     "expected": []
+  },
+  {
+    "name": "unmatched — gibberish",
+    "command": "bongo bongo",
+    "expected": []
+  },
+  {
+    "name": "unmatched — nonsense phrase",
+    "command": "zip zap",
+    "expected": []
+  },
+  {
+    "name": "unmatched — off-topic request",
+    "command": "invent an infinite energy source",
+    "expected": []
+  },
+  {
+    "name": "unmatched — literal word \"unmatched\"",
+    "command": "unmatched",
+    "expected": []
+  },
+  {
+    "name": "open new post — \"add a new post\" prefers dedicated intent",
+    "command": "add a new post",
+    "expected": [{ "id": "open-new-post", "slots": {} }]
+  },
+  {
+    "name": "open new page — \"add a new page\" prefers dedicated intent",
+    "command": "add a new page",
+    "expected": [{ "id": "open-new-page", "slots": {} }]
   }
 ]

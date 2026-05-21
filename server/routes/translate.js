@@ -3,25 +3,21 @@
 /**
  * Natural-language → directions translation.
  *
- * Two pipelines live here during the intent-library rollout:
+ *   POST /api/translate           intent-library pipeline (classify → expand
+ *                                 canonical action sequences from intents/*.json).
+ *   POST /api/translate/freeform  legacy free-form generation; kept solely as
+ *                                 the backend for the UI's "Try anyway" button
+ *                                 when the classifier returns `unmatched`.
  *
- *   POST /api/translate         (legacy free-form generation; Claude produces
- *                                the full action JSON from STEPS_PROMPT)
- *   POST /api/translate/v2      (intent-library: classify → expand canonical
- *                                action sequences from intents/*.json)
- *
- * Both return the same `{ directions: [{ label, actions }, ...] }` shape so
- * the existing UI works with either. Setting `?v=2` on /api/translate also
- * routes to the new pipeline — handy for opt-in client experiments.
- *
- * The legacy path will be retired in Phase 6 of plans/translate-intent-library.md.
+ * Both return `{ directions: [{ label, actions }, ...] }`; the intent endpoint
+ * may also include `unmatched`.
  */
 
 const { client, STEPS_PROMPT, STEPS_TOOL } = require('../claude');
 const { classify } = require('../intents/classify');
 const { expandAll } = require('../intents/expand');
 
-async function legacyTranslate(req, res) {
+async function freeformTranslate(req, res) {
   const { command, history = [] } = req.body;
   if (!command) return res.status(400).json({ error: 'command required' });
 
@@ -66,11 +62,8 @@ async function intentTranslate(req, res) {
 }
 
 function register(app) {
-  app.post('/api/translate', (req, res) => {
-    if (req.query.v === '2') return intentTranslate(req, res);
-    return legacyTranslate(req, res);
-  });
-  app.post('/api/translate/v2', intentTranslate);
+  app.post('/api/translate', intentTranslate);
+  app.post('/api/translate/freeform', freeformTranslate);
 }
 
 module.exports = { register };

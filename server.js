@@ -26,11 +26,6 @@ const {
   GENERATED_BLUEPRINT,
 } = require('./server/config');
 
-// One-shot migration of any leftover directions/*.json into the intent catalog.
-// Must run before the loader reads intents/ so migrated files appear on first
-// catalog fetch.
-require('./server/intents/migrate').migrate();
-
 const app = express();
 const previewLoadingPage = path.join(__dirname, 'server/public/preview-loading.html');
 

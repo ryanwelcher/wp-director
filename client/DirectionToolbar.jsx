@@ -16,6 +16,8 @@ export function DirectionToolbar() {
     currentStepPause,
     currentTypingDelay,
     currentVideoSize,
+    currentHudScale,
+    hudPosition,
     name,
     poolStatus,
     runDirections,
@@ -45,6 +47,8 @@ export function DirectionToolbar() {
           stepPause: currentStepPause,
           typingDelay: currentTypingDelay,
           videoSize: currentVideoSize,
+          hudScale: currentHudScale,
+          hudPosition,
         },
       });
       toast.success(`Saved "${trimmedName}"`);

@@ -33,12 +33,29 @@ const {
 } = require('../config');
 const { normalizeVideoSize } = require('../video-size');
 
+const VALID_HUD_POSITIONS = new Set([
+  'top-left', 'top-center', 'top-right',
+  'bottom-left', 'bottom-center', 'bottom-right',
+]);
+
 const DEFAULT_RECORDING_SETTINGS = Object.freeze({
   endPause: 2000,
   stepPause: 0,
   typingDelay: 100,
   videoSize: normalizeVideoSize(null),
+  hudScale: 1,
+  hudPosition: 'bottom-center',
 });
+
+function hudScaleSetting(value, fallback) {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) return fallback;
+  return Math.max(0.25, Math.min(4, Math.round(num * 100) / 100));
+}
+
+function hudPositionSetting(value, fallback) {
+  return typeof value === 'string' && VALID_HUD_POSITIONS.has(value) ? value : fallback;
+}
 
 /**
  * Normalize a user-provided name into a safe on-disk filename.
@@ -88,6 +105,8 @@ function normalizeRecordingSettings(settings) {
     stepPause: millisecondsSetting(source.stepPause, DEFAULT_RECORDING_SETTINGS.stepPause),
     typingDelay: millisecondsSetting(source.typingDelay, DEFAULT_RECORDING_SETTINGS.typingDelay, 1000),
     videoSize: normalizeVideoSize(source.videoSize, DEFAULT_RECORDING_SETTINGS.videoSize),
+    hudScale: hudScaleSetting(source.hudScale, DEFAULT_RECORDING_SETTINGS.hudScale),
+    hudPosition: hudPositionSetting(source.hudPosition, DEFAULT_RECORDING_SETTINGS.hudPosition),
   };
 }
 
@@ -111,6 +130,12 @@ function storedRecordingSettings(def) {
   }
   if (source.videoSize != null) {
     settings.videoSize = normalizeVideoSize(source.videoSize, DEFAULT_RECORDING_SETTINGS.videoSize);
+  }
+  if (source.hudScale != null) {
+    settings.hudScale = hudScaleSetting(source.hudScale, DEFAULT_RECORDING_SETTINGS.hudScale);
+  }
+  if (source.hudPosition != null) {
+    settings.hudPosition = hudPositionSetting(source.hudPosition, DEFAULT_RECORDING_SETTINGS.hudPosition);
   }
 
   return settings;
@@ -148,6 +173,18 @@ function scriptForRun(def, overrides = {}) {
   }
   if (overrides.videoSize != null) {
     recordingSettings = { ...recordingSettings, videoSize: normalizeVideoSize(overrides.videoSize) };
+  }
+  if (overrides.hudScale != null) {
+    recordingSettings = {
+      ...recordingSettings,
+      hudScale: hudScaleSetting(overrides.hudScale, recordingSettings.hudScale),
+    };
+  }
+  if (overrides.hudPosition != null) {
+    recordingSettings = {
+      ...recordingSettings,
+      hudPosition: hudPositionSetting(overrides.hudPosition, recordingSettings.hudPosition),
+    };
   }
 
   return {

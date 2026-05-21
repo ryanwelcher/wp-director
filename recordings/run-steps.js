@@ -7,6 +7,27 @@
  * `runPlaywrightApi` in `server/routes/runner.js` (Playwright library API).
  */
 
+const { flashKey, formatKey, DEFAULT_HUD_POSITION } = require('./overlay');
+
+const DEFAULT_HUD_SCALE = 1;
+
+/**
+ * Flash a key chip in the HUD then press the key. The pairing is always used
+ * together — call sites should never call `page.keyboard.press` directly when
+ * the press is meant to be visible in the recording.
+ *
+ * @param {import('@playwright/test').Page}                          page
+ * @param {string}                                                   key       Playwright key string (e.g. `'Enter'`, `'Meta+K'`).
+ * @param {{ hudScale?: number, hudPosition?: string }}              [settings]
+ */
+async function pressWithFlash(page, key, settings = {}) {
+  await flashKey(page, formatKey(key), {
+    scale: settings.hudScale ?? DEFAULT_HUD_SCALE,
+    position: settings.hudPosition ?? DEFAULT_HUD_POSITION,
+  });
+  await page.keyboard.press(key);
+}
+
 const HIGHLIGHT_HOLD = 700;
 const DEFAULT_END_PAUSE = 2000;
 const DEFAULT_STEP_PAUSE = 0;
@@ -150,7 +171,8 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       break;
 
     case 'press':
-      await page.keyboard.press(step.key);
+    case 'pressKey':
+      await pressWithFlash(page, step.key, settings);
       break;
 
     case 'frameLocator':
@@ -284,7 +306,7 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
         const option = page.getByRole('option', { name: new RegExp(`^${displayName}$`, 'i') });
         await option.waitFor({ state: 'visible', timeout: 5_000 });
         await option.click();
-        await page.keyboard.press('Enter');
+        await pressWithFlash(page, 'Enter', settings);
         // Wait for the autocomplete to close — confirms the block was inserted
         // and the editor is settled before the next step runs.
         await option.waitFor({ state: 'hidden', timeout: 5_000 });
@@ -313,8 +335,8 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       const beforeCount = await blocks.count();
       await target.click();
       await target.and(editorFrame.locator('.is-selected')).waitFor({ state: 'visible', timeout: 5_000 });
-      await page.keyboard.press('Escape');
-      await page.keyboard.press('Backspace');
+      await pressWithFlash(page, 'Escape', settings);
+      await pressWithFlash(page, 'Backspace', settings);
       if (beforeCount > 0) {
         const deadline = Date.now() + 5_000;
         while (Date.now() < deadline && (await blocks.count()) >= beforeCount) {
@@ -459,9 +481,14 @@ async function runSteps(page, def, runner = null, onStepStart = null) {
   const recordingSettings = def.recordingSettings && typeof def.recordingSettings === 'object'
     ? def.recordingSettings
     : {};
+  const hudScale = Number.isFinite(Number(recordingSettings.hudScale)) && Number(recordingSettings.hudScale) > 0
+    ? Number(recordingSettings.hudScale)
+    : DEFAULT_HUD_SCALE;
   const settings = {
     stepPause: settingMilliseconds(recordingSettings.stepPause, DEFAULT_STEP_PAUSE),
     typingDelay: settingMilliseconds(recordingSettings.typingDelay, DEFAULT_TYPING_DELAY, 1000),
+    hudScale,
+    hudPosition: recordingSettings.hudPosition ?? DEFAULT_HUD_POSITION,
   };
 
   // Support grouped direction format plus legacy flat actions.

@@ -220,6 +220,7 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
   const contextOpts = {
     baseURL: `http://127.0.0.1:${port}`,
     viewport: recordingSize,
+    screen: recordingSize,
   };
   contextOpts.recordVideo = { dir: PLAYWRIGHT_OUTPUT_DIR, size: recordingSize };
 
@@ -238,6 +239,7 @@ async function runPlaywrightApi({ scripts, port, blueprintPath, videoSize, send,
     browser = await chromium.launch({
       headless: true,
       slowMo: 500,
+      args: [`--window-size=${recordingSize.width},${recordingSize.height}`],
     });
     if (run) run.browser = browser;
     throwIfRunStopped(signal);

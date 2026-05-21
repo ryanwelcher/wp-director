@@ -1,15 +1,14 @@
 import clsx from 'clsx';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Dialog } from '../Dialog.jsx';
 import { useAppState } from '../context/AppStateContext.jsx';
 import { DEFAULT_RUN_SETTINGS } from '../state/useRunSettingsState.js';
-import { VIDEO_SIZE_VALUES } from '../utils/actions.js';
+import { BROWSER_SIZE_PRESETS, isValidVideoSizeValue } from '../utils/actions.js';
 
-const VIDEO_LABELS = {
-  '1280x720': '720p',
-  '1920x1080': '1080p',
-  '3840x2160': '4K',
-};
+function splitSizeValue(value) {
+  const match = String(value).match(/^(\d+)x(\d+)$/i);
+  return match ? [match[1], match[2]] : ['', ''];
+}
 
 export function RecordingSettingsPanel() {
   const {
@@ -24,6 +23,13 @@ export function RecordingSettingsPanel() {
     videoSize,
   } = useAppState();
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [[customWidth, customHeight], setCustomSizeParts] = useState(() => splitSizeValue(videoSize));
+  const activePreset = BROWSER_SIZE_PRESETS.find((preset) => preset.value === videoSize);
+  const customSizeValue = `${customWidth}x${customHeight}`;
+  const customSizeValid = isValidVideoSizeValue(customSizeValue);
+  const normalizedCustomSizeValue = customSizeValid
+    ? `${Number(customWidth)}x${Number(customHeight)}`
+    : customSizeValue;
 
   const isAtDefault = useMemo(
     () => (
@@ -34,6 +40,16 @@ export function RecordingSettingsPanel() {
     ),
     [endPause, stepPause, typingDelay, videoSize],
   );
+
+  useEffect(() => {
+    setCustomSizeParts(splitSizeValue(videoSize));
+  }, [videoSize]);
+
+  function applyCustomSize(event) {
+    event.preventDefault();
+    if (!customSizeValid) return;
+    setVideoSize(normalizedCustomSizeValue);
+  }
 
   return (
     <>
@@ -72,24 +88,61 @@ export function RecordingSettingsPanel() {
 
       <div className="setting-field">
         <div className="setting-field-header">
-          <span className="setting-field-label">Video size</span>
-          <span className="setting-field-value">{videoSize}</span>
+          <span className="setting-field-label">Browser window size</span>
+          <span className="setting-field-value">
+            {activePreset ? `${activePreset.label} ${videoSize}` : `Custom ${videoSize}`}
+          </span>
         </div>
-        <div className="settings-size-toggle" role="radiogroup" aria-label="Video size">
-          {VIDEO_SIZE_VALUES.map((size) => (
+        <div className="settings-size-toggle" role="radiogroup" aria-label="Browser window size">
+          {BROWSER_SIZE_PRESETS.map((preset) => (
             <button
-              key={size}
+              key={preset.value}
               type="button"
-              className={clsx('settings-size-opt', videoSize === size && 'active')}
+              className={clsx('settings-size-opt', videoSize === preset.value && 'active')}
               role="radio"
-              aria-checked={videoSize === size}
-              title={`${VIDEO_LABELS[size]} (${size})`}
-              onClick={() => setVideoSize(size)}
+              aria-checked={videoSize === preset.value}
+              title={`${preset.label} (${preset.value})`}
+              onClick={() => setVideoSize(preset.value)}
             >
-              {VIDEO_LABELS[size]}
+              <span className="settings-size-opt-label">{preset.label}</span>
+              <span className="settings-size-opt-value">{preset.value}</span>
             </button>
           ))}
         </div>
+        <form className="settings-custom-size" onSubmit={applyCustomSize}>
+          <label className="settings-custom-size-field">
+            <span>Width</span>
+            <input
+              type="number"
+              min="320"
+              max="7680"
+              step="1"
+              inputMode="numeric"
+              value={customWidth}
+              onChange={(event) => setCustomSizeParts([event.target.value, customHeight])}
+            />
+          </label>
+          <span className="settings-custom-size-separator">x</span>
+          <label className="settings-custom-size-field">
+            <span>Height</span>
+            <input
+              type="number"
+              min="320"
+              max="7680"
+              step="1"
+              inputMode="numeric"
+              value={customHeight}
+              onChange={(event) => setCustomSizeParts([customWidth, event.target.value])}
+            />
+          </label>
+          <button
+            type="submit"
+            className="settings-custom-size-apply"
+            disabled={!customSizeValid || normalizedCustomSizeValue === videoSize}
+          >
+            Apply
+          </button>
+        </form>
       </div>
 
       <div className="setting-field">
@@ -123,7 +176,7 @@ export function RecordingSettingsPanel() {
     {resetDialogOpen && (
       <Dialog
         title="Reset recording settings?"
-        description="Reset typing speed, between-step pause, video size, and outro length to defaults?"
+        description="Reset typing speed, between-step pause, browser window size, and outro length to defaults?"
         onClose={() => setResetDialogOpen(false)}
       >
         <div className="app-dialog-actions">

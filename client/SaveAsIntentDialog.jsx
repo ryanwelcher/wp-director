@@ -155,7 +155,10 @@ export function SaveAsIntentDialog({ prompt, directions, existingIds, onClose, o
       actions: proposal.actions,
     };
     try {
-      await saveMutation.mutateAsync(payload, { skipConflictCheck: overrideConflicts });
+      await saveMutation.mutateAsync({
+        intent: payload,
+        skipConflictCheck: overrideConflicts,
+      });
       toast.success(`Saved "${payload.id}"`);
       onSaved({ ...payload, prompt });
     } catch (err) {

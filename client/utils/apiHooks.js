@@ -109,7 +109,9 @@ export function useSaveIntentMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: api.saveIntent,
+    mutationFn: ({ intent, skipConflictCheck = false }) => (
+      api.saveIntent(intent, { skipConflictCheck })
+    ),
     onSuccess: () => invalidate(queryClient, queryKeys.intents.all),
   });
 }

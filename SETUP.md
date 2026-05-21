@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - **Node.js 18+** — [nodejs.org](https://nodejs.org/)
-- **npm** — included with Node.js
+- **pnpm** — [pnpm.io/installation](https://pnpm.io/installation) (or enable via `corepack enable`)
 - **An Anthropic API key** — get one at [console.anthropic.com](https://console.anthropic.com/) (required for the natural language UI; not needed to run recordings directly)
 - **ffmpeg** — only required if you want to convert or re-encode recorded videos. The `ffmpeg-static` npm package bundles a copy, so a system install is optional.
 
@@ -19,7 +19,7 @@ cd playwright-recorder
 **2. Install Node dependencies**
 
 ```bash
-npm install
+pnpm install
 ```
 
 **3. Install Playwright browsers**
@@ -27,7 +27,7 @@ npm install
 Only Chromium is needed:
 
 ```bash
-npx playwright install chromium
+pnpm exec playwright install chromium
 ```
 
 **4. Configure your API key**
@@ -44,14 +44,14 @@ Open `.env` and set:
 ANTHROPIC_API_KEY=your-anthropic-api-key-here
 ```
 
-The key is only used by the natural language UI (`npm start`). If you only want to run pre-written scripts, you can skip this step.
+The key is only used by the natural language UI (`pnpm start`). If you only want to run pre-written scripts, you can skip this step.
 
 ## Running
 
 **Start the natural language UI:**
 
 ```bash
-npm start
+pnpm start
 ```
 
 Opens the server at `http://localhost:3000`. WP Playground starts automatically the first time you hit **Record**.
@@ -59,13 +59,13 @@ Opens the server at `http://localhost:3000`. WP Playground starts automatically 
 **Run all saved scripts:**
 
 ```bash
-npm run record
+pnpm record
 ```
 
 **Run a single script by name:**
 
 ```bash
-npm run record:action -- "my script name"
+pnpm record:action -- "my script name"
 ```
 
 The name is matched with Playwright's `--grep` flag against the script's `name` field.
@@ -73,7 +73,7 @@ The name is matched with Playwright's `--grep` flag against the script's `name` 
 **View the last trace:**
 
 ```bash
-npm run show-trace
+pnpm show-trace
 ```
 
 Opens the Playwright trace viewer for interactive step-by-step replay.
@@ -105,7 +105,7 @@ Playwright configuration lives in `playwright.config.js`:
 - **Slow motion** — 500 ms between actions for readable recordings
 - **Timeout** — 120 seconds per test
 - **Workers** — 1 (recordings run sequentially)
-- **Trace** — always on; replay with `npm run show-trace`
+- **Trace** — always on; replay with `pnpm show-trace`
 
 ## Troubleshooting
 

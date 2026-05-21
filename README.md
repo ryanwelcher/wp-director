@@ -23,15 +23,15 @@ See [SETUP.md](SETUP.md) for full prerequisites and installation instructions.
 
 ```bash
 # 1. Install dependencies
-npm install
-npx playwright install chromium
+pnpm install
+pnpm exec playwright install chromium
 
 # 2. Add your Anthropic API key
 cp .env.example .env
 # Edit .env and set ANTHROPIC_API_KEY=<your key>
 
 # 3. Start the UI
-npm start
+pnpm start
 # Open http://localhost:3000
 ```
 
@@ -40,7 +40,7 @@ npm start
 ### Natural language UI
 
 ```bash
-npm start
+pnpm start
 ```
 
 Opens the UI at `http://localhost:3000`. Type plain-English commands in the direction bar to build up a script, then click **Record** to run it. The browser preview updates live as steps execute.
@@ -48,11 +48,11 @@ Opens the UI at `http://localhost:3000`. Type plain-English commands in the dire
 ### Running recordings directly
 
 ```bash
-npm run record               # run all scripts in scripts/
-npm run record:action -- "name"  # run a single script by name (grep match)
+pnpm record               # run all scripts in scripts/
+pnpm record:action -- "name"  # run a single script by name (grep match)
 ```
 
-Recorded videos and screenshots land in `output/`. Use `npm run show-trace` to inspect a run interactively with the Playwright trace viewer.
+Recorded videos and screenshots land in `output/`. Use `pnpm show-trace` to inspect a run interactively with the Playwright trace viewer.
 
 ## How it works
 

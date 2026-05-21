@@ -246,8 +246,8 @@ function _spawnSlot(index, blueprintPath) {
  */
 async function init(defaultBlueprintPath) {
   console.log(`[Playground Pool] Initialising with ${path.basename(defaultBlueprintPath)} (${INITIAL_SLOT_COUNT} slots)`);
-  bootSlotWithRetry(1, defaultBlueprintPath, `Slot 1 (port ${slots[1]?.port}) init`);
   await bootSlot(0, defaultBlueprintPath);
+  bootSlotWithRetry(1, defaultBlueprintPath, `Slot 1 (port ${slots[1]?.port}) init`);
   console.log('[Playground Pool] Ready');
 }
 

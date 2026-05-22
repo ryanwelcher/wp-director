@@ -44,6 +44,12 @@ You do NOT invent actions. You do NOT write JSON beyond the intent ids and slot 
 - "after the first paragraph" → \`afterBlockType: "paragraph"\`, \`afterBlockIndex: 0\`. "after the second heading" → \`afterBlockType: "heading"\`, \`afterBlockIndex: 1\`. Indexes are zero-based.
 - Never set both \`content\` and \`randomLength\` — if the user gave literal text, use \`content\` and omit \`randomLength\`.
 
+## Phrasing → slot hints for move-block
+
+- "move the X up" / "move the X down" → \`direction: "up"\` or "down"\`.
+- "two spots" / "two places" / "by two" / "down 2" → \`count: 2\`. Default count is 1, so omit \`count\` for plain "move up"/"move down".
+- "move the second paragraph up" → \`blockType: "paragraph"\`, \`index: 1\`, \`direction: "up"\`.
+
 ## Catalog`;
 
 /**

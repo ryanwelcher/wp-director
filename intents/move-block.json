@@ -1,0 +1,41 @@
+{
+  "id": "move-block",
+  "description": "Move an existing block up or down in the editor by clicking the block toolbar's Move up / Move down button. Selects the block first, then presses the move button `count` times. blockType is the block's kebab-case slug (e.g. paragraph, heading, cover); index is zero-based when multiple blocks of the same type exist.",
+  "examples": [
+    "move the paragraph up",
+    "move the heading down",
+    "move the cover block down two spots",
+    "move the second paragraph up",
+    "move the third heading down three spots",
+    "move the image up one",
+    "move the quote down 4"
+  ],
+  "slots": [
+    {
+      "name": "blockType",
+      "type": "string"
+    },
+    {
+      "name": "index",
+      "type": "number",
+      "optional": true,
+      "default": 0
+    },
+    {
+      "name": "direction",
+      "type": "enum",
+      "values": ["up", "down"]
+    },
+    {
+      "name": "count",
+      "type": "number",
+      "optional": true,
+      "default": 1
+    }
+  ],
+  "label": "Move the {{blockType}} block {{direction}}",
+  "actions": [
+    { "action": "wpSelectBlock", "blockType": "{{blockType}}", "index": "{{index}}" },
+    { "action": "wpMoveBlock", "direction": "{{direction}}", "count": "{{count}}" }
+  ]
+}

@@ -411,6 +411,21 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       break;
     }
 
+    case 'wpMoveBlock': {
+      // Click the block toolbar's Move up/Move down button `count` times.
+      // The block must already be selected (wpSelectBlock first); the
+      // toolbar follows the selection after each click, so the same
+      // selector works for subsequent presses.
+      const direction = step.direction === 'down' ? 'Move down' : 'Move up';
+      const count = Math.max(1, Number(step.count) || 1);
+      const moveBtn = page.locator(`[role="toolbar"][aria-label="Block tools"] button[aria-label="${direction}"]`);
+      for (let i = 0; i < count; i++) {
+        await moveBtn.waitFor({ state: 'visible', timeout: 5_000 });
+        await highlightAndClick(page, moveBtn);
+      }
+      break;
+    }
+
     case 'wpInsertBlockProgrammatic': {
       const blockType = step.blockType.includes('/')
         ? step.blockType

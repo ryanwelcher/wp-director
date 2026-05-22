@@ -149,6 +149,21 @@
     "expected": [{ "id": "insert-block", "slots": { "blockType": "media-text" } }]
   },
   {
+    "name": "move block — paragraph up",
+    "command": "move the paragraph up",
+    "expected": [{ "id": "move-block", "slots": { "blockType": "paragraph", "direction": "up" } }]
+  },
+  {
+    "name": "move block — cover down two spots",
+    "command": "move the cover block down two spots",
+    "expected": [{ "id": "move-block", "slots": { "blockType": "cover", "direction": "down", "count": 2 } }]
+  },
+  {
+    "name": "move block — second paragraph up",
+    "command": "move the second paragraph up",
+    "expected": [{ "id": "move-block", "slots": { "blockType": "paragraph", "index": 1, "direction": "up" } }]
+  },
+  {
     "name": "delete block",
     "command": "delete the heading",
     "expected": [{ "id": "delete-block", "slots": { "blockType": "heading" } }]

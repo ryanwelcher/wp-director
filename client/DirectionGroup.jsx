@@ -24,14 +24,28 @@ export function DirectionGroup({
   onEditSubmit,
   onLabelChange,
   onMenu,
+  onDismissUnmatched,
   onToggleAlwaysRun,
   onToggleStartFrom,
+  onTryAnyway,
+  tryAnywayPending,
+  fixPending,
+  onFixDirection,
+  onFailureHintChange,
+  onDismissFailure,
 }) {
   const translationStatus = direction._translation?.status;
   const translationError = direction._translation?.error;
   const isTranslating = translationStatus === 'pending';
   const isTranslationError = translationStatus === 'error';
+  const isUnmatched = translationStatus === 'unmatched';
   const isResolved = !translationStatus || translationStatus === 'resolved';
+  const isFreeForm = !!direction._freeForm;
+  const failure = direction._failure;
+  const placeholderSet = direction._placeholders?.length
+    ? new Set(direction._placeholders)
+    : null;
+  const unmatchedCommand = direction._translation?.command ?? '';
   const className = clsx(
     'direction-group',
     dragging && 'dragging',
@@ -42,7 +56,10 @@ export function DirectionGroup({
     isAlwaysRun && 'always-run',
     isTranslating && 'is-translating',
     isTranslationError && 'has-translation-error',
+    isUnmatched && 'is-unmatched',
+    isFreeForm && 'is-free-form',
     isEditing && 'is-editing',
+    failure && 'has-failure',
   );
   const editInputRef = useRef(null);
 
@@ -145,13 +162,91 @@ export function DirectionGroup({
         </div>
       )}
 
+      {isUnmatched && (
+        <div className="direction-unmatched-state">
+          <p className="direction-unmatched-message">
+            No saved direction matched <em>“{unmatchedCommand}”</em>. See the
+            {' '}<strong>Directions</strong> panel in the sidebar for what's supported.
+          </p>
+          <div className="direction-unmatched-actions">
+            <button
+              className="direction-unmatched-try"
+              type="button"
+              disabled={tryAnywayPending}
+              onClick={onTryAnyway}
+            >
+              {tryAnywayPending ? 'Generating…' : 'Try anyway with free-form generation'}
+            </button>
+            <button
+              className="direction-unmatched-dismiss"
+              type="button"
+              disabled={tryAnywayPending}
+              onClick={onDismissUnmatched}
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      {failure && isResolved && (
+        <div className="direction-failure">
+          <div className="direction-failure-header">
+            <span className="direction-failure-icon" aria-hidden="true">⚠</span>
+            <span className="direction-failure-title">Recording failed at this direction</span>
+            <button
+              className="direction-failure-dismiss"
+              type="button"
+              onClick={onDismissFailure}
+              aria-label="Dismiss failure marker"
+              title="Dismiss"
+            >
+              ×
+            </button>
+          </div>
+          <pre className="direction-failure-message">{failure.error}</pre>
+          <textarea
+            className="direction-failure-hint"
+            value={failure.hint ?? ''}
+            onChange={(event) => onFailureHintChange?.(event.target.value)}
+            disabled={fixPending}
+            placeholder='Add a hint for the AI (optional) — e.g. "the install button moved to the right column in WP 6.5"'
+            rows={2}
+          />
+          <div className="direction-failure-actions">
+            <button
+              className="direction-failure-fix"
+              type="button"
+              disabled={fixPending}
+              onClick={onFixDirection}
+            >
+              {fixPending ? 'Asking AI…' : 'Fix with AI'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {direction._open && direction.actions?.length > 0 && (
         <ul className="direction-inner-list">
-          {direction.actions.map((action, actionIndex) => (
-            <li className="direction-inner-item" key={`${action.action}-${actionIndex}`}>
-              {describePlain(action)}
-            </li>
-          ))}
+          {direction.actions.map((action, actionIndex) => {
+            const isPlaceholder = placeholderSet?.has(actionIndex);
+            return (
+              <li
+                className={clsx('direction-inner-item', isPlaceholder && 'is-placeholder')}
+                key={`${action.action}-${actionIndex}`}
+              >
+                {describePlain(action)}
+                {isPlaceholder && (
+                  <span
+                    className="direction-placeholder-badge"
+                    title="Auto-filled placeholder — edit before recording"
+                  >
+                    placeholder
+                  </span>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </li>

@@ -1,0 +1,27 @@
+{
+  "id": "change-text-color",
+  "description": "Change the text color of a block by opening the Text color picker in the editor settings sidebar and clicking the named swatch. Self-selects the target block first; defaults to the first paragraph.",
+  "examples": [
+    "set the paragraph text color to Accent 1",
+    "make the heading text color Accent 3",
+    "change the text color to Accent 2",
+    "set the second paragraph text color to Accent 4"
+  ],
+  "slots": [
+    { "name": "colorName", "type": "string" },
+    {
+      "name": "blockType",
+      "type": "enum",
+      "optional": true,
+      "default": "paragraph",
+      "values": ["paragraph", "heading", "image", "list", "quote", "code"]
+    },
+    { "name": "index", "type": "number", "optional": true, "default": 0 }
+  ],
+  "label": "Set the {{blockType}} text color to {{colorName}}",
+  "actions": [
+    { "action": "wpSelectBlock", "blockType": "{{blockType}}", "index": "{{index}}" },
+    { "action": "highlightClick", "selector": "[aria-label=\"Editor settings\"] button:has-text(\"Text\")" },
+    { "action": "highlightClick", "selector": "[role=\"option\"][aria-label=\"{{colorName}}\"]" }
+  ]
+}

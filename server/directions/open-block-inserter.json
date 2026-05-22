@@ -1,9 +1,0 @@
-{
-  "name": "Open block inserter",
-  "actions": [
-    {
-      "label": "Toggle the block inserter panel open",
-      "actions": [{ "action": "highlightClick", "selector": "button[aria-label=\"Block Inserter, Add block\"]" }]
-    }
-  ]
-}

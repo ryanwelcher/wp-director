@@ -10,6 +10,7 @@ const RunContext = createContext(null);
 export function RunProvider({ children }) {
   const {
     blueprint,
+    clearAllFailures,
     currentEndPause,
     currentStepPause,
     currentTypingDelay,
@@ -17,6 +18,7 @@ export function RunProvider({ children }) {
     currentHudScale,
     hudPosition,
     loadRecordings,
+    markDirectionFailed,
     name,
     runDirections,
     selectedScripts,
@@ -38,6 +40,7 @@ export function RunProvider({ children }) {
   } = useRunStream({
     appendLog: runLog.appendLog,
     handlePreviewMessage,
+    markDirectionFailed,
     markDone: runLog.markDone,
     markFailed: runLog.markFailed,
     markStopped: runLog.markStopped,
@@ -48,6 +51,7 @@ export function RunProvider({ children }) {
 
   const { runActions, recordAll } = useRunActions({
     blueprint,
+    clearAllFailures,
     currentEndPause,
     currentStepPause,
     currentTypingDelay,

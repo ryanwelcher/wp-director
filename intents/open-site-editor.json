@@ -1,0 +1,15 @@
+{
+  "id": "open-site-editor",
+  "description": "Navigate to the WordPress Site Editor.",
+  "examples": [
+    "open the site editor",
+    "go to the site editor",
+    "launch the site editor",
+    "open site editor"
+  ],
+  "slots": [],
+  "label": "Open the Site Editor",
+  "actions": [
+    { "action": "navigate", "url": "/wp-admin/site-editor.php", "waitUntil": "domcontentloaded" }
+  ]
+}

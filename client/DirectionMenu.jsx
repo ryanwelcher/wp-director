@@ -15,9 +15,9 @@ const MENU_ICONS = {
   ),
   save: (
     <>
-      <path d="M5 4h11l3 3v13H5Z" />
-      <path d="M8 4v6h8" />
-      <path d="M8 20v-6h8v6" />
+      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" />
+      <polyline points="17 21 17 13 7 13 7 21" />
+      <polyline points="7 3 7 8 15 8" />
     </>
   ),
   stepsHidden: (
@@ -44,9 +44,13 @@ function MenuIcon({ name }) {
   );
 }
 
-export function DirectionMenu({ direction, onClose, onDelete, onEdit, onInsert, onSave, onToggle, position }) {
+export function DirectionMenu({ direction, onClose, onDelete, onEdit, onInsert, onSaveAsIntent, onToggle, position }) {
   if (!position) return null;
   const isResolved = !direction._translation?.status || direction._translation.status === 'resolved';
+  // Save-as-intent is offered only for free-form (try-anyway) results — the
+  // intent-library path already produced canonical actions, so promoting them
+  // back into an intent file would be a no-op.
+  const canSaveAsIntent = isResolved && direction._freeForm && Array.isArray(direction.actions) && direction.actions.length > 0;
 
   function handleClick(callback) {
     return (event) => {
@@ -68,16 +72,16 @@ export function DirectionMenu({ direction, onClose, onDelete, onEdit, onInsert, 
         <MenuIcon name="insert" />
         <span>Insert direction</span>
       </button>
-      {isResolved && !direction._fromDirection && (
-        <button className="direction-menu-item direction-menu-save" type="button" onClick={handleClick(onSave)}>
-          <MenuIcon name="save" />
-          <span>Save direction</span>
-        </button>
-      )}
       {isResolved && (
         <button className="direction-menu-item direction-menu-edit" type="button" onClick={handleClick(onEdit)}>
           <MenuIcon name="edit" />
           <span>Edit</span>
+        </button>
+      )}
+      {canSaveAsIntent && (
+        <button className="direction-menu-item direction-menu-save" type="button" onClick={handleClick(onSaveAsIntent)}>
+          <MenuIcon name="save" />
+          <span>Save for reuse…</span>
         </button>
       )}
       <div className="direction-menu-divider" />

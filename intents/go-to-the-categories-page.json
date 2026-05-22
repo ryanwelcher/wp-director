@@ -1,0 +1,20 @@
+{
+  "id": "go-to-the-categories-page",
+  "description": "Go to the Categories page",
+  "examples": [
+    "Go to the Categories page"
+  ],
+  "slots": [],
+  "label": "Go to the Categories page",
+  "actions": [
+    {
+      "action": "wpAdminMenuClick",
+      "item": "Categories"
+    },
+    {
+      "action": "waitForSelector",
+      "selector": "#wpbody"
+    }
+  ],
+  "userSaved": true
+}

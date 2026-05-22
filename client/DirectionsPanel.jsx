@@ -7,12 +7,13 @@ import { DirectionMenu } from './DirectionMenu.jsx';
 import { DirectionPicker } from './DirectionPicker.jsx';
 import { PoolStatusIndicators } from './PoolStatusIndicators.jsx';
 import { Dialog } from './Dialog.jsx';
+import { SaveAsIntentDialog } from './SaveAsIntentDialog.jsx';
 import { BlueprintPanel } from './Sidebar/BlueprintPanel.jsx';
 import { RecordingSettingsPanel } from './Sidebar/RecordingSettingsPanel.jsx';
-import { directionsForJSON, errorMessage, flattenDirectionActions } from './utils/actions.js';
+import { directionsForJSON, errorMessage } from './utils/actions.js';
 import {
-  useDirectionLoader,
-  useSaveDirectionMutation,
+  useFixDirectionMutation,
+  useTranslateFreeFormMutation,
   useTranslateMutation,
 } from './utils/apiHooks.js';
 import { useRunState } from './context/RunContext.jsx';
@@ -42,20 +43,25 @@ export function DirectionsPanel() {
     alwaysRunIndices,
     cleanDirections,
     clearDirectionsOnly,
+    clearDirectionFailure,
     deleteDirection,
     directions,
     directionsView,
     failPendingDirection,
     insertDirectionAt,
-    libraryEntries,
+    intentCatalog,
+    replaceDirectionActions,
+    replaceDirections,
     reorderDirections,
     replaceWithPendingDirection,
     resolvePendingDirection,
+    resolveUnmatchedDirection,
     setDirectionsView,
     startFromIndex,
     toggleAlwaysRun,
     toggleDirectionOpen,
     toggleStartFrom,
+    updateDirectionFailureHint,
     updateDirectionLabel,
   } = useAppState();
   const { activeStepIndex } = useRunState();
@@ -67,9 +73,16 @@ export function DirectionsPanel() {
   const [editDirection, setEditDirection] = useState(null);
   const [activeTab, setActiveTab] = useState('directions');
   const [clearDirectionsDialogOpen, setClearDirectionsDialogOpen] = useState(false);
-  const loadDirection = useDirectionLoader();
-  const saveDirectionMutation = useSaveDirectionMutation();
   const translateMutation = useTranslateMutation();
+  const translateFreeFormMutation = useTranslateFreeFormMutation();
+  const fixDirectionMutation = useFixDirectionMutation();
+  const [tryAnywayPending, setTryAnywayPending] = useState(() => new Set());
+  const [fixPendingIndex, setFixPendingIndex] = useState(null);
+  const [fixProposal, setFixProposal] = useState(null);
+  const [saveIntentTarget, setSaveIntentTarget] = useState(null);
+  const [jsonEditSnapshot, setJsonEditSnapshot] = useState(null);
+  const [jsonEditText, setJsonEditText] = useState('');
+  const [jsonEditError, setJsonEditError] = useState('');
 
   const closePopovers = useCallback(() => {
     setMenu(null);
@@ -83,33 +96,16 @@ export function DirectionsPanel() {
     if (node) node.scrollIntoView({ block: 'nearest' });
   }, []);
 
-  async function insertDirection(filename, insertIndex) {
-    try {
-      const data = await loadDirection(filename);
-      const flatSteps = flattenDirectionActions(data.actions ?? []);
-      const index = insertIndex ?? directions.length;
-      insertDirectionAt({ label: data.name, actions: flatSteps, _fromDirection: true }, index);
-      toast.success(`Inserted "${data.name}"`);
-    } catch (err) {
-      toast.error(errorMessage(err, 'Could not load direction'));
+  function insertIntent(expandedDirections, insertIndex) {
+    if (!expandedDirections?.length) return;
+    let index = insertIndex ?? directions.length;
+    for (const direction of expandedDirections) {
+      insertDirectionAt({ ...direction, _fromIntent: true }, index);
+      index += 1;
     }
-  }
-
-  async function saveDirection(index) {
-    const group = directions[index];
-    if (!group) return;
-
-    try {
-      const data = await saveDirectionMutation.mutateAsync({
-        name: group.label,
-        actions: directionsForJSON([group]),
-      });
-      toast.success(`Saved direction "${group.label}"`);
-      return data;
-    } catch (err) {
-      toast.error(errorMessage(err, 'Save failed'));
-      return null;
-    }
+    toast.success(expandedDirections.length === 1
+      ? `Inserted "${expandedDirections[0].label}"`
+      : `Inserted ${expandedDirections.length} directions`);
   }
 
   function buildEditCommand(direction, context) {
@@ -152,7 +148,158 @@ export function DirectionsPanel() {
     }
   }
 
+  function openSaveAsIntent(index) {
+    const direction = directions[index];
+    if (!direction || !direction._freeForm) return;
+    const prompt = direction._translation?.command || direction.label;
+    setSaveIntentTarget({ index, prompt, directions: [direction] });
+  }
+
+  async function handleIntentSaved({ prompt }) {
+    setSaveIntentTarget(null);
+    // After save, re-run the original prompt through the deterministic
+    // pipeline so the user sees their new intent in action. Append to the
+    // end of the current list — the original free-form direction stays so
+    // the diff between paths is obvious.
+    if (!prompt) return;
+    const history = directionsForJSON(directions).flatMap((group) => group.actions ?? []);
+    try {
+      const data = await translateMutation.mutateAsync({ command: prompt, history });
+      const next = data.directions ?? [];
+      if (!next.length) {
+        toast.info('Saved — but re-running the prompt produced no directions. Check the proposal\'s examples.');
+        return;
+      }
+      for (const direction of next) {
+        insertDirectionAt({ ...direction, _fromIntent: true }, directions.length);
+      }
+      toast.success(`Saved — re-ran the prompt; ${next.length} direction(s) added.`);
+    } catch (err) {
+      toast.error(errorMessage(err, 'Saved but re-run failed'));
+    }
+  }
+
+  async function requestFixDirection(index) {
+    const direction = directions[index];
+    if (!direction || !direction._failure) return;
+    setFixPendingIndex(index);
+    try {
+      const actions = await fixDirectionMutation.mutateAsync({
+        actions: direction.actions || [],
+        error: direction._failure.error,
+        originalPrompt: direction._translation?.command,
+        label: direction.label,
+        userContext: direction._failure.hint?.trim() || undefined,
+      });
+      if (!Array.isArray(actions) || actions.length === 0) {
+        toast.error('AI returned no replacement actions.');
+        return;
+      }
+      setFixProposal({
+        index,
+        originalActions: direction.actions || [],
+        replacement: actions,
+        fromIntent: !!direction._fromIntent,
+        errorMessage: direction._failure.error,
+      });
+    } catch (err) {
+      toast.error(errorMessage(err, 'Fix failed'));
+    } finally {
+      setFixPendingIndex(null);
+    }
+  }
+
+  function acceptFixDirection() {
+    if (!fixProposal) return;
+    const { index, replacement } = fixProposal;
+    replaceDirectionActions(index, replacement);
+    setFixProposal(null);
+    toast.success(replacement.length === 1
+      ? 'Direction repaired (1 action).'
+      : `Direction repaired (${replacement.length} actions).`);
+  }
+
+  function rejectFixDirection() {
+    setFixProposal(null);
+  }
+
+  function startJSONEdit() {
+    const snapshot = JSON.stringify(cleanDirections, null, 2);
+    setJsonEditSnapshot(snapshot);
+    setJsonEditText(snapshot);
+    setJsonEditError('');
+  }
+
+  function cancelJSONEdit() {
+    setJsonEditText(jsonEditSnapshot ?? '');
+    setJsonEditSnapshot(null);
+    setJsonEditError('');
+  }
+
+  function applyJSONEdit() {
+    let parsed;
+
+    try {
+      parsed = JSON.parse(jsonEditText);
+    } catch (err) {
+      setJsonEditError(`Invalid JSON: ${err instanceof Error ? err.message : 'Could not parse input.'}`);
+      toast.error('Invalid JSON');
+      return;
+    }
+
+    if (!Array.isArray(parsed)) {
+      setJsonEditError('Directions JSON must be an array.');
+      toast.error('Directions JSON must be an array');
+      return;
+    }
+
+    replaceDirections(parsed);
+    setJsonEditSnapshot(null);
+    setJsonEditText('');
+    setJsonEditError('');
+    toast.success('Directions JSON applied');
+  }
+
+  async function tryAnywayFreeForm(index) {
+    const direction = directions[index];
+    if (!direction) return;
+    const command = direction._translation?.command;
+    if (!command) return;
+
+    const id = direction._id;
+    setTryAnywayPending((current) => {
+      const next = new Set(current);
+      next.add(id);
+      return next;
+    });
+
+    const history = directionsForJSON(directions.slice(0, index)).flatMap((group) => group.actions ?? []);
+
+    try {
+      const data = await translateFreeFormMutation.mutateAsync({ command, history });
+      const translated = data.directions ?? [];
+      if (!translated.length) {
+        throw new Error('Translation returned no directions');
+      }
+      // Replacing the unmatched pending direction at its current index keeps
+      // the free-form result anchored where the user was already looking.
+      const nextDirections = resolvePendingDirection(id, translated, command, index, { freeForm: true });
+      toast.success(nextDirections.length === 1 ? 'Added free-form direction' : `Added ${nextDirections.length} free-form directions`);
+    } catch (err) {
+      // Restore the unmatched panel so the user can retry.
+      resolveUnmatchedDirection(id, command);
+      toast.error(errorMessage(err, 'Free-form translation failed'));
+    } finally {
+      setTryAnywayPending((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
+    }
+  }
+
   const hasDirections = directions.length > 0;
+  const isJSONEditing = jsonEditSnapshot !== null;
 
   return (
     <div className="panel" id="directions-panel">
@@ -295,6 +442,13 @@ export function DirectionsPanel() {
                         }}
                         onToggleAlwaysRun={() => toggleAlwaysRun(index)}
                         onToggleStartFrom={() => toggleStartFrom(index)}
+                        onDismissUnmatched={() => deleteDirection(index)}
+                        onTryAnyway={() => tryAnywayFreeForm(index)}
+                        tryAnywayPending={tryAnywayPending.has(direction._id)}
+                        fixPending={fixPendingIndex === index}
+                        onFixDirection={() => requestFixDirection(index)}
+                        onFailureHintChange={(hint) => updateDirectionFailureHint(index, hint)}
+                        onDismissFailure={() => clearDirectionFailure(index)}
                       />
                     );
                   })}
@@ -329,9 +483,53 @@ export function DirectionsPanel() {
             )}
   
             {directionsView === 'json' && (
-              <pre id="steps-json-view">{JSON.stringify(cleanDirections, null, 2)}</pre>
+              <div className="directions-json-panel">
+                {isJSONEditing ? (
+                  <div className="directions-json-editor-frame" data-replicated-value={jsonEditText}>
+                    <textarea
+                      id="steps-json-editor"
+                      aria-label="Directions JSON editor"
+                      aria-invalid={jsonEditError ? 'true' : 'false'}
+                      aria-describedby={jsonEditError ? 'directions-json-error' : undefined}
+                      autoFocus
+                      spellCheck="false"
+                      value={jsonEditText}
+                      onChange={(event) => {
+                        setJsonEditText(event.target.value);
+                        if (jsonEditError) setJsonEditError('');
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <pre id="steps-json-view">{JSON.stringify(cleanDirections, null, 2)}</pre>
+                )}
+
+                {jsonEditError && (
+                  <p className="directions-json-error" id="directions-json-error">{jsonEditError}</p>
+                )}
+
+              </div>
             )}
           </div>
+
+          {directionsView === 'json' && (
+            <div className="tab-panel-footer directions-json-actions">
+              {isJSONEditing ? (
+                <>
+                  <button className="bp-action-btn bp-action-btn--ghost" type="button" onClick={cancelJSONEdit}>
+                    Cancel
+                  </button>
+                  <button className="bp-action-btn bp-action-btn--primary" type="button" onClick={applyJSONEdit}>
+                    Apply
+                  </button>
+                </>
+              ) : (
+                <button className="bp-action-btn bp-action-btn--primary" type="button" onClick={startJSONEdit}>
+                  Edit
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         <div
@@ -367,7 +565,7 @@ export function DirectionsPanel() {
               setEditDirection({ index: menu.index, value: '' });
             }}
             onInsert={() => setPicker({ anchorIndex: menu.index, position: menu.position })}
-            onSave={() => saveDirection(menu.index)}
+            onSaveAsIntent={() => openSaveAsIntent(menu.index)}
             onToggle={() => toggleDirectionOpen(menu.index)}
           />
         </>
@@ -378,12 +576,55 @@ export function DirectionsPanel() {
           <button className="popover-backdrop" type="button" aria-label="Close direction picker" onClick={closePopovers} />
           <DirectionPicker
             anchorIndex={picker.anchorIndex}
-            entries={libraryEntries}
+            entries={intentCatalog}
             position={picker.position}
             onClose={() => setPicker(null)}
-            onSelect={insertDirection}
+            onSelect={insertIntent}
           />
         </>
+      )}
+
+      {saveIntentTarget && (
+        <SaveAsIntentDialog
+          prompt={saveIntentTarget.prompt}
+          directions={saveIntentTarget.directions}
+          existingIds={intentCatalog.map((intent) => intent.id)}
+          onClose={() => setSaveIntentTarget(null)}
+          onSaved={handleIntentSaved}
+        />
+      )}
+
+      {fixProposal && (
+        <Dialog
+          title="Apply AI fix to failed direction?"
+          description={
+            fixProposal.fromIntent
+              ? 'This is a saved direction. The fix applies to the current step list only — the saved version is unchanged.'
+              : 'Review the proposed replacement before applying. The original error from the failed run is shown for reference.'
+          }
+          onClose={rejectFixDirection}
+          className="app-dialog--wide"
+        >
+          <pre className="direction-fix-error">{fixProposal.errorMessage}</pre>
+          <div className="direction-fix-diff">
+            <div className="direction-fix-side">
+              <h3>Current ({fixProposal.originalActions.length})</h3>
+              <pre>{JSON.stringify(fixProposal.originalActions, null, 2)}</pre>
+            </div>
+            <div className="direction-fix-side">
+              <h3>Proposed ({fixProposal.replacement.length})</h3>
+              <pre>{JSON.stringify(fixProposal.replacement, null, 2)}</pre>
+            </div>
+          </div>
+          <div className="app-dialog-actions">
+            <button className="app-dialog-btn app-dialog-btn--secondary" type="button" onClick={rejectFixDirection}>
+              Reject
+            </button>
+            <button className="app-dialog-btn app-dialog-btn--primary" type="button" onClick={acceptFixDirection}>
+              Accept replacement
+            </button>
+          </div>
+        </Dialog>
       )}
 
       {clearDirectionsDialogOpen && (

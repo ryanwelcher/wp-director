@@ -1,0 +1,23 @@
+{
+  "id": "select-block",
+  "description": "Select an existing block in the editor canvas by type (and optionally by zero-based index when multiple blocks of the same type exist).",
+  "examples": [
+    "select the paragraph",
+    "select the first heading",
+    "click on the second paragraph",
+    "select the image block",
+    "select the third paragraph"
+  ],
+  "slots": [
+    {
+      "name": "blockType",
+      "type": "enum",
+      "values": ["paragraph", "heading", "image", "list", "quote", "code"]
+    },
+    { "name": "index", "type": "number", "optional": true, "default": 0 }
+  ],
+  "label": "Select the {{blockType}} block",
+  "actions": [
+    { "action": "wpSelectBlock", "blockType": "{{blockType}}", "index": "{{index}}" }
+  ]
+}

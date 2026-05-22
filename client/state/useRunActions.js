@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 
 export function useRunActions({
   blueprint,
+  clearAllFailures,
   currentEndPause,
   currentStepPause,
   currentTypingDelay,
@@ -18,6 +19,9 @@ export function useRunActions({
 }) {
   const runActions = useCallback(async ({ scriptName } = {}) => {
     if (!runDirections.length) return;
+    // Reset failure markers before this run; the runner will re-emit
+    // step-error for any direction that fails this time around.
+    clearAllFailures?.();
 
     const runName = scriptName?.trim() || name.trim() || `play-${Date.now()}`;
     const body = {
@@ -43,6 +47,7 @@ export function useRunActions({
     });
   }, [
     blueprint,
+    clearAllFailures,
     currentEndPause,
     currentStepPause,
     currentTypingDelay,
@@ -59,6 +64,7 @@ export function useRunActions({
 
   const recordAll = useCallback(async () => {
     if (!selectedScripts.length) return;
+    clearAllFailures?.();
 
     const { fetchPromise, controller } = startRunRequest('/api/run/batch', {
       names: selectedScripts,
@@ -79,6 +85,7 @@ export function useRunActions({
     });
   }, [
     blueprint,
+    clearAllFailures,
     currentEndPause,
     currentStepPause,
     currentTypingDelay,

@@ -1,0 +1,64 @@
+{
+  "id": "navigate-admin",
+  "description": "Click an item in the WordPress admin sidebar (top-level or submenu) and wait for the destination page to render. Use for any admin destination reachable from the sidebar — except 'Add Post' and 'Add Page', which have dedicated open-new-post / open-new-page intents.",
+  "examples": [
+    "go to Plugins",
+    "open the Posts list",
+    "navigate to Appearance > Themes",
+    "click Settings > General",
+    "open Users",
+    "go to Tools > Site Health"
+  ],
+  "slots": [
+    {
+      "name": "section",
+      "type": "enum",
+      "values": [
+        "Dashboard",
+        "Home",
+        "Updates",
+        "Posts",
+        "All Posts",
+        "Categories",
+        "Tags",
+        "Media",
+        "Library",
+        "Add Media File",
+        "Pages",
+        "All Pages",
+        "Comments",
+        "Appearance",
+        "Themes",
+        "Editor",
+        "Plugins",
+        "Installed Plugins",
+        "Add Plugin",
+        "Users",
+        "All Users",
+        "Add User",
+        "Profile",
+        "Tools",
+        "Available Tools",
+        "Import",
+        "Export",
+        "Site Health",
+        "Export Personal Data",
+        "Erase Personal Data",
+        "Theme File Editor",
+        "Plugin File Editor",
+        "Settings",
+        "General",
+        "Writing",
+        "Reading",
+        "Discussion",
+        "Permalinks",
+        "Privacy"
+      ]
+    }
+  ],
+  "label": "Navigate to {{section}}",
+  "actions": [
+    { "action": "wpAdminMenuClick", "item": "{{section}}" },
+    { "action": "waitForSelector", "selector": "#wpbody" }
+  ]
+}

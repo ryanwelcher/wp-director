@@ -25,9 +25,10 @@ function pendingDirection(command, label = command) {
   });
 }
 
-function translatedDirections(raw, command) {
+function translatedDirections(raw, command, { freeForm = false } = {}) {
   return normalizeDirections(raw).map((direction) => ({
     ...direction,
+    ...(freeForm ? { _freeForm: true } : {}),
     _translation: {
       status: 'resolved',
       command,
@@ -81,8 +82,8 @@ export function useDirectionsState() {
     return direction;
   }, [directions.length]);
 
-  const resolvePendingDirection = useCallback((id, raw, command, replaceIndex = null) => {
-    const nextDirections = translatedDirections(raw, command);
+  const resolvePendingDirection = useCallback((id, raw, command, replaceIndex = null, options = {}) => {
+    const nextDirections = translatedDirections(raw, command, options);
     const delta = nextDirections.length - 1;
 
     setDirections((current) => current.flatMap((direction) => (
@@ -98,6 +99,22 @@ export function useDirectionsState() {
     }
 
     return nextDirections;
+  }, []);
+
+  const resolveUnmatchedDirection = useCallback((id, originalText) => {
+    setDirections((current) => current.map((direction) => (
+      direction._id === id
+        ? {
+            ...direction,
+            _translation: {
+              ...(direction._translation || {}),
+              status: 'unmatched',
+              command: originalText,
+              unmatchedAt: Date.now(),
+            },
+          }
+        : direction
+    )));
   }, []);
 
   const failPendingDirection = useCallback((id, err) => {
@@ -130,6 +147,61 @@ export function useDirectionsState() {
     setDirections((current) => current.map((direction, i) => (
       i === index ? { ...direction, _open: !direction._open } : direction
     )));
+  }, []);
+
+  const markDirectionFailed = useCallback((index, error) => {
+    if (index == null) return;
+    setDirections((current) => current.map((direction, i) => (
+      i === index
+        ? {
+            ...direction,
+            _open: true, // expand on failure so the user can see what ran
+            _failure: {
+              error: error || 'Recording failed at this direction',
+              capturedAt: Date.now(),
+              hint: '',
+            },
+          }
+        : direction
+    )));
+  }, []);
+
+  const updateDirectionFailureHint = useCallback((index, hint) => {
+    setDirections((current) => current.map((direction, i) => {
+      if (i !== index || !direction._failure) return direction;
+      return {
+        ...direction,
+        _failure: { ...direction._failure, hint },
+      };
+    }));
+  }, []);
+
+  const clearDirectionFailure = useCallback((index) => {
+    setDirections((current) => current.map((direction, i) => {
+      if (i !== index) return direction;
+      if (!direction._failure) return direction;
+      const { _failure, ...rest } = direction;
+      return rest;
+    }));
+  }, []);
+
+  const clearAllFailures = useCallback(() => {
+    setDirections((current) => current.map((direction) => {
+      if (!direction._failure) return direction;
+      const { _failure, ...rest } = direction;
+      return rest;
+    }));
+  }, []);
+
+  const replaceDirectionActions = useCallback((index, nextActions) => {
+    setDirections((current) => current.map((direction, i) => {
+      if (i !== index) return direction;
+      // Replacing actions also clears any failure marker — the user has just
+      // committed to a repair, so we treat the slate as fresh until the next
+      // run produces evidence otherwise.
+      const { _failure, ...rest } = direction;
+      return { ...rest, actions: nextActions };
+    }));
   }, []);
 
   const deleteDirection = useCallback((index) => {
@@ -199,10 +271,16 @@ export function useDirectionsState() {
     appendPendingDirection,
     replaceWithPendingDirection,
     resolvePendingDirection,
+    resolveUnmatchedDirection,
     failPendingDirection,
     clearDirections,
     updateDirectionLabel,
     toggleDirectionOpen,
+    markDirectionFailed,
+    updateDirectionFailureHint,
+    clearDirectionFailure,
+    clearAllFailures,
+    replaceDirectionActions,
     deleteDirection,
     insertDirectionAt,
     reorderDirections,

@@ -1,0 +1,20 @@
+{
+  "id": "open-command-palette",
+  "description": "Open the WordPress command palette (Meta+K) and optionally type a command into it and run it.",
+  "examples": [
+    "open the command palette",
+    "open command palette",
+    "open command palette and run \"Add new post\"",
+    "open the command palette and type \"site editor\""
+  ],
+  "slots": [
+    { "name": "command", "type": "string", "optional": true }
+  ],
+  "label": "Open the command palette",
+  "actions": [
+    { "action": "press", "key": "Meta+k" },
+    { "action": "waitForSelector", "selector": "[role=\"combobox\"]" },
+    { "when": "{{command}}", "action": "slowType", "selector": "[role=\"combobox\"]", "text": "{{command}}" },
+    { "when": "{{command}}", "action": "press", "key": "Enter" }
+  ]
+}

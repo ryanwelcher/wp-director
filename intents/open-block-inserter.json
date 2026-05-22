@@ -1,0 +1,15 @@
+{
+  "id": "open-block-inserter",
+  "description": "Toggle the block inserter panel open in the block editor.",
+  "examples": [
+    "open the block inserter",
+    "toggle the block inserter",
+    "show the block library",
+    "open block inserter"
+  ],
+  "slots": [],
+  "label": "Open the block inserter",
+  "actions": [
+    { "action": "highlightClick", "selector": "button[aria-label=\"Block Inserter, Add block\"]" }
+  ]
+}

@@ -1,13 +1,20 @@
 {
   "id": "insert-block",
-  "description": "Insert a single block of a given type into the current editor via the slash inserter. If the user supplied body text, set the block's content; otherwise the server fills an indexed placeholder (\"Paragraph 1\", \"Heading 1\", ...) that the user can edit inline before running.",
+  "description": "Insert a single block of a given type into the editor. Default mode types the slash inserter on screen (visible in recordings); programmatic mode inserts silently via the JS API. By default, blocks are appended at the end of the document; set afterBlockType+afterBlockIndex (zero-based, of that type) to insert after a specific existing block. If the user said \"random text\", set randomLength to short/medium/long and leave content empty — the server fills it with lorem-ipsum content. Otherwise, if content is omitted the server fills an indexed placeholder (\"Paragraph 1\", \"Heading 1\", ...) the user can edit inline.",
   "examples": [
     "add a heading",
     "insert a paragraph",
     "add a paragraph that says Welcome to the site",
     "insert an image block",
     "add a quote",
-    "add a list block"
+    "add a list block",
+    "silently insert a paragraph",
+    "programmatically add a heading",
+    "insert a paragraph with random text",
+    "add a paragraph with short random text",
+    "insert a paragraph with long random text",
+    "insert a paragraph after the second paragraph",
+    "add a heading after the first paragraph"
   ],
   "slots": [
     {
@@ -20,11 +27,51 @@
       "type": "string",
       "optional": true,
       "placeholderFor": "blockType"
+    },
+    {
+      "name": "mode",
+      "type": "enum",
+      "values": ["typed", "programmatic"],
+      "default": "typed"
+    },
+    {
+      "name": "randomLength",
+      "type": "enum",
+      "values": ["short", "medium", "long"],
+      "optional": true
+    },
+    {
+      "name": "afterBlockType",
+      "type": "string",
+      "optional": true
+    },
+    {
+      "name": "afterBlockIndex",
+      "type": "number",
+      "optional": true
     }
   ],
   "label": "Insert a {{blockType}} block",
   "actions": [
-    { "action": "wpInsertBlock", "blockType": "{{blockType}}" },
-    { "action": "wpSetBlockContent", "blockType": "{{blockType}}", "content": "{{content}}" }
+    {
+      "when": "{{modeIsTyped}}",
+      "action": "wpInsertBlock",
+      "blockType": "{{blockType}}",
+      "afterBlockType": "{{afterBlockType}}",
+      "afterBlockIndex": "{{afterBlockIndex}}"
+    },
+    {
+      "when": "{{modeIsTyped}}",
+      "action": "wpSetBlockContent",
+      "blockType": "{{blockType}}",
+      "content": "{{content}}",
+      "target": "last-inserted"
+    },
+    {
+      "when": "{{modeIsProgrammatic}}",
+      "action": "wpInsertBlockProgrammatic",
+      "blockType": "{{blockType}}",
+      "attributes": { "content": "{{content}}" }
+    }
   ]
 }

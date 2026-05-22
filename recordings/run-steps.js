@@ -122,7 +122,7 @@ async function typeSlow(locator, text, delay = 100) {
  * @param {{ typingDelay: number }}                                      settings   Runtime recording settings.
  * @returns {Promise<void>}
  */
-async function runStep(step, page, frameStack, ctx, sidebar, settings = { typingDelay: DEFAULT_TYPING_DELAY }) {
+async function runStep(step, page, frameStack, ctx, sidebar, settings = { typingDelay: DEFAULT_TYPING_DELAY }, runState = {}) {
   const sidebarWasOpen = await sidebar.isVisible();
   switch (step.action) {
     case 'navigate':
@@ -251,7 +251,22 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       const editorFrame = page.frameLocator('iframe[name="editor-canvas"]');
       await editorFrame.locator('.wp-block-post-title').waitFor({ state: 'visible', timeout: 30_000 });
       let targetLocator;
-      if (step.blockType) {
+      // target: 'last-inserted' resolves to the block the most recent
+      // wpInsertBlock(Programmatic) created — looked up by clientId rather
+      // than by `nth(0)` so we never overwrite a pre-existing block of the
+      // same type. Falls back to blockType/index targeting if no insert has
+      // run yet in this recording.
+      //
+      // The contenteditable is on the same element as data-block for most
+      // text blocks (paragraph, heading) but nested for others — match
+      // either with an `or` clause.
+      if (step.target === 'last-inserted' && runState.lastInsertedClientId) {
+        const id = runState.lastInsertedClientId;
+        targetLocator = editorFrame
+          .locator(`[data-block="${id}"][contenteditable="true"]`)
+          .or(editorFrame.locator(`[data-block="${id}"] [contenteditable="true"]`))
+          .first();
+      } else if (step.blockType) {
         const shortName = step.blockType.includes('/')
           ? step.blockType.split('/')[1]
           : step.blockType;
@@ -290,13 +305,39 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       // "click + Enter to split" fallback, both of which produced
       // mid-word block splits when Gutenberg's internal selection state
       // didn't match the DOM selection.
-      const newClientId = await page.evaluate((idx) => {
+      //
+      // Position resolution:
+      //   - afterBlockType + afterBlockIndex: insert immediately after the
+      //     Nth block of that type (zero-based). "After the second paragraph"
+      //     → afterBlockType: 'paragraph', afterBlockIndex: 1.
+      //   - afterIndex (legacy): flat block-order index.
+      //   - Otherwise: append at the end of the document.
+      const newClientId = await page.evaluate(({ flatIdx, afterType, afterTypeIdx }) => {
         const newBlock = wp.blocks.createBlock('core/paragraph');
-        const order = wp.data.select('core/block-editor').getBlockOrder();
-        const position = idx !== undefined && idx >= 0 ? idx + 1 : order.length;
+        const sel = wp.data.select('core/block-editor');
+        // getBlockOrder() returns clientIds only; getBlockName() looks up a
+        // single block's type. Avoid getBlocks() — it deep-serializes the
+        // whole tree and can blow the stack on non-trivial documents.
+        const order = sel.getBlockOrder();
+        let position = order.length;
+        if (afterType !== undefined && afterType !== null && afterTypeIdx !== undefined && afterTypeIdx !== null) {
+          const fullName = String(afterType).includes('/') ? String(afterType) : `core/${afterType}`;
+          let seen = -1;
+          let foundAt = -1;
+          for (let i = 0; i < order.length; i++) {
+            if (sel.getBlockName(order[i]) === fullName) {
+              seen++;
+              if (seen === afterTypeIdx) { foundAt = i; break; }
+            }
+          }
+          if (foundAt >= 0) position = foundAt + 1;
+        } else if (flatIdx !== undefined && flatIdx >= 0) {
+          position = flatIdx + 1;
+        }
         wp.data.dispatch('core/block-editor').insertBlock(newBlock, position);
         return newBlock.clientId;
-      }, step.afterIndex);
+      }, { flatIdx: step.afterIndex, afterType: step.afterBlockType, afterTypeIdx: step.afterBlockIndex });
+      runState.lastInsertedClientId = newClientId;
       const newBlockEl = editorFrame.locator(`[data-block="${newClientId}"]`);
       await newBlockEl.waitFor({ state: 'visible', timeout: 5_000 });
       await newBlockEl.click();
@@ -308,10 +349,21 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
         const option = page.getByRole('option', { name: new RegExp(`^${displayName}$`, 'i') });
         await option.waitFor({ state: 'visible', timeout: 5_000 });
         await option.click();
-        await pressWithFlash(page, 'Enter', settings);
-        // Wait for the autocomplete to close — confirms the block was inserted
-        // and the editor is settled before the next step runs.
+        // Do NOT also press Enter here. The autocomplete option click already
+        // swaps the empty paragraph in place; an extra Enter creates a fresh
+        // paragraph after the new block and moves selection there, which
+        // poisons last-inserted lookups downstream.
         await option.waitFor({ state: 'hidden', timeout: 5_000 });
+        // The slash inserter REPLACES the empty paragraph with the chosen
+        // block, minting a new clientId. Re-fetch it from the same order
+        // position so target='last-inserted' downstream still works.
+        const swappedClientId = await page.evaluate((staleId) => {
+          const order = wp.data.select('core/block-editor').getBlockOrder();
+          if (order.includes(staleId)) return staleId;
+          const selected = wp.data.select('core/block-editor').getSelectedBlockClientId();
+          return selected || order[order.length - 1];
+        }, newClientId);
+        runState.lastInsertedClientId = swappedClientId;
       }
       break;
     }
@@ -321,10 +373,12 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
         ? step.blockType
         : `core/${step.blockType}`;
       await page.waitForFunction(() => window?.wp?.blocks && window?.wp?.data);
-      await page.evaluate(({ bType, attrs }) => {
+      const newClientId = await page.evaluate(({ bType, attrs }) => {
         const block = wp.blocks.createBlock(bType, attrs || {});
         wp.data.dispatch('core/block-editor').insertBlock(block);
+        return block.clientId;
       }, { bType: blockType, attrs: step.attributes ?? {} });
+      runState.lastInsertedClientId = newClientId;
       break;
     }
 
@@ -480,6 +534,10 @@ async function runSteps(page, def, runner = null, onStepStart = null) {
   const frameStack = [page];
   const ctx = () => frameStack[frameStack.length - 1];
   const sidebar = page.getByRole('region', { name: 'Editor settings' });
+  // Per-run scratch state for steps that need to share data — e.g.
+  // wpInsertBlock stashing the inserted block's clientId so a following
+  // wpSetBlockContent can target it precisely instead of nth(0).
+  const runState = {};
   const recordingSettings = def.recordingSettings && typeof def.recordingSettings === 'object'
     ? def.recordingSettings
     : {};
@@ -512,8 +570,8 @@ async function runSteps(page, def, runner = null, onStepStart = null) {
     for (const step of groupSteps) {
       await (
         runner
-        ? runner(step, async () => await runStep(step, page, frameStack, ctx, sidebar, settings))
-        : runStep(step, page, frameStack, ctx, sidebar, settings)
+        ? runner(step, async () => await runStep(step, page, frameStack, ctx, sidebar, settings, runState))
+        : runStep(step, page, frameStack, ctx, sidebar, settings, runState)
       );
     }
     const isLastGroup = groupIndex === toRun.length - 1;

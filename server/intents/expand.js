@@ -23,6 +23,7 @@
  */
 
 const { getIntent } = require('./loader');
+const { getRandomText } = require('../../shared/random-text');
 
 const PLACEHOLDER_RE = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g;
 const WHOLE_PLACEHOLDER_RE = /^\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}$/;
@@ -189,11 +190,31 @@ function expand(entry, placeholderCounters) {
     throw new Error(`expand(): no intent registered with id "${entry.id}"`);
   }
 
+  // Random-text pre-fill: when the user asked for "random text" (randomLength
+  // set) and didn't supply explicit content, populate `content` with a
+  // lorem-ipsum snippet before placeholder fill kicks in. The snippet is
+  // ready to use, so we deliberately don't mark it as an edit-me placeholder.
+  const inputSlots = { ...(entry.slots || {}) };
+  if (inputSlots.randomLength && !inputSlots.content) {
+    const length = String(inputSlots.randomLength);
+    if (length === 'short' || length === 'medium' || length === 'long') {
+      inputSlots.content = getRandomText(length);
+    }
+  }
+
   const { resolved: slots, placeholderSlotNames } = resolveSlots(
     intent,
-    entry.slots || {},
+    inputSlots,
     placeholderCounters,
   );
+
+  // Synthetic boolean flags for `when` branching on the `mode` slot. Keeps
+  // the `when` evaluator a simple truthy check while letting intents pick
+  // between sibling actions by mode (typed vs programmatic, etc.).
+  if (slots.mode !== undefined) {
+    slots.modeIsTyped = slots.mode === 'typed';
+    slots.modeIsProgrammatic = slots.mode === 'programmatic';
+  }
 
   /** @type {Array<Record<string, unknown>>} */
   const actions = [];

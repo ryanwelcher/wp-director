@@ -109,6 +109,36 @@
     ]
   },
   {
+    "name": "insert block — programmatic paragraph",
+    "command": "silently insert a paragraph",
+    "expected": [{ "id": "insert-block", "slots": { "blockType": "paragraph", "mode": "programmatic" } }]
+  },
+  {
+    "name": "insert block — programmatic heading",
+    "command": "programmatically add a heading",
+    "expected": [{ "id": "insert-block", "slots": { "blockType": "heading", "mode": "programmatic" } }]
+  },
+  {
+    "name": "insert block — random text paragraph",
+    "command": "insert a paragraph with random text",
+    "expected": [{ "id": "insert-block", "slots": { "blockType": "paragraph", "randomLength": "medium" } }]
+  },
+  {
+    "name": "insert block — short random text",
+    "command": "add a paragraph with short random text",
+    "expected": [{ "id": "insert-block", "slots": { "blockType": "paragraph", "randomLength": "short" } }]
+  },
+  {
+    "name": "insert block — long random text",
+    "command": "insert a paragraph with long random text",
+    "expected": [{ "id": "insert-block", "slots": { "blockType": "paragraph", "randomLength": "long" } }]
+  },
+  {
+    "name": "insert block — after the second paragraph",
+    "command": "insert a paragraph after the second paragraph",
+    "expected": [{ "id": "insert-block", "slots": { "blockType": "paragraph", "afterBlockType": "paragraph", "afterBlockIndex": 1 } }]
+  },
+  {
     "name": "delete block",
     "command": "delete the heading",
     "expected": [{ "id": "delete-block", "slots": { "blockType": "heading" } }]

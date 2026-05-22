@@ -51,6 +51,7 @@ export function DirectionsPanel() {
     insertDirectionAt,
     intentCatalog,
     replaceDirectionActions,
+    replaceDirections,
     reorderDirections,
     replaceWithPendingDirection,
     resolvePendingDirection,
@@ -79,6 +80,9 @@ export function DirectionsPanel() {
   const [fixPendingIndex, setFixPendingIndex] = useState(null);
   const [fixProposal, setFixProposal] = useState(null);
   const [saveIntentTarget, setSaveIntentTarget] = useState(null);
+  const [jsonEditSnapshot, setJsonEditSnapshot] = useState(null);
+  const [jsonEditText, setJsonEditText] = useState('');
+  const [jsonEditError, setJsonEditError] = useState('');
 
   const closePopovers = useCallback(() => {
     setMenu(null);
@@ -219,6 +223,43 @@ export function DirectionsPanel() {
     setFixProposal(null);
   }
 
+  function startJSONEdit() {
+    const snapshot = JSON.stringify(cleanDirections, null, 2);
+    setJsonEditSnapshot(snapshot);
+    setJsonEditText(snapshot);
+    setJsonEditError('');
+  }
+
+  function cancelJSONEdit() {
+    setJsonEditText(jsonEditSnapshot ?? '');
+    setJsonEditSnapshot(null);
+    setJsonEditError('');
+  }
+
+  function applyJSONEdit() {
+    let parsed;
+
+    try {
+      parsed = JSON.parse(jsonEditText);
+    } catch (err) {
+      setJsonEditError(`Invalid JSON: ${err instanceof Error ? err.message : 'Could not parse input.'}`);
+      toast.error('Invalid JSON');
+      return;
+    }
+
+    if (!Array.isArray(parsed)) {
+      setJsonEditError('Directions JSON must be an array.');
+      toast.error('Directions JSON must be an array');
+      return;
+    }
+
+    replaceDirections(parsed);
+    setJsonEditSnapshot(null);
+    setJsonEditText('');
+    setJsonEditError('');
+    toast.success('Directions JSON applied');
+  }
+
   async function tryAnywayFreeForm(index) {
     const direction = directions[index];
     if (!direction) return;
@@ -258,6 +299,7 @@ export function DirectionsPanel() {
   }
 
   const hasDirections = directions.length > 0;
+  const isJSONEditing = jsonEditSnapshot !== null;
 
   return (
     <div className="panel" id="directions-panel">
@@ -441,9 +483,53 @@ export function DirectionsPanel() {
             )}
   
             {directionsView === 'json' && (
-              <pre id="steps-json-view">{JSON.stringify(cleanDirections, null, 2)}</pre>
+              <div className="directions-json-panel">
+                {isJSONEditing ? (
+                  <div className="directions-json-editor-frame" data-replicated-value={jsonEditText}>
+                    <textarea
+                      id="steps-json-editor"
+                      aria-label="Directions JSON editor"
+                      aria-invalid={jsonEditError ? 'true' : 'false'}
+                      aria-describedby={jsonEditError ? 'directions-json-error' : undefined}
+                      autoFocus
+                      spellCheck="false"
+                      value={jsonEditText}
+                      onChange={(event) => {
+                        setJsonEditText(event.target.value);
+                        if (jsonEditError) setJsonEditError('');
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <pre id="steps-json-view">{JSON.stringify(cleanDirections, null, 2)}</pre>
+                )}
+
+                {jsonEditError && (
+                  <p className="directions-json-error" id="directions-json-error">{jsonEditError}</p>
+                )}
+
+              </div>
             )}
           </div>
+
+          {directionsView === 'json' && (
+            <div className="tab-panel-footer directions-json-actions">
+              {isJSONEditing ? (
+                <>
+                  <button className="bp-action-btn bp-action-btn--ghost" type="button" onClick={cancelJSONEdit}>
+                    Cancel
+                  </button>
+                  <button className="bp-action-btn bp-action-btn--primary" type="button" onClick={applyJSONEdit}>
+                    Apply
+                  </button>
+                </>
+              ) : (
+                <button className="bp-action-btn bp-action-btn--primary" type="button" onClick={startJSONEdit}>
+                  Edit
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         <div

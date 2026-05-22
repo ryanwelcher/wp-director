@@ -1305,17 +1305,80 @@ header p {
   color: #e2e8f0;
 }
 
-#steps-json-view {
+#steps-json-view,
+#steps-json-editor,
+.directions-json-editor-frame::after {
+  box-sizing: border-box;
+  font-family: 'Menlo', 'Monaco', monospace;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  min-height: 360px;
+  padding: 0.75rem 1rem;
+  white-space: pre-wrap;
+  width: 100%;
+  word-break: break-word;
+}
+
+#steps-json-view,
+#steps-json-editor {
   background: #111827;
   border: 1px solid #1e2433;
   border-radius: 6px;
   color: #fbbf24;
-  font-family: 'Menlo', 'Monaco', monospace;
-  font-size: 0.78rem;
-  line-height: 1.6;
+}
+
+#steps-json-view {
   overflow-x: auto;
-  padding: 0.75rem 1rem;
   white-space: pre;
+  word-break: normal;
+}
+
+.directions-json-editor-frame {
+  display: grid;
+  min-width: 0;
+}
+
+.directions-json-editor-frame::after {
+  border: 1px solid transparent;
+  content: attr(data-replicated-value) " ";
+  grid-area: 1 / 1;
+  visibility: hidden;
+}
+
+#steps-json-editor {
+  background: #070b14;
+  grid-area: 1 / 1;
+  overflow: hidden;
+  resize: none;
+}
+
+#steps-json-editor:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+  outline: none;
+}
+
+.directions-json-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.directions-json-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+}
+
+.directions-json-error {
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.28);
+  border-radius: 5px;
+  color: #fecaca;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  padding: 0.45rem 0.6rem;
 }
 
 #step-count { color: #94a3b8; font-weight: 400; }

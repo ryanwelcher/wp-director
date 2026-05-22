@@ -139,6 +139,16 @@
     "expected": [{ "id": "insert-block", "slots": { "blockType": "paragraph", "afterBlockType": "paragraph", "afterBlockIndex": 1 } }]
   },
   {
+    "name": "insert block — cover at the beginning",
+    "command": "insert a cover block at the beginning",
+    "expected": [{ "id": "insert-block", "slots": { "blockType": "cover", "position": "start" } }]
+  },
+  {
+    "name": "insert block — non-enum block (media-text)",
+    "command": "add a media and text block",
+    "expected": [{ "id": "insert-block", "slots": { "blockType": "media-text" } }]
+  },
+  {
     "name": "delete block",
     "command": "delete the heading",
     "expected": [{ "id": "delete-block", "slots": { "blockType": "heading" } }]

@@ -290,7 +290,29 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       const block = editorFrame.locator(`[data-type="${blockType}"]`).nth(index);
       await block.waitFor({ state: 'visible', timeout: 10_000 });
       await block.click();
-      await block.and(editorFrame.locator('.is-selected')).waitFor({ state: 'visible', timeout: 5_000 });
+      // Blocks with a placeholder UI (cover, image, video, gallery, ...) swallow
+      // the click and never get .is-selected, so fall back to dispatching the
+      // selectBlock action programmatically when the click path times out.
+      try {
+        await block.and(editorFrame.locator('.is-selected')).waitFor({ state: 'visible', timeout: 5_000 });
+      } catch {
+        const selected = await page.evaluate(({ name, idx }) => {
+          const sel = wp.data.select('core/block-editor');
+          const order = sel.getBlockOrder();
+          let seen = -1;
+          for (const clientId of order) {
+            if (sel.getBlockName(clientId) === name) {
+              seen++;
+              if (seen === idx) {
+                wp.data.dispatch('core/block-editor').selectBlock(clientId);
+                return clientId;
+              }
+            }
+          }
+          return null;
+        }, { name: blockType, idx: index });
+        if (!selected) throw new Error(`wpSelectBlock: no ${blockType} at index ${index}`);
+      }
       break;
     }
 
@@ -306,13 +328,12 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       // mid-word block splits when Gutenberg's internal selection state
       // didn't match the DOM selection.
       //
-      // Position resolution:
-      //   - afterBlockType + afterBlockIndex: insert immediately after the
-      //     Nth block of that type (zero-based). "After the second paragraph"
-      //     → afterBlockType: 'paragraph', afterBlockIndex: 1.
-      //   - afterIndex (legacy): flat block-order index.
-      //   - Otherwise: append at the end of the document.
-      const newClientId = await page.evaluate(({ flatIdx, afterType, afterTypeIdx }) => {
+      // Position resolution priority:
+      //   1. afterBlockType + afterBlockIndex — after the Nth block of type
+      //   2. afterIndex (legacy) — after a flat block-order index
+      //   3. position === 'start' — index 0
+      //   4. position === 'end' or unset — append
+      const newClientId = await page.evaluate(({ flatIdx, afterType, afterTypeIdx, pos }) => {
         const newBlock = wp.blocks.createBlock('core/paragraph');
         const sel = wp.data.select('core/block-editor');
         // getBlockOrder() returns clientIds only; getBlockName() looks up a
@@ -333,10 +354,12 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
           if (foundAt >= 0) position = foundAt + 1;
         } else if (flatIdx !== undefined && flatIdx >= 0) {
           position = flatIdx + 1;
+        } else if (pos === 'start') {
+          position = 0;
         }
         wp.data.dispatch('core/block-editor').insertBlock(newBlock, position);
         return newBlock.clientId;
-      }, { flatIdx: step.afterIndex, afterType: step.afterBlockType, afterTypeIdx: step.afterBlockIndex });
+      }, { flatIdx: step.afterIndex, afterType: step.afterBlockType, afterTypeIdx: step.afterBlockIndex, pos: step.position });
       runState.lastInsertedClientId = newClientId;
       const newBlockEl = editorFrame.locator(`[data-block="${newClientId}"]`);
       await newBlockEl.waitFor({ state: 'visible', timeout: 5_000 });
@@ -389,14 +412,36 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       // updateBlockAttributes. Passing attributes directly to createBlock
       // routes through the block type's `source: 'html'` attribute parser,
       // which has been observed to recurse forever on certain content.
-      const newClientId = await page.evaluate(({ bType, attrs }) => {
+      //
+      // Position resolution mirrors wpInsertBlock above: afterBlockType+index,
+      // then flat afterIndex (legacy), then position 'start'/'end' (default).
+      const newClientId = await page.evaluate(({ bType, attrs, flatIdx, afterType, afterTypeIdx, pos }) => {
         const block = wp.blocks.createBlock(bType);
-        wp.data.dispatch('core/block-editor').insertBlock(block);
+        const sel = wp.data.select('core/block-editor');
+        const order = sel.getBlockOrder();
+        let position = order.length;
+        if (afterType !== undefined && afterType !== null && afterTypeIdx !== undefined && afterTypeIdx !== null) {
+          const fullName = String(afterType).includes('/') ? String(afterType) : `core/${afterType}`;
+          let seen = -1;
+          let foundAt = -1;
+          for (let i = 0; i < order.length; i++) {
+            if (sel.getBlockName(order[i]) === fullName) {
+              seen++;
+              if (seen === afterTypeIdx) { foundAt = i; break; }
+            }
+          }
+          if (foundAt >= 0) position = foundAt + 1;
+        } else if (flatIdx !== undefined && flatIdx >= 0) {
+          position = flatIdx + 1;
+        } else if (pos === 'start') {
+          position = 0;
+        }
+        wp.data.dispatch('core/block-editor').insertBlock(block, position);
         if (attrs && Object.keys(attrs).length > 0) {
           wp.data.dispatch('core/block-editor').updateBlockAttributes(block.clientId, attrs);
         }
         return block.clientId;
-      }, { bType: blockType, attrs: step.attributes ?? {} });
+      }, { bType: blockType, attrs: step.attributes ?? {}, flatIdx: step.afterIndex, afterType: step.afterBlockType, afterTypeIdx: step.afterBlockIndex, pos: step.position });
       runState.lastInsertedClientId = newClientId;
       break;
     }

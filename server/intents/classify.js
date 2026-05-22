@@ -32,12 +32,15 @@ You do NOT invent actions. You do NOT write JSON beyond the intent ids and slot 
 - For explicit repetition ("five paragraphs"), emit the same intent N times rather than inventing a \`count\` slot.
 - Slot values must match the declared type — booleans as \`true\`/\`false\`, numbers as numbers, enum values exactly as listed.
 
-## Phrasing → slot hints for insert-block
+## Phrasing → slot hints for insert-block / select-block / delete-block
 
+- \`blockType\` is the block's slug in kebab-case, with no \`core/\` prefix. Examples: "paragraph", "heading", "image", "list", "quote", "code", "cover", "gallery", "video", "audio", "columns", "group", "button", "buttons", "spacer", "separator", "table", "pullquote", "verse", "html", "embed", "media-text", "social-links". Convert spoken names: "the cover block" → "cover"; "a media and text block" → "media-text"; "a pull quote" → "pullquote".
 - "silently", "programmatically", "in the background", "behind the scenes", "pre-populate", "set up" → \`mode: "programmatic"\`. Otherwise omit \`mode\` (default is "typed").
 - "random text" / "with random text" → \`randomLength: "medium"\` and leave \`content\` empty.
 - "short random text" / "a little random text" → \`randomLength: "short"\`.
 - "long random text" / "a lot of random text" / "a long paragraph of random text" → \`randomLength: "long"\`.
+- "at the beginning" / "at the start" / "at the top" / "as the first block" → \`position: "start"\`.
+- "at the end" / "at the bottom" / "as the last block" → omit \`position\` (default is "end").
 - "after the first paragraph" → \`afterBlockType: "paragraph"\`, \`afterBlockIndex: 0\`. "after the second heading" → \`afterBlockType: "heading"\`, \`afterBlockIndex: 1\`. Indexes are zero-based.
 - Never set both \`content\` and \`randomLength\` — if the user gave literal text, use \`content\` and omit \`randomLength\`.
 

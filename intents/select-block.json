@@ -11,8 +11,7 @@
   "slots": [
     {
       "name": "blockType",
-      "type": "enum",
-      "values": ["paragraph", "heading", "image", "list", "quote", "code"]
+      "type": "string"
     },
     { "name": "index", "type": "number", "optional": true, "default": 0 }
   ],

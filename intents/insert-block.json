@@ -19,8 +19,7 @@
   "slots": [
     {
       "name": "blockType",
-      "type": "enum",
-      "values": ["paragraph", "heading", "image", "list", "quote", "code"]
+      "type": "string"
     },
     {
       "name": "content",
@@ -49,6 +48,12 @@
       "name": "afterBlockIndex",
       "type": "number",
       "optional": true
+    },
+    {
+      "name": "position",
+      "type": "enum",
+      "values": ["start", "end"],
+      "default": "end"
     }
   ],
   "label": "Insert a {{blockType}} block",
@@ -58,7 +63,8 @@
       "action": "wpInsertBlock",
       "blockType": "{{blockType}}",
       "afterBlockType": "{{afterBlockType}}",
-      "afterBlockIndex": "{{afterBlockIndex}}"
+      "afterBlockIndex": "{{afterBlockIndex}}",
+      "position": "{{position}}"
     },
     {
       "when": "{{modeIsTyped}}",
@@ -71,7 +77,10 @@
       "when": "{{modeIsProgrammatic}}",
       "action": "wpInsertBlockProgrammatic",
       "blockType": "{{blockType}}",
-      "attributes": { "content": "{{content}}" }
+      "attributes": { "content": "{{content}}" },
+      "afterBlockType": "{{afterBlockType}}",
+      "afterBlockIndex": "{{afterBlockIndex}}",
+      "position": "{{position}}"
     }
   ]
 }

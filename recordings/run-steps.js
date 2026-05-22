@@ -346,7 +346,12 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       if (shortName !== 'paragraph') {
         await page.keyboard.type(`/${shortName}`, { delay: 50 });
         const displayName = shortName.replace(/-/g, ' ');
-        const option = page.getByRole('option', { name: new RegExp(`^${displayName}$`, 'i') });
+        // Modern Gutenberg sometimes folds the description into the option's
+        // accessible name ("List Create a bulleted or numbered list."), so
+        // anchor at the start with a word boundary rather than requiring an
+        // exact match — and take the first hit when several start with the
+        // block name (e.g. "List" vs "List item").
+        const option = page.getByRole('option', { name: new RegExp(`^${displayName}\\b`, 'i') }).first();
         await option.waitFor({ state: 'visible', timeout: 5_000 });
         await option.click();
         // Do NOT also press Enter here. The autocomplete option click already
@@ -372,10 +377,24 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       const blockType = step.blockType.includes('/')
         ? step.blockType
         : `core/${step.blockType}`;
-      await page.waitForFunction(() => window?.wp?.blocks && window?.wp?.data);
+      // Wait until the block type is actually registered, not just until the
+      // wp.blocks namespace exists. Calling createBlock for a type that
+      // hasn't finished registering triggers a recursive selector lookup
+      // inside @wordpress/blocks and blows the stack.
+      await page.waitForFunction(
+        (name) => Boolean(window?.wp?.blocks?.getBlockType?.(name) && window?.wp?.data),
+        blockType,
+      );
+      // Two-step insert: create the block empty, then apply attributes via
+      // updateBlockAttributes. Passing attributes directly to createBlock
+      // routes through the block type's `source: 'html'` attribute parser,
+      // which has been observed to recurse forever on certain content.
       const newClientId = await page.evaluate(({ bType, attrs }) => {
-        const block = wp.blocks.createBlock(bType, attrs || {});
+        const block = wp.blocks.createBlock(bType);
         wp.data.dispatch('core/block-editor').insertBlock(block);
+        if (attrs && Object.keys(attrs).length > 0) {
+          wp.data.dispatch('core/block-editor').updateBlockAttributes(block.clientId, attrs);
+        }
         return block.clientId;
       }, { bType: blockType, attrs: step.attributes ?? {} });
       runState.lastInsertedClientId = newClientId;

@@ -412,16 +412,30 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
     }
 
     case 'wpMoveBlock': {
-      // Click the block toolbar's Move up/Move down button `count` times.
-      // The block must already be selected (wpSelectBlock first); the
-      // toolbar follows the selection after each click, so the same
-      // selector works for subsequent presses.
-      const direction = step.direction === 'down' ? 'Move down' : 'Move up';
+      // Try the visible block-toolbar button first; fall back to dispatching
+      // moveBlocksUp/Down programmatically if it can't be found. The toolbar
+      // doesn't reliably render for blocks selected via the wpSelectBlock
+      // programmatic fallback (e.g. list — clicking the list focuses an
+      // inner list-item, and the popover anchors there instead of on the
+      // parent list block).
+      const directionLabel = step.direction === 'down' ? 'Move down' : 'Move up';
       const count = Math.max(1, Number(step.count) || 1);
-      const moveBtn = page.locator(`[role="toolbar"][aria-label="Block tools"] button[aria-label="${direction}"]`);
+      const moveBtn = page.locator(`[role="toolbar"][aria-label="Block tools"] button[aria-label="${directionLabel}"]`);
+      const dispatchName = step.direction === 'down' ? 'moveBlocksDown' : 'moveBlocksUp';
       for (let i = 0; i < count; i++) {
-        await moveBtn.waitFor({ state: 'visible', timeout: 5_000 });
-        await highlightAndClick(page, moveBtn);
+        try {
+          await moveBtn.waitFor({ state: 'visible', timeout: 2_000 });
+          await highlightAndClick(page, moveBtn);
+        } catch {
+          const moved = await page.evaluate((action) => {
+            const sel = wp.data.select('core/block-editor');
+            const clientId = sel.getSelectedBlockClientId() || sel.getMultiSelectedBlockClientIds?.()?.[0];
+            if (!clientId) return false;
+            wp.data.dispatch('core/block-editor')[action]([clientId]);
+            return true;
+          }, dispatchName);
+          if (!moved) throw new Error('wpMoveBlock: no block selected — run wpSelectBlock first');
+        }
       }
       break;
     }

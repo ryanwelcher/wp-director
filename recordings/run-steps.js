@@ -413,28 +413,49 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
 
     case 'wpMoveBlock': {
       // Try the visible block-toolbar button first; fall back to dispatching
-      // moveBlocksUp/Down programmatically if it can't be found. The toolbar
-      // doesn't reliably render for blocks selected via the wpSelectBlock
-      // programmatic fallback (e.g. list — clicking the list focuses an
-      // inner list-item, and the popover anchors there instead of on the
-      // parent list block).
+      // moveBlocksUp/Down programmatically. The toolbar doesn't reliably
+      // render for blocks selected via the wpSelectBlock programmatic
+      // fallback (e.g. list — clicking the list focuses an inner list-item
+      // and the popover anchors there instead of on the parent list block).
+      //
+      // Each iteration, ask the editor whether the move is even possible.
+      // At the edge the toolbar button is disabled (which would block
+      // locator.click for its full 30s timeout) and the programmatic
+      // dispatch is a silent no-op — either way, "successful" moves that
+      // didn't move anything. Bail with a warning instead.
       const directionLabel = step.direction === 'down' ? 'Move down' : 'Move up';
       const count = Math.max(1, Number(step.count) || 1);
       const moveBtn = page.locator(`[role="toolbar"][aria-label="Block tools"] button[aria-label="${directionLabel}"]`);
       const dispatchName = step.direction === 'down' ? 'moveBlocksDown' : 'moveBlocksUp';
       for (let i = 0; i < count; i++) {
+        const status = await page.evaluate(({ dir }) => {
+          const sel = wp.data.select('core/block-editor');
+          const clientId = sel.getSelectedBlockClientId() || sel.getMultiSelectedBlockClientIds?.()?.[0];
+          if (!clientId) return { state: 'no-selection' };
+          const parent = sel.getBlockRootClientId(clientId);
+          const order = sel.getBlockOrder(parent);
+          const idx = order.indexOf(clientId);
+          if (idx < 0) return { state: 'no-selection' };
+          if (dir === 'up' && idx === 0) return { state: 'at-edge' };
+          if (dir === 'down' && idx === order.length - 1) return { state: 'at-edge' };
+          return { state: 'can-move', clientId };
+        }, { dir: step.direction });
+        if (status.state === 'no-selection') {
+          throw new Error('wpMoveBlock: no block selected — run wpSelectBlock first');
+        }
+        if (status.state === 'at-edge') {
+          const edge = step.direction === 'up' ? 'top' : 'bottom';
+          const remaining = count - i;
+          console.warn(`wpMoveBlock: block already at ${edge}; skipping ${remaining} move(s)`);
+          break;
+        }
         try {
           await moveBtn.waitFor({ state: 'visible', timeout: 2_000 });
           await highlightAndClick(page, moveBtn);
         } catch {
-          const moved = await page.evaluate((action) => {
-            const sel = wp.data.select('core/block-editor');
-            const clientId = sel.getSelectedBlockClientId() || sel.getMultiSelectedBlockClientIds?.()?.[0];
-            if (!clientId) return false;
+          await page.evaluate(({ action, clientId }) => {
             wp.data.dispatch('core/block-editor')[action]([clientId]);
-            return true;
-          }, dispatchName);
-          if (!moved) throw new Error('wpMoveBlock: no block selected — run wpSelectBlock first');
+          }, { action: dispatchName, clientId: status.clientId });
         }
       }
       break;

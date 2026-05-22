@@ -274,7 +274,22 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       } else {
         targetLocator = editorFrame.locator('[contenteditable="true"]:not(.wp-block-post-title)').last();
       }
-      await targetLocator.waitFor({ state: 'visible', timeout: 10_000 });
+      // target=last-inserted gets a shorter timeout because some block types
+      // (cover, image, gallery, video, audio, embed, ...) have no typable
+      // surface until the user provides media. In that case we skip with a
+      // warning rather than fail the whole recording — the block is already
+      // inserted; setting placeholder text on it isn't meaningful.
+      const isLastInserted = step.target === 'last-inserted';
+      const timeout = isLastInserted ? 3_000 : 10_000;
+      try {
+        await targetLocator.waitFor({ state: 'visible', timeout });
+      } catch (err) {
+        if (isLastInserted) {
+          console.warn(`wpSetBlockContent: no typable surface on last-inserted block (${runState.lastInsertedClientId}); skipping`);
+          break;
+        }
+        throw err;
+      }
       const replace = step.replace !== false;
       const delay = stepTypingDelay(step, settings);
       await targetLocator.scrollIntoViewIfNeeded();

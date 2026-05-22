@@ -49,7 +49,8 @@ Group by distinct user intentions. If the input describes multiple directions (e
 - screenshot: { "action": "screenshot", "path"?: "string" }
 - scroll: { "action": "scroll", "x"?: number, "y"?: number }
 - hover: { "action": "hover", "selector": "string" }
-- press: { "action": "press", "key": "string" }
+- press: { "action": "press", "key": "string" } — presses a key; the key label is also shown in a bottom-center HUD on the recording
+- pressKey: { "action": "pressKey", "key": "string" } — alias of press; prefer this name whenever the user's intent is to demonstrate a key press in the recording (e.g. "press enter", "hit escape", "use Cmd+K")
 - frameLocator: { "action": "frameLocator", "selector": "string" }
 - exitFrame: { "action": "exitFrame" }
 
@@ -182,7 +183,7 @@ After navigating to new-post or new-page, always emit \`tryClick\` with \`role: 
   - Hex color input: \`[role="textbox"][aria-label="Hex color"]\`
 
 **Command palette**:
-  Emit \`press\` key \`"Meta+k"\`, then \`waitForSelector\` selector \`[role="combobox"]\`, then \`slowType\` on \`[role="combobox"]\`, then \`press\` key \`"Enter"\`.
+  Emit \`pressKey\` key \`"Meta+k"\`, then \`waitForSelector\` selector \`[role="combobox"]\`, then \`slowType\` on \`[role="combobox"]\`, then \`pressKey\` key \`"Enter"\`.
 
 ### WordPress-specific (prefer these when intent is WordPress-related)
 - tryClick: { "action": "tryClick", "selector"?: "string", "role"?: "button"|"link"|etc, "name"?: "string", "exact"?: boolean, "timeout"?: number } — clicks an element only if it appears within timeout; silently skips if absent. Use either \`selector\` (CSS) or \`role\`+\`name\` (accessible role). Use for optional UI like welcome dialogs.

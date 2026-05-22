@@ -79,12 +79,13 @@ Step definitions live in `steps/*.json`. Each file is one recording:
 
 `recordings/steps-runner.spec.js` reads all `*.json` files at runtime and generates one `test()` per file.
 
-**Generic actions:** `navigate`, `click`, `highlightClick`, `fill`, `type`, `slowType`, `wait`, `waitForSelector`, `screenshot`, `scroll`, `hover`, `press`, `frameLocator`, `exitFrame`
+**Generic actions:** `navigate`, `click`, `highlightClick`, `fill`, `type`, `slowType`, `wait`, `waitForSelector`, `screenshot`, `scroll`, `hover`, `press`, `pressKey`, `frameLocator`, `exitFrame`
 
 | Action | Key params | Notes |
 |---|---|---|
 | `highlightClick` | `selector` | Draws a pulsing blue ring around the element for 1 s before clicking. Use for user-visible actions in recordings. |
 | `slowType` | `selector`, `text`, `delay?` | Scrolls into view, clicks, then types character-by-character via `pressSequentially`. Default 100 ms per keystroke. |
+| `press` / `pressKey` | `key` | Presses a Playwright key string (e.g. `"Enter"`, `"Meta+K"`). Both flash the key label in a bottom-center HUD chip for ~1.2 s. `pressKey` is the preferred name when the press is meant to be visible in the recording. |
 
 **WordPress shortcut actions:**
 

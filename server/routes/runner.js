@@ -388,13 +388,15 @@ function register(app) {
       endPause,
       stepPause,
       typingDelay,
+      hudScale,
+      hudPosition,
       startFrom,
     } = req.body;
     if (!actions.length) return res.status(400).json({ error: 'no actions provided' });
 
     try { fs.rmSync(DISPOSABLE_OUTPUT_DIR, { recursive: true, force: true }); } catch {}
 
-    const recordingSettings = normalizeRecordingSettings({ endPause, stepPause, typingDelay, videoSize });
+    const recordingSettings = normalizeRecordingSettings({ endPause, stepPause, typingDelay, videoSize, hudScale, hudPosition });
     const scriptData = {
       name,
       actions,
@@ -468,7 +470,7 @@ function register(app) {
 
   // Batch run: load all saved step files, filter to the requested names, run in order.
   app.post('/api/run/batch', async (req, res) => {
-    const { names = [], blueprint = null, videoSize = null, endPause, stepPause, typingDelay } = req.body;
+    const { names = [], blueprint = null, videoSize = null, endPause, stepPause, typingDelay, hudScale, hudPosition } = req.body;
     if (!names.length) return res.status(400).json({ error: 'no scripts selected' });
 
     sseHeaders(res);
@@ -500,7 +502,7 @@ function register(app) {
       .filter(f => f.endsWith('.json'))
       .map(f => JSON.parse(fs.readFileSync(path.join(STEPS_DIR, f), 'utf8')))
       .filter(def => nameSet.has(def.name))
-      .map((def) => scriptForRun(def, { endPause, stepPause, typingDelay, videoSize }));
+      .map((def) => scriptForRun(def, { endPause, stepPause, typingDelay, videoSize, hudScale, hudPosition }));
     const batchVideoSize = videoSize ?? scripts[0]?.videoSize;
 
     const run = createRunControl(clientAbort.signal);

@@ -2,7 +2,7 @@ import clsx from 'clsx';
 import { useEffect, useMemo, useState } from 'react';
 import { Dialog } from '../Dialog.jsx';
 import { useAppState } from '../context/AppStateContext.jsx';
-import { DEFAULT_RUN_SETTINGS } from '../state/useRunSettingsState.js';
+import { DEFAULT_RUN_SETTINGS, HUD_POSITIONS } from '../state/useRunSettingsState.js';
 import { BROWSER_SIZE_PRESETS, isValidVideoSizeValue } from '../utils/actions.js';
 
 function splitSizeValue(value) {
@@ -10,11 +10,24 @@ function splitSizeValue(value) {
   return match ? [match[1], match[2]] : ['', ''];
 }
 
+const HUD_POSITION_LABELS = {
+  'top-left': 'Top-left',
+  'top-center': 'Top-center',
+  'top-right': 'Top-right',
+  'bottom-left': 'Bottom-left',
+  'bottom-center': 'Bottom-center',
+  'bottom-right': 'Bottom-right',
+};
+
 export function RecordingSettingsPanel() {
   const {
     endPause,
+    hudPosition,
+    hudScale,
     resetRecordingSettings,
     setEndPause,
+    setHudPosition,
+    setHudScale,
     setStepPause,
     setTypingDelay,
     setVideoSize,
@@ -37,8 +50,10 @@ export function RecordingSettingsPanel() {
       && stepPause === DEFAULT_RUN_SETTINGS.stepPause
       && typingDelay === DEFAULT_RUN_SETTINGS.typingDelay
       && videoSize === DEFAULT_RUN_SETTINGS.videoSize
+      && String(hudScale) === DEFAULT_RUN_SETTINGS.hudScale
+      && hudPosition === DEFAULT_RUN_SETTINGS.hudPosition
     ),
-    [endPause, stepPause, typingDelay, videoSize],
+    [endPause, stepPause, typingDelay, videoSize, hudScale, hudPosition],
   );
 
   useEffect(() => {
@@ -160,6 +175,45 @@ export function RecordingSettingsPanel() {
           onChange={(event) => setEndPause(event.target.value)}
         />
       </div>
+
+      <div className="setting-field">
+        <div className="setting-field-header">
+          <label htmlFor="hud-scale-input">Key HUD size</label>
+          <span className="setting-field-value">{Number(hudScale).toFixed(2)}x</span>
+        </div>
+        <input
+          id="hud-scale-input"
+          type="range"
+          min="0.5"
+          max="3"
+          step="0.1"
+          value={hudScale}
+          onChange={(event) => setHudScale(event.target.value)}
+        />
+      </div>
+
+      <div className="setting-field">
+        <div className="setting-field-header">
+          <span className="setting-field-label">Key HUD position</span>
+          <span className="setting-field-value">{HUD_POSITION_LABELS[hudPosition] ?? hudPosition}</span>
+        </div>
+        <div className="hud-position-grid" role="radiogroup" aria-label="Key HUD position">
+          {HUD_POSITIONS.map((pos) => (
+            <button
+              key={pos}
+              type="button"
+              className={clsx('hud-position-opt', hudPosition === pos && 'active')}
+              role="radio"
+              aria-checked={hudPosition === pos}
+              title={HUD_POSITION_LABELS[pos] ?? pos}
+              aria-label={HUD_POSITION_LABELS[pos] ?? pos}
+              onClick={() => setHudPosition(pos)}
+            >
+              <span className="hud-position-dot" />
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
 
     <div className="tab-panel-footer">
@@ -176,7 +230,7 @@ export function RecordingSettingsPanel() {
     {resetDialogOpen && (
       <Dialog
         title="Reset recording settings?"
-        description="Reset typing speed, between-step pause, browser window size, and outro length to defaults?"
+        description="Reset typing speed, between-step pause, browser window size, outro length, and key HUD size/position to defaults?"
         onClose={() => setResetDialogOpen(false)}
       >
         <div className="app-dialog-actions">

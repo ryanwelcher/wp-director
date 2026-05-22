@@ -7,6 +7,8 @@ export function useRunActions({
   currentStepPause,
   currentTypingDelay,
   currentVideoSize,
+  currentHudScale,
+  hudPosition,
   loadRecordings,
   name,
   runDirections,
@@ -30,6 +32,8 @@ export function useRunActions({
       endPause: currentEndPause,
       stepPause: currentStepPause,
       typingDelay: currentTypingDelay,
+      hudScale: currentHudScale,
+      hudPosition,
     };
 
     if (startFromIndex != null && startFromIndex > 0) {
@@ -48,6 +52,8 @@ export function useRunActions({
     currentStepPause,
     currentTypingDelay,
     currentVideoSize,
+    currentHudScale,
+    hudPosition,
     loadRecordings,
     name,
     runDirections,
@@ -67,6 +73,8 @@ export function useRunActions({
       stepPause: currentStepPause,
       typingDelay: currentTypingDelay,
       videoSize: currentVideoSize,
+      hudScale: currentHudScale,
+      hudPosition,
     });
 
     await streamRun(fetchPromise, {
@@ -82,6 +90,8 @@ export function useRunActions({
     currentStepPause,
     currentTypingDelay,
     currentVideoSize,
+    currentHudScale,
+    hudPosition,
     loadRecordings,
     selectedScripts,
     startRunRequest,

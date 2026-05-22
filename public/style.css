@@ -2048,6 +2048,30 @@ header p {
 #log-panel[open] summary::before { transform: rotate(90deg); }
 #log-panel[open] summary { color: #94a3b8; }
 
+#log-copy-btn {
+  margin-left: auto;
+  background: #1e2433;
+  border: 1px solid #2d3748;
+  border-radius: 4px;
+  color: #cbd5e1;
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.55rem;
+  text-transform: uppercase;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+#log-copy-btn:hover:not(:disabled) {
+  background: #2d3748;
+  color: #f1f5f9;
+  border-color: #475569;
+}
+#log-copy-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .badge-pass { background: #14532d; color: #86efac; }
 .badge-fail { background: #450a0a; color: #fca5a5; }
 

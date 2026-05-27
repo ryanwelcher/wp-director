@@ -1,0 +1,16 @@
+{
+  "id": "activate-plugin",
+  "description": "Activate an already-installed WordPress plugin from the Plugins admin screen by slug.",
+  "examples": [
+    "activate Jetpack",
+    "activate the Akismet plugin",
+    "turn on hello dolly"
+  ],
+  "slots": [
+    { "name": "slug", "type": "string" }
+  ],
+  "label": "Activate the {{slug}} plugin",
+  "actions": [
+    { "action": "wpActivatePlugin", "slug": "{{slug}}" }
+  ]
+}

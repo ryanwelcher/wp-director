@@ -10,9 +10,12 @@
     "expected": [{ "id": "install-plugin", "slots": { "slug": "wordpress-seo" } }]
   },
   {
-    "name": "install plugin — activate flag",
+    "name": "install plugin — install then activate",
     "command": "install and activate Akismet",
-    "expected": [{ "id": "install-plugin", "slots": { "slug": "akismet", "activate": true } }]
+    "expected": [
+      { "id": "install-plugin", "slots": { "slug": "akismet" } },
+      { "id": "activate-plugin", "slots": { "slug": "akismet" } }
+    ]
   },
   {
     "name": "install plugin — hyphenated slug",

@@ -1,19 +1,17 @@
 {
   "id": "install-plugin",
-  "description": "Install a WordPress plugin from the plugin directory by slug, optionally activating it after install.",
+  "description": "Install a WordPress plugin from the plugin directory by slug. Does NOT activate the plugin — pair with the activate-plugin intent when the user wants it activated.",
   "examples": [
     "install Jetpack",
     "install the Jetpack plugin",
     "add Jetpack to this site",
-    "install and activate Jetpack",
     "install hello dolly"
   ],
   "slots": [
-    { "name": "slug", "type": "string" },
-    { "name": "activate", "type": "boolean", "optional": true, "default": false }
+    { "name": "slug", "type": "string" }
   ],
   "label": "Install the {{slug}} plugin",
   "actions": [
-    { "action": "wpInstallPlugin", "slug": "{{slug}}", "activate": "{{activate}}" }
+    { "action": "wpInstallPlugin", "slug": "{{slug}}" }
   ]
 }

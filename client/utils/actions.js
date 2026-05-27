@@ -57,7 +57,8 @@ export function describePlain(step = {}) {
     case 'frameLocator': return `Switch into frame "${step.selector}"`;
     case 'exitFrame': return 'Return to the main page';
     case 'wpNavigate': return `Go to ${WP_SCREENS[step.screen] ?? step.screen}`;
-    case 'wpInstallPlugin': return `Install the ${step.slug} plugin${step.activate ? ' and activate it' : ''}`;
+    case 'wpInstallPlugin': return `Install the ${step.slug} plugin`;
+    case 'wpActivatePlugin': return `Activate the ${step.slug} plugin`;
     case 'wpSelectBlock': return `Select the ${step.blockType} block`;
     case 'wpSelectBlockText': return 'Select all text in the current block';
     case 'wpInsertBlock': return `Insert a ${step.blockType} block`;

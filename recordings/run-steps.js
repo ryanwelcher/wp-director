@@ -208,10 +208,15 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       await highlightAndClick(page, installBtn);
       const activateBtn = page.locator(`.plugin-card-${step.slug} .activate-now`);
       await activateBtn.waitFor({ timeout: 30_000 });
-      if (step.activate) {
-        await highlightAndClick(page, activateBtn);
-        await page.waitForLoadState('domcontentloaded');
-      }
+      break;
+    }
+
+    case 'wpActivatePlugin': {
+      await page.goto('/wp-admin/plugins.php', { waitUntil: 'domcontentloaded' });
+      const activateLink = page.locator(`tr[data-slug="${step.slug}"] .activate a`);
+      await activateLink.waitFor({ state: 'visible', timeout: 15_000 });
+      await highlightAndClick(page, activateLink);
+      await page.waitForLoadState('domcontentloaded');
       break;
     }
 

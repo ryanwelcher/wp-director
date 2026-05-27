@@ -70,7 +70,7 @@ Step definitions live in `steps/*.json`. Each file is one recording:
 {
   "name": "my-recording",
   "steps": [
-    { "action": "wpNavigate", "screen": "new-post" },
+    { "action": "navigate", "url": "/wp-admin/post-new.php", "waitUntil": "domcontentloaded" },
     { "action": "wpInsertBlock", "blockType": "heading" },
     { "action": "wpDeleteBlock", "blockType": "heading", "index": 0 }
   ]
@@ -91,26 +91,25 @@ Step definitions live in `steps/*.json`. Each file is one recording:
 
 | Action | Key params | Notes |
 |---|---|---|
-| `wpNavigate` | `screen`, `waitUntil?` | Friendly names: `dashboard`, `posts`, `new-post`, `pages`, `plugins`, `themes`, `site-editor`, `site-editor-templates`, `site-editor-patterns`, `site-editor-pages`, `site-editor-styles`, `settings`, etc. Falls back to `/wp-admin/{screen}` |
-| `wpInstallPlugin` | `slug`, `activate?` | Navigates the plugin installer UI, searches by slug, installs, optionally activates |
+| `wpInstallPlugin` | `slug` | Navigates the plugin installer UI, searches by slug, and installs. Does not activate — chain `wpActivatePlugin` if needed. |
+| `wpActivatePlugin` | `slug` | Goes to the Plugins admin screen and clicks Activate on the row matching `slug`. |
+| `wpInstallTheme` | `slug`, `name?`, `activate?` | Navigates the theme installer UI, searches by slug, installs, and optionally activates. |
 | `wpSelectBlock` | `blockType`, `index?` | Clicks block by `data-type` inside the editor iframe. Short names (`paragraph`) auto-prefixed with `core/` |
-| `wpInsertBlock` | `blockType` | Clicks the "Add default block" appender inside the canvas, then inserts via slash command. Autocomplete resolves on `page`, not the iframe. |
-| `wpInsertBlockProgrammatic` | `blockType`, `attributes?` | Inserts via `wp.blocks.createBlock` + `wp.data.dispatch`. Invisible but reliable; use for setup steps that don't need to appear on screen. Short names auto-prefixed with `core/`. |
+| `wpSelectBlockText` | — | Triple-clicks the currently selected block to select all of its rich-text content. Use before formatting toggles like Bold/Italic. |
+| `wpInsertBlock` | `blockType`, `afterBlockType?`, `afterBlockIndex?`, `position?` | Clicks the "Add default block" appender inside the canvas, then inserts via slash command. Autocomplete resolves on `page`, not the iframe. |
+| `wpInsertBlockProgrammatic` | `blockType`, `attributes?`, `afterBlockType?`, `afterBlockIndex?`, `position?` | Inserts via `wp.blocks.createBlock` + `wp.data.dispatch`. Invisible but reliable; use for setup steps that don't need to appear on screen. Short names auto-prefixed with `core/`. |
 | `wpDeleteBlock` | `blockType`, `index?` | Selects block, presses Escape to enter block-selection mode, then Backspace to remove |
-| `wpCommandPalette` | `command?` | Opens with `Meta+K`; if `command` is given, types it and presses Enter |
+| `wpMoveBlock` | `direction`, `count?` | Moves the currently selected block up or down by pressing the block toolbar's Move up/down button `count` times. Bails with a warning if the block is already at the edge. |
 | `wpSetPostTitle` | `title`, `programmatic?`, `delay?` | Slow-types the post/page title inside the editor iframe by default; set `programmatic: true` for instant silent fill. |
-| `wpSetBlockContent` | `content`, `blockType?`, `index?`, `replace?`, `delay?` | Slow-types text into a block. Triple-clicks to replace existing content first (`replace` defaults to `true`); set `replace: false` to append. Targets block by `blockType`/`index` or the last non-title block if omitted. |
+| `wpSetBlockContent` | `content`, `blockType?`, `index?`, `replace?`, `delay?`, `target?` | Slow-types text into a block. Triple-clicks to replace existing content first (`replace` defaults to `true`); set `replace: false` to append. Targets block by `blockType`/`index`, `target: "last-inserted"`, or the last non-title block if omitted. |
 | `wpSiteEditorSave` | — | Clicks Save in the site editor top bar then confirms in the publish panel. |
-| `wpOpenBlockInserter` | — | Toggles the Block Inserter panel open. |
 | `wpInsertBlockFromPanel` | `blockType` | Opens the block inserter, searches by block name, and clicks the matching result. |
 | `wpEditorWPMenuClick` | — | Clicks the WordPress logo button at the top-left of the block editor header. |
 | `wpEditorToggleFullscreen` | `enable?` | Opens Editor Options → Preferences and sets the Fullscreen mode toggle. Pass `enable: false` to turn fullscreen off, revealing the WP admin sidebar. Default: `true`. |
+| `wpOpenOptionsMenu` | — | Opens the editor's Options (three-dot) menu in the top bar. |
 | `wpAdminMenuClick` | `item` | Clicks an admin sidebar menu item by exact label (e.g. `"Posts"`, `"Appearance"`, `"Settings"`, `"Updates"`). Checks top-level items first, then submenu items — works for built-in, submenu (e.g. Dashboard → Updates), and custom plugin/theme items. |
 | `wpBlockToolbar` | `button` | Clicks a button in the block tools toolbar by accessible name (e.g. `"Bold"`, `"Italic"`, `"Align text"`). |
-| `wpToggleInspector` | — | Toggles the Settings/Inspector sidebar open or closed. |
-| `wpInspectorTab` | `tab` | Switches the inspector sidebar tab: `"Post"`, `"Block"`, or `"Styles"`. |
 | `wpInspectorPanel` | `panel` | Opens a collapsible panel in the inspector by name (e.g. `"Categories"`, `"Tags"`, `"Featured image"`). Opens the sidebar first if it is closed. |
-| `wpOpenListView` | — | Toggles the Document Overview (block list view) open. |
 
 **`wpInsertBlock` approach.** Uses `getByRole('button', { name: 'Add default block' })` inside the editor canvas, then the slash inserter. The autocomplete option appears on `page` (not inside the iframe) and is waited for before clicking.
 

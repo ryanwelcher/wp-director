@@ -191,7 +191,8 @@ After navigating to new-post or new-page, always emit \`tryClick\` with \`role: 
 - wpAdminMenuClick: { "action": "wpAdminMenuClick", "item": "string" } — clicks an admin sidebar menu item by exact label; works for built-in and plugin/theme custom items
 - wpEditorWPMenuClick: { "action": "wpEditorWPMenuClick" } — clicks the WordPress logo button at the top-left of the block editor header; use to open the editor's back/navigation menu
 - wpEditorToggleFullscreen: { "action": "wpEditorToggleFullscreen", "enable"?: boolean } — opens Editor Options → Preferences and sets Fullscreen mode; pass \`enable: false\` to turn fullscreen off, which reveals the WP admin sidebar without leaving the editor
-- wpInstallPlugin: { "action": "wpInstallPlugin", "slug": "plugin-slug", "activate"?: boolean }
+- wpInstallPlugin: { "action": "wpInstallPlugin", "slug": "plugin-slug" } — installs only; emit wpActivatePlugin after if the user also wants it activated
+- wpActivatePlugin: { "action": "wpActivatePlugin", "slug": "plugin-slug" } — activates an already-installed plugin from the Plugins admin screen
 - wpInstallTheme: { "action": "wpInstallTheme", "slug": "theme-slug", "name"?: "Display Name", "activate"?: boolean }
 - wpSelectBlock: { "action": "wpSelectBlock", "blockType": "string", "index"?: number } — blockType is the block slug in kebab-case (paragraph, heading, image, cover, gallery, media-text, columns, ...). Counts top-level blocks of that type — nested blocks (e.g. a paragraph inside a cover) are skipped.
 - wpSelectBlockText: { "action": "wpSelectBlockText" } — selects all rich-text inside the currently selected block (triple-click). Use before wpBlockToolbar for rich-text toggles (Bold/Italic/Strikethrough/Inline code) so the format applies to the whole block. Errors if the selected block has no editable text surface (image, separator, etc.).

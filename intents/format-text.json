@@ -1,0 +1,27 @@
+{
+  "id": "format-text",
+  "description": "Toggle a rich-text formatting button in the block toolbar — Bold, Italic, Strikethrough, Inline code. The button is a toggle: clicking once turns the format on for the current text selection, clicking again turns it off. Assumes a block is already selected and the desired text range has been chosen (e.g. with Cmd/Ctrl+A or triple-click).",
+  "examples": [
+    "bold the selected text",
+    "make the selected text italic",
+    "italicize this",
+    "strike through the selected text",
+    "set the text to bold",
+    "make it italic",
+    "unbold the text",
+    "remove the strikethrough",
+    "format as inline code",
+    "make the text code"
+  ],
+  "slots": [
+    {
+      "name": "format",
+      "type": "enum",
+      "values": ["Bold", "Italic", "Strikethrough", "Inline code"]
+    }
+  ],
+  "label": "Toggle {{format}} on the selected text",
+  "actions": [
+    { "action": "wpBlockToolbar", "button": "{{format}}" }
+  ]
+}

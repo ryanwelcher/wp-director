@@ -50,6 +50,16 @@ You do NOT invent actions. You do NOT write JSON beyond the intent ids and slot 
 - "two spots" / "two places" / "by two" / "down 2" → \`count: 2\`. Default count is 1, so omit \`count\` for plain "move up"/"move down".
 - "move the second paragraph up" → \`blockType: "paragraph"\`, \`index: 1\`, \`direction: "up"\`.
 
+## Phrasing → slot hints for format-text
+
+- "bold" / "make it bold" / "unbold" → \`format: "Bold"\`.
+- "italic" / "italicize" / "make it italic" → \`format: "Italic"\`.
+- "strikethrough" / "strike through" / "cross out" → \`format: "Strikethrough"\`.
+- "inline code" / "code format" / "format as code" → \`format: "Inline code"\`.
+- Slot values are Title Case to match Gutenberg's aria-labels exactly. Capitalize accordingly.
+- format-text is a toggle — same intent for "bold it" and "unbold it"; the editor decides direction based on current state.
+- Do NOT use format-text for adding links or inline images — those need dedicated flows we don't have yet.
+
 ## Catalog`;
 
 /**

@@ -411,6 +411,18 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       break;
     }
 
+    case 'wpBlockToolbar': {
+      // Click a button in the block tools toolbar by accessible name.
+      // Covers rich-text toggles (Bold, Italic, Strikethrough, Inline code,
+      // Underline, ...) and block-level buttons (Align text, etc.) that
+      // expose an aria-label. The block must already be selected — the
+      // toolbar popover is gated on selection.
+      const btn = page.locator(`[role="toolbar"][aria-label="Block tools"] button[aria-label="${step.button}"]`);
+      await btn.waitFor({ state: 'visible', timeout: 5_000 });
+      await highlightAndClick(page, btn);
+      break;
+    }
+
     case 'wpMoveBlock': {
       // Try the visible block-toolbar button first; fall back to dispatching
       // moveBlocksUp/Down programmatically. The toolbar doesn't reliably

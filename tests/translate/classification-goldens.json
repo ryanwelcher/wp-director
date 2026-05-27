@@ -164,6 +164,26 @@
     "expected": [{ "id": "move-block", "slots": { "blockType": "paragraph", "index": 1, "direction": "up" } }]
   },
   {
+    "name": "format text — bold",
+    "command": "bold the selected text",
+    "expected": [{ "id": "format-text", "slots": { "format": "Bold" } }]
+  },
+  {
+    "name": "format text — italic",
+    "command": "make the selected text italic",
+    "expected": [{ "id": "format-text", "slots": { "format": "Italic" } }]
+  },
+  {
+    "name": "format text — strikethrough",
+    "command": "strike through the text",
+    "expected": [{ "id": "format-text", "slots": { "format": "Strikethrough" } }]
+  },
+  {
+    "name": "format text — inline code",
+    "command": "format the text as inline code",
+    "expected": [{ "id": "format-text", "slots": { "format": "Inline code" } }]
+  },
+  {
     "name": "delete block",
     "command": "delete the heading",
     "expected": [{ "id": "delete-block", "slots": { "blockType": "heading" } }]

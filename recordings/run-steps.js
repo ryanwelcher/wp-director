@@ -302,32 +302,73 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       const blockType = step.blockType.includes('/') ? step.blockType : `core/${step.blockType}`;
       const index = step.index ?? 0;
       const editorFrame = page.frameLocator('iframe[name="editor-canvas"]');
-      const block = editorFrame.locator(`[data-type="${blockType}"]`).nth(index);
-      await block.waitFor({ state: 'visible', timeout: 10_000 });
-      await block.click();
-      // Blocks with a placeholder UI (cover, image, video, gallery, ...) swallow
-      // the click and never get .is-selected, so fall back to dispatching the
-      // selectBlock action programmatically when the click path times out.
+
+      // Resolve the target clientId via the block store, counting only
+      // top-level blocks of the given type. Using DOM order (e.g.
+      // `[data-type="core/paragraph"]`.nth(N)) wrongly counts paragraphs
+      // nested inside other blocks like core/cover or core/group.
+      const clientId = await page.evaluate(({ name, idx }) => {
+        const sel = wp.data.select('core/block-editor');
+        const order = sel.getBlockOrder();
+        let seen = -1;
+        for (const cid of order) {
+          if (sel.getBlockName(cid) === name) {
+            seen++;
+            if (seen === idx) return cid;
+          }
+        }
+        return null;
+      }, { name: blockType, idx: index });
+      if (!clientId) throw new Error(`wpSelectBlock: no top-level ${blockType} at index ${index}`);
+
+      // Prefer a real DOM click on the resolved block so focus moves into
+      // the canvas and the contextual block toolbar appears. Fall back to
+      // a programmatic selectBlock dispatch for placeholder-UI blocks
+      // (cover/image/video/gallery) where the click is swallowed.
+      const block = editorFrame.locator(`[data-block="${clientId}"]`);
       try {
+        await block.waitFor({ state: 'visible', timeout: 10_000 });
+        await block.click();
         await block.and(editorFrame.locator('.is-selected')).waitFor({ state: 'visible', timeout: 5_000 });
       } catch {
-        const selected = await page.evaluate(({ name, idx }) => {
-          const sel = wp.data.select('core/block-editor');
-          const order = sel.getBlockOrder();
-          let seen = -1;
-          for (const clientId of order) {
-            if (sel.getBlockName(clientId) === name) {
-              seen++;
-              if (seen === idx) {
-                wp.data.dispatch('core/block-editor').selectBlock(clientId);
-                return clientId;
-              }
-            }
-          }
-          return null;
-        }, { name: blockType, idx: index });
-        if (!selected) throw new Error(`wpSelectBlock: no ${blockType} at index ${index}`);
+        await page.evaluate((cid) => {
+          wp.data.dispatch('core/block-editor').selectBlock(cid);
+        }, clientId);
       }
+      break;
+    }
+
+    case 'wpSelectBlockText': {
+      // Select all text in the currently-selected block's editable area so
+      // the next rich-text toolbar action (Bold/Italic/etc.) applies to a
+      // real range. Errors if the selected block has no rich-text surface
+      // (e.g. core/image, core/separator, core/cover wrapper).
+      const editorFrame = page.frameLocator('iframe[name="editor-canvas"]');
+      const clientId = await page.evaluate(() =>
+        wp.data.select('core/block-editor').getSelectedBlockClientId()
+      );
+      if (!clientId) {
+        throw new Error('wpSelectBlockText: no block selected — run wpSelectBlock first');
+      }
+      // The contenteditable may be the [data-block] wrapper itself
+      // (core/paragraph renders as a single <p data-block=… contenteditable="true">)
+      // or a descendant (core/heading, core/quote, …). Match either.
+      const editableSel =
+        `[data-block="${clientId}"][contenteditable="true"], ` +
+        `[data-block="${clientId}"] [contenteditable="true"], ` +
+        `[data-block="${clientId}"][role="textbox"], ` +
+        `[data-block="${clientId}"] [role="textbox"]`;
+      const editable = editorFrame.locator(editableSel).first();
+      try {
+        await editable.waitFor({ state: 'attached', timeout: 3_000 });
+      } catch {
+        const name = await page.evaluate(() =>
+          wp.data.select('core/block-editor').getSelectedBlock()?.name
+        );
+        throw new Error(`wpSelectBlockText: selected block (${name}) has no editable text surface`);
+      }
+      await editable.scrollIntoViewIfNeeded();
+      await editable.click({ clickCount: 3 });
       break;
     }
 
@@ -417,8 +458,20 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       // Underline, ...) and block-level buttons (Align text, etc.) that
       // expose an aria-label. The block must already be selected — the
       // toolbar popover is gated on selection.
-      const btn = page.locator(`[role="toolbar"][aria-label="Block tools"] button[aria-label="${step.button}"]`);
-      await btn.waitFor({ state: 'visible', timeout: 5_000 });
+      //
+      // In iframe-canvas mode the contextual toolbar renders *inside*
+      // iframe[name="editor-canvas"]; in "Top toolbar" mode it renders on
+      // the top-level page. Probe both.
+      const sel = `[role="toolbar"][aria-label="Block tools"] button[aria-label="${step.button}"]`;
+      const iframeBtn = page.frameLocator('iframe[name="editor-canvas"]').locator(sel);
+      const pageBtn = page.locator(sel);
+      let btn = iframeBtn;
+      try {
+        await btn.waitFor({ state: 'visible', timeout: 2_000 });
+      } catch {
+        btn = pageBtn;
+        await btn.waitFor({ state: 'visible', timeout: 5_000 });
+      }
       await highlightAndClick(page, btn);
       break;
     }
@@ -437,7 +490,18 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       // didn't move anything. Bail with a warning instead.
       const directionLabel = step.direction === 'down' ? 'Move down' : 'Move up';
       const count = Math.max(1, Number(step.count) || 1);
-      const moveBtn = page.locator(`[role="toolbar"][aria-label="Block tools"] button[aria-label="${directionLabel}"]`);
+      const moveSel = `[role="toolbar"][aria-label="Block tools"] button[aria-label="${directionLabel}"]`;
+      const moveBtnIframe = page.frameLocator('iframe[name="editor-canvas"]').locator(moveSel);
+      const moveBtnPage = page.locator(moveSel);
+      const resolveMoveBtn = async () => {
+        try {
+          await moveBtnIframe.waitFor({ state: 'visible', timeout: 2_000 });
+          return moveBtnIframe;
+        } catch {
+          await moveBtnPage.waitFor({ state: 'visible', timeout: 2_000 });
+          return moveBtnPage;
+        }
+      };
       const dispatchName = step.direction === 'down' ? 'moveBlocksDown' : 'moveBlocksUp';
       for (let i = 0; i < count; i++) {
         const status = await page.evaluate(({ dir }) => {
@@ -462,7 +526,7 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
           break;
         }
         try {
-          await moveBtn.waitFor({ state: 'visible', timeout: 2_000 });
+          const moveBtn = await resolveMoveBtn();
           await highlightAndClick(page, moveBtn);
         } catch {
           await page.evaluate(({ action, clientId }) => {

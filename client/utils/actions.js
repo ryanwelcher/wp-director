@@ -59,6 +59,7 @@ export function describePlain(step = {}) {
     case 'wpNavigate': return `Go to ${WP_SCREENS[step.screen] ?? step.screen}`;
     case 'wpInstallPlugin': return `Install the ${step.slug} plugin${step.activate ? ' and activate it' : ''}`;
     case 'wpSelectBlock': return `Select the ${step.blockType} block`;
+    case 'wpSelectBlockText': return 'Select all text in the current block';
     case 'wpInsertBlock': return `Insert a ${step.blockType} block`;
     case 'wpDeleteBlock': return `Delete the ${step.blockType} block`;
     case 'wpCommandPalette': return step.command != null ? `Run command "${step.command}"` : 'Open the command palette';

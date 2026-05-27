@@ -1,0 +1,17 @@
+{
+  "id": "select-block-text",
+  "description": "Select all rich-text inside the currently selected block (triple-click). Use before formatting actions like Bold/Italic so the toggle applies to the whole block. Requires a block to already be selected and that block to have a rich-text surface.",
+  "examples": [
+    "select all text in the block",
+    "select all text in the paragraph",
+    "highlight all the text",
+    "select everything in this block",
+    "select the whole paragraph text",
+    "select all"
+  ],
+  "slots": [],
+  "label": "Select all text in the current block",
+  "actions": [
+    { "action": "wpSelectBlockText" }
+  ]
+}

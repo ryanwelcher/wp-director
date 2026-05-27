@@ -1,0 +1,22 @@
+{
+  "id": "view-published-post",
+  "description": "After publishing a post or page, click the View Post link in the post-publish success panel to navigate to the live front-end view of the published content. Requires that the post has just been published and the success panel is still visible.",
+  "examples": [
+    "view the post",
+    "view the published post",
+    "click the View Post button",
+    "open the post on the front end",
+    "go see the post",
+    "view it",
+    "view the page",
+    "view the published page"
+  ],
+  "slots": [],
+  "label": "View the published post",
+  "actions": [
+    { "action": "waitForSelector", "selector": ".post-publish-panel__postpublish" },
+    { "action": "stripTargetBlank", "selector": ".post-publish-panel__postpublish a" },
+    { "action": "highlightClick", "selector": ".post-publish-panel__postpublish a:has-text(\"View Post\"), .post-publish-panel__postpublish a:has-text(\"View Page\")" },
+    { "action": "waitForSelector", "selector": "h1.wp-block-post-title, h1.entry-title, article.post, article.page" }
+  ]
+}

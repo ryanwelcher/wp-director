@@ -25,12 +25,15 @@ You do NOT invent actions. You do NOT write JSON beyond the intent ids and slot 
 ## Rules
 
 - Use ONLY intent ids from the catalog below. If nothing in the catalog covers the request, return an empty \`intents\` array and put the original user text in \`unmatched\`.
-- Returning \`unmatched\` is the correct, expected outcome for prompts that don't fit the catalog. Do NOT stretch to fit. If the prompt is gibberish, nonsensical, or contains no WordPress / admin concept at all (e.g. "bongo bongo", "zip zap", "invent an infinite energy source", "make my site look nice"), return an empty \`intents\` array and put the original text in \`unmatched\`. Never default to a generic navigation intent when the request doesn't actually name a destination.
+- \`unmatched\` must contain ONLY the fragment(s) of the user's request that no catalog intent covered — never the entire original prompt when some intents matched. For a composite request like "create a new post, publish it, and then view the post" where every part matched EXCEPT "view the post", set \`unmatched\` to just "view the post" (not the whole sentence). If every part of the request matched a catalog intent, omit \`unmatched\` entirely. If nothing matched, then \`unmatched\` is the full original text.
+- NEVER silently drop a user-named action just because it feels "implied" by a preceding step. Every distinct verb/action the user wrote must either become a matched intent OR appear in \`unmatched\`. Example: "publish the post and then view the post" — publishing does NOT cover viewing, so "view the post" must end up in \`unmatched\` if no \`view-*\` intent exists. Same for "create a draft and preview it", "save and reload", "publish and share", etc. — the second verb is its own action, not a consequence of the first.
+- Returning \`unmatched\` is the correct, expected outcome for prompts (or fragments) that don't fit the catalog. Do NOT stretch to fit. If the prompt is gibberish, nonsensical, or contains no WordPress / admin concept at all (e.g. "bongo bongo", "zip zap", "invent an infinite energy source", "make my site look nice"), return an empty \`intents\` array and put the original text in \`unmatched\`. Never default to a generic navigation intent when the request doesn't actually name a destination.
 - When two intents could plausibly cover a request, prefer the more specific one. For example "add a new post" / "create a new post" → \`open-new-post\` (not \`navigate-admin\` with section "Add Post"); "add a new page" → \`open-new-page\`. Per-intent descriptions call out these preferences — follow them.
 - Infer obvious structural slots from natural phrasing — for example, "install and activate Jetpack" should emit two intents in order (\`install-plugin\` then \`activate-plugin\`). Do NOT invent body content for content/text slots; leave them out and the server will fill in placeholders.
 - For composite requests ("install Jetpack and create a post"), emit one entry per user intention, in order.
 - For explicit repetition ("five paragraphs"), emit the same intent N times rather than inventing a \`count\` slot.
 - Slot values must match the declared type — booleans as \`true\`/\`false\`, numbers as numbers, enum values exactly as listed.
+- Only use \`open-command-palette\` when the user **explicitly names the command palette** — e.g. "open the command palette", "press Cmd+K", "use the command palette to run X". Do NOT use it as a generic dispatcher for any action the user phrases by name. Examples that must NOT become \`open-command-palette\`: "click the View Post button", "press Save", "view the post", "open the published post", "go view it on the front end", "click X". If no intent in the catalog targets the user's actual goal, return the fragment in \`unmatched\` — do not paper over the gap by typing the goal into the palette.
 
 ## Phrasing → slot hints for insert-block / select-block / delete-block
 
@@ -123,7 +126,7 @@ const CLASSIFY_TOOL = {
       },
       unmatched: {
         type: 'string',
-        description: 'Original user text that did not match any catalog intent. Omit when intents covers the full request.',
+        description: 'Fragment(s) of the user request that no catalog intent covered. CRITICAL: when the user lists multiple actions ("do A, then B, then C") and one of them has no matching intent, you MUST put that specific fragment here — do NOT silently drop it just because it feels implied by another step. Example: for "publish the post and then view the post" where no view-* intent exists, set unmatched to "view the post" (or "then view the post"). Only omit this field when EVERY discrete action the user named was matched to a catalog intent.',
       },
     },
     required: ['intents'],

@@ -196,6 +196,17 @@ async function runStep(step, page, frameStack, ctx, sidebar, settings = { typing
       break;
     }
 
+    case 'stripTargetBlank': {
+      // Removes target="_blank" from links matching the selector so clicks
+      // navigate in the current tab rather than opening a new one.
+      await page.evaluate((selector) => {
+        document.querySelectorAll(selector).forEach((el) => {
+          el.removeAttribute('target');
+        });
+      }, step.selector);
+      break;
+    }
+
     case 'wpInstallPlugin': {
       await page.goto('/wp-admin/plugin-install.php', { waitUntil: 'domcontentloaded' });
       const pluginSearchInput = page.locator('#search-plugins');

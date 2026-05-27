@@ -24,6 +24,39 @@
 
 const { getIntent } = require('./loader');
 const { getRandomText } = require('../../shared/random-text');
+const wpCoreBlocks = require('../../shared/wp-core-blocks.json');
+
+// Suggestion lists indexed by the name used in a slot's `suggestions` field.
+// Mirrors client/DirectionPicker.jsx so the natural-language path normalizes
+// labels ("Query Loop") to identifiers ("query") before substitution.
+const SUGGESTION_LISTS = {
+  'wp-core-blocks': wpCoreBlocks,
+};
+
+// Canonicalize so "Query Loop", "query loop", "query-loop", "Query_Loop"
+// all reduce to the same key. Used for label/value matching only.
+function canonicalKey(s) {
+  return String(s).toLowerCase().replace(/[\s_-]+/g, ' ').trim();
+}
+
+function normalizeAgainstSuggestions(slot, value) {
+  if (typeof value !== 'string' || !value) return value;
+  if (!slot.suggestions) return value;
+  const list = Array.isArray(slot.suggestions)
+    ? slot.suggestions
+    : SUGGESTION_LISTS[slot.suggestions];
+  if (!list) return value;
+  const key = canonicalKey(value);
+  for (const opt of list) {
+    if (typeof opt === 'string') {
+      if (canonicalKey(opt) === key) return opt;
+      continue;
+    }
+    if (opt.value && canonicalKey(opt.value) === key) return opt.value;
+    if (opt.label && canonicalKey(opt.label) === key) return opt.value;
+  }
+  return value;
+}
 
 const PLACEHOLDER_RE = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g;
 const WHOLE_PLACEHOLDER_RE = /^\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}$/;
@@ -67,7 +100,7 @@ function resolveSlots(intent, provided, placeholderCounters) {
   const placeholderSlots = [];
 
   for (const slot of intent.slots) {
-    const value = provided[slot.name];
+    const value = normalizeAgainstSuggestions(slot, provided[slot.name]);
     const empty = value === undefined || value === null || value === '';
     if (empty && slot.placeholderFor) {
       placeholderSlots.push(slot);

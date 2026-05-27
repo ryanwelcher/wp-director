@@ -19,41 +19,72 @@
   "slots": [
     {
       "name": "blockType",
-      "type": "string"
+      "type": "string",
+      "label": "Block type",
+      "placeholder": "e.g. paragraph, heading, image, list",
+      "suggestions": "wp-core-blocks",
+      "description": "Pick one, or type the name of another block."
     },
     {
       "name": "content",
       "type": "string",
       "optional": true,
-      "placeholderFor": "blockType"
+      "placeholderFor": "blockType",
+      "label": "Content",
+      "placeholder": "Leave empty to use placeholder text",
+      "description": "What the block should say. Leave blank to use placeholder text.",
+      "showWhen": { "slot": "blockType", "isTextual": true }
     },
     {
       "name": "mode",
       "type": "enum",
       "values": ["typed", "programmatic"],
-      "default": "typed"
+      "default": "programmatic",
+      "primary": true,
+      "label": "Insert mode",
+      "valueLabels": {
+        "typed": "Show typing",
+        "programmatic": "Instant"
+      },
+      "description": "Animate the typing on screen, or add the block instantly."
     },
     {
       "name": "randomLength",
       "type": "enum",
       "values": ["short", "medium", "long"],
-      "optional": true
+      "optional": true,
+      "label": "Random text length",
+      "description": "Fill the block with filler text of this length.",
+      "showWhen": { "slot": "blockType", "isTextual": true }
     },
     {
       "name": "afterBlockType",
       "type": "string",
-      "optional": true
+      "optional": true,
+      "label": "Insert after block type",
+      "placeholder": "e.g. paragraph",
+      "suggestions": "wp-core-blocks",
+      "description": "Place the new block after a block of this type. Leave blank to add at the bottom."
     },
     {
       "name": "afterBlockIndex",
       "type": "number",
-      "optional": true
+      "optional": true,
+      "label": "Which one",
+      "placeholder": "0",
+      "description": "When there are several, pick which one. 0 means the first."
     },
     {
       "name": "position",
       "type": "enum",
       "values": ["start", "end"],
-      "default": "end"
+      "default": "end",
+      "label": "Where to add it",
+      "valueLabels": {
+        "start": "At the top",
+        "end": "At the bottom"
+      },
+      "description": "Only used when no target block is picked above."
     }
   ],
   "label": "Insert a {{blockType}} block",

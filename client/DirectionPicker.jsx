@@ -3,6 +3,68 @@ import { useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import { useExpandIntentMutation } from './utils/apiHooks.js';
 import { errorMessage } from './utils/actions.js';
+import wpCoreBlocks from '../shared/wp-core-blocks.json';
+
+const SUGGESTION_LISTS = {
+  'wp-core-blocks': wpCoreBlocks,
+};
+
+function resolveSuggestions(slot) {
+  if (!slot.suggestions) return null;
+  if (Array.isArray(slot.suggestions)) return slot.suggestions;
+  return SUGGESTION_LISTS[slot.suggestions] ?? null;
+}
+
+// Suggestions can be plain strings or { value, label } objects. The picker
+// stores DISPLAY strings in form state (so the input shows "Paragraph"), and
+// converts back to identifiers at submit time.
+function visibleSuggestions(suggestions) {
+  if (!suggestions) return null;
+  return suggestions.filter((opt) => typeof opt === 'string' || (!opt.parent && !opt.ancestor));
+}
+
+function suggestionDisplay(suggestions, rawValue) {
+  if (!suggestions || !rawValue) return rawValue ?? '';
+  for (const opt of suggestions) {
+    if (typeof opt === 'string') {
+      if (opt === rawValue) return opt;
+    } else if (opt.value === rawValue) {
+      return opt.label ?? opt.value;
+    }
+  }
+  return rawValue;
+}
+
+function suggestionIdentifier(suggestions, displayValue) {
+  if (!suggestions || !displayValue) return displayValue ?? '';
+  for (const opt of suggestions) {
+    if (typeof opt === 'object' && opt.label === displayValue) return opt.value;
+  }
+  return displayValue;
+}
+
+// Evaluates `slot.showWhen` against the current form values. Currently the
+// only supported predicate is `{ slot: <name>, isTextual: true }`, which is
+// true when the referenced slot's value resolves to a suggestion entry with
+// `textual: true`. Unknown / custom values default to TRUE (show the field)
+// so we never silently drop user input.
+function slotIsVisible(slot, formValues, allSlots) {
+  const rule = slot.showWhen;
+  if (!rule) return true;
+  if (rule.isTextual === true) {
+    const sourceSlot = allSlots.find((s) => s.name === rule.slot);
+    if (!sourceSlot) return true;
+    const displayValue = formValues[rule.slot];
+    if (!displayValue) return true;
+    const suggestions = resolveSuggestions(sourceSlot);
+    if (!suggestions) return true;
+    const identifier = suggestionIdentifier(suggestions, displayValue);
+    const match = suggestions.find((opt) => typeof opt === 'object' && opt.value === identifier);
+    if (!match) return true; // Unknown/custom block — fall back to visible.
+    return match.textual === true;
+  }
+  return true;
+}
 
 /**
  * Quick-insert picker for the intent catalog.
@@ -39,6 +101,7 @@ export function DirectionPicker({ anchorIndex, entries, onClose, onSelect, posit
     return entries.filter((intent) => (
       intent.id.toLowerCase().includes(needle)
       || (intent.description ?? '').toLowerCase().includes(needle)
+      || friendlyLabelText(intent).toLowerCase().includes(needle)
     ));
   }, [entries, filter]);
 
@@ -104,7 +167,7 @@ export function DirectionPicker({ anchorIndex, entries, onClose, onSelect, posit
                 onClick={() => insertWithSlots(intent, {})}
                 disabled={expandIntent.isPending}
               >
-                {intent.id}
+                {renderFriendlyLabel(intent)}
               </button>
             );
           }
@@ -121,7 +184,7 @@ export function DirectionPicker({ anchorIndex, entries, onClose, onSelect, posit
                 title={intent.description}
                 onClick={() => setOpenIntentId(isOpen ? null : intent.id)}
               >
-                {intent.id} <span className="direction-picker-slot-count">({intent.slots.length} slot{intent.slots.length === 1 ? '' : 's'})</span>
+                {renderFriendlyLabel(intent)}
               </button>
               {isOpen && (
                 <SlotForm
@@ -139,6 +202,38 @@ export function DirectionPicker({ anchorIndex, entries, onClose, onSelect, posit
   );
 }
 
+const PLACEHOLDER_RE = /\{\{\s*([\w.-]+)\s*\}\}/g;
+
+function titleizeId(id) {
+  return id.split(/[-_]/).filter(Boolean).map((word) => (
+    word.charAt(0).toUpperCase() + word.slice(1)
+  )).join(' ');
+}
+
+function friendlyLabelText(intent) {
+  const label = intent.label || titleizeId(intent.id);
+  return label.replace(PLACEHOLDER_RE, (_match, token) => token);
+}
+
+function renderFriendlyLabel(intent) {
+  const label = intent.label || titleizeId(intent.id);
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+  PLACEHOLDER_RE.lastIndex = 0;
+  while ((match = PLACEHOLDER_RE.exec(label)) !== null) {
+    if (match.index > lastIndex) parts.push(label.slice(lastIndex, match.index));
+    parts.push(
+      <span key={`${match.index}-${match[1]}`} className="direction-picker-slot-hint">
+        {match[1]}
+      </span>,
+    );
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < label.length) parts.push(label.slice(lastIndex));
+  return parts.length ? parts : label;
+}
+
 function defaultSlotValue(slot) {
   if (slot.default !== undefined) return slot.default;
   if (slot.type === 'boolean') return false;
@@ -147,30 +242,71 @@ function defaultSlotValue(slot) {
   return '';
 }
 
+function titleizeCamel(name) {
+  const spaced = name.replace(/([A-Z])/g, ' $1').toLowerCase().trim();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+function slotLabel(slot) {
+  return slot.label || titleizeCamel(slot.name);
+}
+
+// A slot is "primary" if the user must engage with it. Required slots and
+// placeholderFor slots (which are technically optional but conceptually tied
+// to a required slot, like `content` on insert-block) live in the top group.
+// Everything else lands under "More options".
+function isPrimarySlot(slot) {
+  if (slot.primary) return true;
+  if (slot.placeholderFor) return true;
+  if (slot.optional) return false;
+  if (slot.default !== undefined) return false;
+  return true;
+}
+
 function SlotForm({ intent, isPending, onCancel, onSubmit }) {
   const [values, setValues] = useState(() => {
     const seed = {};
-    for (const slot of intent.slots) seed[slot.name] = defaultSlotValue(slot);
+    for (const slot of intent.slots) {
+      const raw = defaultSlotValue(slot);
+      seed[slot.name] = slot.suggestions
+        ? suggestionDisplay(resolveSuggestions(slot), raw)
+        : raw;
+    }
     return seed;
   });
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   function update(name, value) {
     setValues((current) => ({ ...current, [name]: value }));
   }
 
+  const { primary, advanced } = useMemo(() => {
+    const p = [];
+    const a = [];
+    for (const slot of intent.slots) {
+      if (!slotIsVisible(slot, values, intent.slots)) continue;
+      (isPrimarySlot(slot) ? p : a).push(slot);
+    }
+    return { primary: p, advanced: a };
+  }, [intent.slots, values]);
+
   const missingRequired = intent.slots.some((slot) => {
     if (slot.optional || slot.default !== undefined || slot.placeholderFor) return false;
+    if (!slotIsVisible(slot, values, intent.slots)) return false;
     const value = values[slot.name];
     return value === '' || value === null || value === undefined;
   });
 
   function submit() {
     if (missingRequired) return;
-    // Coerce numbers and drop empty optionals before sending.
     const slots = {};
     for (const slot of intent.slots) {
-      const raw = values[slot.name];
+      if (!slotIsVisible(slot, values, intent.slots)) continue;
+      let raw = values[slot.name];
       if (raw === '' || raw === null || raw === undefined) continue;
+      if (slot.suggestions) {
+        raw = suggestionIdentifier(resolveSuggestions(slot), raw);
+      }
       if (slot.type === 'number') {
         const num = Number(raw);
         if (Number.isFinite(num)) slots[slot.name] = num;
@@ -183,17 +319,27 @@ function SlotForm({ intent, isPending, onCancel, onSubmit }) {
 
   return (
     <div className="direction-picker-slot-form">
-      {intent.slots.map((slot) => (
-        <label key={slot.name} className="direction-picker-slot-row">
-          <span className="direction-picker-slot-label">
-            {slot.name}
-            {!slot.optional && slot.default === undefined && !slot.placeholderFor && (
-              <span className="direction-picker-slot-required" aria-label="required">*</span>
-            )}
-          </span>
-          {renderSlotControl(slot, values[slot.name], (value) => update(slot.name, value))}
-        </label>
+      {primary.map((slot) => (
+        <SlotRow key={slot.name} intentId={intent.id} slot={slot} value={values[slot.name]} onChange={(v) => update(slot.name, v)} />
       ))}
+
+      {advanced.length > 0 && (
+        <div className="direction-picker-slot-group">
+          <button
+            type="button"
+            className="direction-picker-slot-toggle"
+            onClick={() => setShowAdvanced((v) => !v)}
+            aria-expanded={showAdvanced}
+          >
+            <span className="direction-picker-slot-toggle-caret">{showAdvanced ? '▾' : '▸'}</span>
+            More options <span className="direction-picker-slot-toggle-count">({advanced.length})</span>
+          </button>
+          {showAdvanced && advanced.map((slot) => (
+            <SlotRow key={slot.name} intentId={intent.id} slot={slot} value={values[slot.name]} onChange={(v) => update(slot.name, v)} />
+          ))}
+        </div>
+      )}
+
       <div className="direction-picker-slot-actions">
         <button
           className="direction-picker-slot-btn"
@@ -216,7 +362,28 @@ function SlotForm({ intent, isPending, onCancel, onSubmit }) {
   );
 }
 
-function renderSlotControl(slot, value, onChange) {
+function SlotRow({ intentId, slot, value, onChange }) {
+  const isRequired = !slot.optional && slot.default === undefined && !slot.placeholderFor;
+  const datalistId = slot.suggestions ? `slot-suggest-${intentId}-${slot.name}` : null;
+  return (
+    <div className="direction-picker-slot-row">
+      <label className="direction-picker-slot-label">
+        {slotLabel(slot)}
+        {isRequired && (
+          <span className="direction-picker-slot-required" aria-label="required">*</span>
+        )}
+      </label>
+      <div className="direction-picker-slot-control">
+        {renderSlotControl(slot, value, onChange, datalistId)}
+        {slot.description && (
+          <p className="direction-picker-slot-help">{slot.description}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function renderSlotControl(slot, value, onChange, datalistId) {
   if (slot.type === 'enum') {
     return (
       <select
@@ -225,7 +392,9 @@ function renderSlotControl(slot, value, onChange) {
         onChange={(event) => onChange(event.target.value)}
       >
         {(slot.values ?? []).map((option) => (
-          <option key={option} value={option}>{option}</option>
+          <option key={option} value={option}>
+            {slot.valueLabels?.[option] ?? option}
+          </option>
         ))}
       </select>
     );
@@ -246,16 +415,31 @@ function renderSlotControl(slot, value, onChange) {
         className="direction-picker-slot-input"
         type="number"
         value={value ?? ''}
+        placeholder={slot.placeholder ?? ''}
         onChange={(event) => onChange(event.target.value)}
       />
     );
   }
+  const suggestions = resolveSuggestions(slot);
+  const visible = visibleSuggestions(suggestions);
   return (
-    <input
-      className="direction-picker-slot-input"
-      type="text"
-      value={value ?? ''}
-      onChange={(event) => onChange(event.target.value)}
-    />
+    <>
+      <input
+        className="direction-picker-slot-input"
+        type="text"
+        value={value ?? ''}
+        placeholder={slot.placeholder ?? ''}
+        onChange={(event) => onChange(event.target.value)}
+        list={suggestions ? datalistId : undefined}
+      />
+      {visible && (
+        <datalist id={datalistId}>
+          {visible.map((opt) => {
+            const label = typeof opt === 'string' ? opt : (opt.label ?? opt.value);
+            return <option key={typeof opt === 'string' ? opt : opt.value} value={label} />;
+          })}
+        </datalist>
+      )}
+    </>
   );
 }

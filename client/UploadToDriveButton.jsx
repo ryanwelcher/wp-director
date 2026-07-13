@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { api, responseErrorMessage } from './utils/api.js';
+import { api, queryKeys, responseErrorMessage } from './utils/api.js';
 import { errorMessage, isAbortError } from './utils/actions.js';
 import { readSSE } from './utils/sse.js';
 import { pickDriveFolder } from './utils/googlePicker.js';
@@ -138,14 +139,20 @@ async function streamDriveUpload({ dirname, folderId, format }, { signal, onProg
 /**
  * Phase 2: upload a recording to a user-chosen Google Drive folder.
  *
- * On first click, if the server has no cached token, opens the OAuth flow and
- * asks the user to sign in and click again. Once authed, the first upload opens
- * the Google Picker to choose a destination folder; that choice is remembered
- * (localStorage) so later uploads go straight there. A secondary folder button
- * re-opens the picker to change the destination. After upload the file is made
- * public and its shareable link is shown with a Copy button.
+ * These controls only render when signed in to Google Drive — sign-in lives in a
+ * single place (the header), so the row stays clean when Drive isn't connected.
+ * The first upload opens the Google Picker to choose a destination folder; that
+ * choice is remembered (localStorage) so later uploads go straight there. A
+ * secondary folder button re-opens the picker to change the destination. After
+ * upload the file is made public and its shareable link is shown with a Copy
+ * button.
  */
 export function UploadToDriveButton({ recording, disabled }) {
+  const queryClient = useQueryClient();
+  const { data: driveStatus } = useQuery({
+    queryKey: queryKeys.drive.status,
+    queryFn: ({ signal }) => api.getDriveStatus({ signal }),
+  });
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState(null);
   const [folder, setFolder] = useState(() => readRememberedFolder());
@@ -161,17 +168,6 @@ export function UploadToDriveButton({ recording, disabled }) {
     const next = format === 'mp4' ? 'webm' : 'mp4';
     setFormat(next);
     writeRememberedFormat(next);
-  }
-
-  // Ensure we're signed in; if not, kick off OAuth and tell the user to retry.
-  async function ensureAuthed() {
-    const authed = await api.getDriveStatus();
-    if (!authed) {
-      window.open('/api/drive/oauth/start', '_blank', 'noopener');
-      toast.info('Sign in to Google Drive in the new tab, then click again.');
-      return false;
-    }
-    return true;
   }
 
   // Open the Picker and, if a folder is chosen, remember it. Returns the folder
@@ -191,8 +187,6 @@ export function UploadToDriveButton({ recording, disabled }) {
     setProgress(null);
     setPhase('uploading');
     try {
-      if (!(await ensureAuthed())) return;
-
       let destination = folder;
       if (!destination) {
         destination = await chooseFolder();
@@ -217,6 +211,10 @@ export function UploadToDriveButton({ recording, disabled }) {
         toast.info('Upload cancelled.');
       } else {
         toast.error(errorMessage(err, 'Upload to Drive failed'));
+        // Re-check auth: if the token expired or was revoked externally, this
+        // flips the header to signed-out and hides these controls. If we're
+        // still authed, the refetch is a harmless no-op.
+        queryClient.invalidateQueries({ queryKey: queryKeys.drive.status });
       }
     } finally {
       uploadAbortRef.current = null;
@@ -233,7 +231,6 @@ export function UploadToDriveButton({ recording, disabled }) {
   async function handleChangeFolder() {
     setBusy(true);
     try {
-      if (!(await ensureAuthed())) return;
       const picked = await chooseFolder();
       if (picked) toast.success(`Drive destination set to "${picked.name}".`);
     } catch (err) {
@@ -251,6 +248,11 @@ export function UploadToDriveButton({ recording, disabled }) {
       toast.error('Could not copy link.');
     }
   }
+
+  // Show a just-uploaded link even if the status query is momentarily stale, but
+  // otherwise hide all upload controls unless signed in. Sign-in lives solely in
+  // the header — there's no per-row prompt anymore.
+  if (!link && !driveStatus?.authed) return null;
 
   if (link) {
     return (

@@ -47,6 +47,13 @@ require('./server/routes/drive').register(app);
 
 const PORT = process.env.PORT || DEFAULT_SERVER_PORT;
 
+// Bind to loopback only. This is a local single-user tool, and several routes are
+// unauthenticated — notably GET /api/drive/token, which hands out a live Google
+// OAuth access token. Listening on all interfaces (Node's default when no host is
+// given) would expose those to anyone on the same network. Loopback keeps them
+// reachable only from this machine. Overridable via HOST for advanced setups.
+const HOST = process.env.HOST || '127.0.0.1';
+
 async function mountFrontend() {
   const distDir = path.join(__dirname, 'dist/public');
   const distIndex = path.join(distDir, 'index.html');
@@ -73,8 +80,8 @@ async function mountFrontend() {
 async function start() {
   await mountFrontend();
 
-  app.listen(PORT, () => {
-    console.log(`WP Director at http://localhost:${PORT}`);
+  app.listen(PORT, HOST, () => {
+    console.log(`WP Director at http://${HOST}:${PORT}`);
 
     // Pre-warm both Playground slots so the first recording starts immediately
     // without waiting for a cold boot.

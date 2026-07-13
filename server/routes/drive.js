@@ -3,10 +3,11 @@
 /**
  * Google Drive upload — OAuth sign-in + upload a recording, return a public link.
  *
- *   GET  /api/drive/status         → { authed: boolean }
+ *   GET  /api/drive/status         → { authed, configured, email: string | null }
  *   GET  /api/drive/token          → { accessToken, apiKey, appId } for the Picker
  *   GET  /api/drive/oauth/start    → 302 to Google consent screen
  *   GET  /api/drive/oauth/callback → exchanges code, caches token, closes tab
+ *   POST /api/drive/signout        → revokes + clears the cached token
  *   POST /api/drive/upload         → { dirname, folderId? } → { webViewLink }
  *
  * Phase 2: the client-side Google Picker lets the user pick any existing Drive
@@ -15,10 +16,44 @@
  * (drive.file can't write into folders it didn't create).
  */
 
+const crypto = require('crypto');
 const fs = require('fs');
 const { findVideoFile, transcodeToTempMp4 } = require('../video');
 const { parseRecordingDirname } = require('./recordings');
 const drive = require('../lib/google-drive');
+
+// Anti-CSRF nonce for the OAuth round-trip. Generated at /oauth/start, verified
+// at /oauth/callback. Single-slot is fine for a single-user local tool: the most
+// recent sign-in attempt is the one that can complete.
+let pendingOAuthState = null;
+
+// Hostnames we accept in the Host header. The server binds to loopback, but a
+// DNS-rebinding attack can point an attacker-controlled domain at 127.0.0.1 so a
+// malicious page becomes "same-origin" and can read responses (e.g. the Google
+// access token from /token). Rejecting unexpected Host values defeats that: the
+// rebound request still carries the attacker's domain in Host.
+const ALLOWED_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
+
+/** Extract the hostname (no port) from a Host header, or null if unparseable. */
+function hostnameOf(hostHeader) {
+  if (typeof hostHeader !== 'string' || !hostHeader) return null;
+  try {
+    return new URL(`http://${hostHeader}`).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+// Guards all /api/drive routes against DNS-rebinding by requiring a loopback
+// Host. Applied to the whole Drive surface, not just /token, since /status leaks
+// the account email and the POST routes act on the user's Drive.
+function driveHostGuard(req, res, next) {
+  const hostname = hostnameOf(req.headers.host);
+  if (!hostname || !ALLOWED_HOSTS.has(hostname)) {
+    return res.status(403).json({ error: 'Forbidden host.' });
+  }
+  next();
+}
 
 // Filesystem-safe identifier only — rejects traversal before we touch disk.
 // Mirrors isSafeRecordingDirname in routes/recordings.js (exported there in a
@@ -48,8 +83,26 @@ function escapeHtml(str) {
 }
 
 function register(app) {
+  app.use('/api/drive', driveHostGuard);
+
   app.get('/api/drive/status', (req, res) => {
-    res.json({ authed: drive.isAuthed() });
+    const authed = drive.isAuthed();
+    res.json({
+      authed,
+      configured: drive.isConfigured(),
+      email: authed ? drive.getAccountEmail() : null,
+    });
+  });
+
+  // Phase 5: revoke the token with Google and delete the local cache. Idempotent
+  // — signing out when already signed out just returns ok.
+  app.post('/api/drive/signout', async (req, res) => {
+    try {
+      await drive.signOut();
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message || 'Sign-out failed.' });
+    }
   });
 
   // Hands the client-side Google Picker what it needs to browse the user's
@@ -76,7 +129,8 @@ function register(app) {
 
   app.get('/api/drive/oauth/start', (req, res) => {
     try {
-      res.redirect(drive.getAuthUrl());
+      pendingOAuthState = crypto.randomBytes(32).toString('hex');
+      res.redirect(drive.getAuthUrl(pendingOAuthState));
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -86,6 +140,16 @@ function register(app) {
     const code = req.query.code;
     if (typeof code !== 'string' || !code) {
       return res.status(400).send('<p>Missing authorization code.</p>');
+    }
+    // Verify the anti-CSRF nonce before spending the code. Consume it either way
+    // so a nonce can't be replayed.
+    const state = req.query.state;
+    const expected = pendingOAuthState;
+    pendingOAuthState = null;
+    if (!expected || state !== expected) {
+      return res.status(400).set('Content-Type', 'text/html').send(
+        '<p>Sign-in failed: invalid or expired state. Please start again from WP Director.</p>',
+      );
     }
     try {
       await drive.exchangeCode(code);

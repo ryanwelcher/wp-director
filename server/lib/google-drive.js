@@ -26,9 +26,14 @@ const RETRY_BASE_DELAY_MS = 500;
 const RETRY_MAX_DELAY_MS = 8000;
 
 // Lowest privilege that lets the app create/read/manage files it owns. Do not
-// broaden — the Phase 2 folder picker uses the Google Picker API precisely so
-// this can stay the ceiling.
-const SCOPES = ['https://www.googleapis.com/auth/drive.file'];
+// broaden the Drive scope — the Phase 2 folder picker uses the Google Picker API
+// precisely so `drive.file` can stay the ceiling. `userinfo.email` is a separate,
+// identity-only scope (Phase 5) so we can label the signed-in account in the UI;
+// it grants no Drive access.
+const SCOPES = [
+  'https://www.googleapis.com/auth/drive.file',
+  'https://www.googleapis.com/auth/userinfo.email',
+];
 
 // Destination folder the app creates and owns. Under drive.file the app can only
 // see/write folders it created itself, so a hand-made Drive folder is invisible
@@ -87,6 +92,20 @@ function getAuthClient() {
   return client;
 }
 
+/**
+ * Whether the OAuth env vars are present, so the UI can decide whether to offer
+ * a sign-in button at all (vs. opening a tab that would just 500).
+ *
+ * @returns {boolean}
+ */
+function isConfigured() {
+  return Boolean(
+    process.env.GOOGLE_CLIENT_ID &&
+    process.env.GOOGLE_CLIENT_SECRET &&
+    process.env.GOOGLE_REDIRECT_URI,
+  );
+}
+
 /** @returns {boolean} */
 function isAuthed() {
   const tokens = readToken();
@@ -114,19 +133,45 @@ async function getAccessToken() {
  * Consent URL for the sign-in flow. `access_type: 'offline'` + `prompt: 'consent'`
  * ensures we get a refresh token so uploads survive server restarts.
  *
+ * `state` is an anti-CSRF nonce the caller generates, stores, and re-checks on
+ * the callback, so a forged callback can't graft an attacker's auth code onto
+ * this session.
+ *
+ * @param {string} [state]
  * @returns {string}
  */
-function getAuthUrl() {
+function getAuthUrl(state) {
   const client = createOAuthClient();
   return client.generateAuthUrl({
     access_type: 'offline',
     prompt: 'consent',
     scope: SCOPES,
+    ...(state ? { state } : {}),
   });
 }
 
 /**
- * Exchange an OAuth authorization code for tokens and persist them.
+ * Fetch the signed-in user's email via the OpenID userinfo endpoint. Requires
+ * the `userinfo.email` scope. Returns `null` if unavailable (e.g. an older token
+ * granted before that scope was added).
+ *
+ * @param {import('google-auth-library').OAuth2Client} client
+ * @returns {Promise<string | null>}
+ */
+async function fetchUserEmail(client) {
+  try {
+    const oauth2 = google.oauth2({ version: 'v2', auth: client });
+    const { data } = await oauth2.userinfo.get();
+    return data.email || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Exchange an OAuth authorization code for tokens and persist them. Also caches
+ * the account email alongside the tokens (Phase 5) so status checks can label the
+ * signed-in account without a Google round-trip on every request.
  *
  * @param {string} code
  * @returns {Promise<void>}
@@ -134,7 +179,44 @@ function getAuthUrl() {
 async function exchangeCode(code) {
   const client = createOAuthClient();
   const { tokens } = await client.getToken(code);
-  writeToken(tokens);
+  client.setCredentials(tokens);
+  const email = await fetchUserEmail(client);
+  writeToken(email ? { ...tokens, email } : tokens);
+}
+
+/**
+ * The signed-in Google account email, read from the cached token (no network).
+ * `null` if not signed in, or if the token predates the `userinfo.email` scope.
+ *
+ * @returns {string | null}
+ */
+function getAccountEmail() {
+  const tokens = readToken();
+  return tokens?.email || null;
+}
+
+/**
+ * Sign out: revoke the token with Google, then delete the cached token file so
+ * the next upload starts a fresh consent flow. Revocation is best-effort — we
+ * still delete the local token even if the network call fails, so the app's
+ * signed-in state is always cleared.
+ *
+ * @returns {Promise<void>}
+ */
+async function signOut() {
+  const client = getAuthClient();
+  if (client) {
+    try {
+      await client.revokeCredentials();
+    } catch {
+      /* already revoked / expired / offline — local delete below still clears us */
+    }
+  }
+  try {
+    fs.rmSync(GDRIVE_TOKEN_FILE, { force: true });
+  } catch {
+    /* nothing to remove */
+  }
 }
 
 /**
@@ -307,9 +389,12 @@ async function uploadFile({ filePath, name, mimeType, folderId, description, sig
 module.exports = {
   getAuthClient,
   isAuthed,
+  isConfigured,
   getAccessToken,
+  getAccountEmail,
   getAuthUrl,
   exchangeCode,
+  signOut,
   uploadFile,
   isAbortError,
 };

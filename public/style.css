@@ -36,6 +36,89 @@ header p {
   margin-top: 0.2rem;
 }
 
+/* Phase 5: Google Drive account status, pinned top-right and aligned with the
+   sidebar toggle (fixed, so it doesn't affect header flow). */
+.drive-account {
+  /* Height of one control, matched to the sidebar toggle (padding 0.4rem × 2 +
+     1rem line + 2px border) so the account controls are the same box as the
+     hamburger. */
+  --drive-ctl-h: calc(1.8rem + 2px);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  /* Pinned like the sidebar toggle and top-aligned with it, so the controls line
+     up with the hamburger in both signed-in and signed-out states. `right`
+     clears the fixed toggle at the header's top-right corner. */
+  position: fixed;
+  top: 0.85rem;
+  right: 4.25rem;
+  z-index: 300;
+}
+
+.drive-account-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: var(--drive-ctl-h);
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.drive-account-dot {
+  flex: 0 0 auto;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: #34d399;
+}
+
+.drive-account-signout,
+.drive-account-signin {
+  box-sizing: border-box;
+  height: var(--drive-ctl-h);
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  padding: 0 0.7rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.drive-account-signout {
+  background: transparent;
+  border: 1px solid #1e2433;
+  color: #94a3b8;
+}
+
+.drive-account-signout:hover:not(:disabled) {
+  border-color: #4b1c1c;
+  color: #fca5a5;
+}
+
+.drive-account-signout:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.drive-account-signin {
+  background: #1e3a5f;
+  border: 1px solid #2d557f;
+  color: #bae6fd;
+  font-weight: 500;
+}
+
+.drive-account-signin:hover {
+  background: #24466f;
+  border-color: #3b6ea5;
+  color: #e0f2fe;
+}
+
 /* Sidebar sections share a common summary style */
 .sidebar-content > details {
   border-bottom: 1px solid #1e2433;

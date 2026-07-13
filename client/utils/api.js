@@ -74,6 +74,9 @@ export const queryKeys = {
   },
   recordings: ["recordings"],
   scripts: ["scripts"],
+  drive: {
+    status: ["drive", "status"],
+  },
 };
 
 export const api = {
@@ -207,9 +210,20 @@ export const api = {
     return requestJSON(`/api/themes/search?${params.toString()}`, { signal });
   },
 
+  // Returns { authed, configured, email }. `email` is null when signed out or
+  // when the token predates the userinfo.email scope; `configured` is false when
+  // the OAuth env vars are absent (Phase 5).
   async getDriveStatus({ signal } = {}) {
     const data = await requestJSON("/api/drive/status", { signal });
-    return Boolean(data?.authed);
+    return {
+      authed: Boolean(data?.authed),
+      configured: Boolean(data?.configured),
+      email: data?.email ?? null,
+    };
+  },
+
+  async signOutDrive() {
+    return requestJSON("/api/drive/signout", postOptions({}));
   },
 
   // Fetches what the client-side Google Picker needs: a short-lived access

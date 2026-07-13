@@ -73,9 +73,11 @@ Only needed if you want the **Upload to Drive** button on recordings. Skip other
    GOOGLE_APP_ID=...           # project number from step 7
    ```
 
-The first time you click **Upload to Drive**, a tab opens to sign in and grant access; after that the token is cached in `.gdrive-token.json` (gitignored) and reused across restarts. Once signed in, the first upload opens the **Google Picker** so you can choose any existing Drive folder (or create a new one in-flow) as the destination. That choice is remembered locally, so later uploads go straight there — use the folder button next to **Upload to Drive** to change it.
+Use the **Sign in to Google Drive** button in the app header to connect your account: a tab opens to sign in and grant access, then the token is cached in `.gdrive-token.json` (gitignored) and reused across restarts. The per-recording upload controls only appear once you're signed in. The first upload opens the **Google Picker** so you can choose any existing Drive folder (or create a new one in-flow) as the destination. That choice is remembered locally, so later uploads go straight there — use the folder button next to **Upload to Drive** to change it.
 
 Because the app uses the narrow `drive.file` scope, it can see and manage only the files **it** creates — never the rest of your Drive. The Picker grants per-folder access on selection, which is what lets `drive.file` write into a folder you picked. If you upload without picking a folder, files land in an app-owned folder named **WP Director Uploads** (rename via `GOOGLE_DRIVE_FOLDER_NAME`). Uploaded files are made **public (anyone with the link can view)**, so don't upload sensitive recordings.
+
+The app also requests the identity-only `userinfo.email` scope so it can show which Google account is connected in the header, next to a **Sign out** button. This scope grants no Drive access. Sign out revokes the token with Google and deletes the local `.gdrive-token.json`. If you configured the OAuth consent screen with an explicit scope list, add `.../auth/userinfo.email` there too. If you signed in before this scope was added, sign out once and back in for the account email to appear.
 
 ## Running
 

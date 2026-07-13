@@ -2169,7 +2169,9 @@ header p {
 }
 
 .recording-preview-btn,
-.recording-download-btn {
+.recording-download-btn,
+.recording-drive-btn,
+.recording-drive-link button {
   align-items: center;
   background: transparent;
   border: 1px solid #374151;
@@ -2193,7 +2195,26 @@ header p {
 }
 
 .recording-preview-btn:hover,
-.recording-download-btn:hover { border-color: #6b7280; color: #e2e8f0; }
+.recording-download-btn:hover,
+.recording-drive-btn:hover,
+.recording-drive-link button:hover { border-color: #6b7280; color: #e2e8f0; }
+
+.recording-drive-btn:disabled { cursor: default; opacity: 0.5; }
+
+.recording-drive-link {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.3rem;
+}
+
+.recording-drive-link a {
+  color: #60a5fa;
+  font-size: 0.72rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.recording-drive-link a:hover { text-decoration: underline; }
 
 .recording-download-wrap {
   display: inline-block;

@@ -43,6 +43,7 @@ require('./server/routes/recordings').register(app);
 require('./server/routes/previews').register(app);
 require('./server/routes/plugins').register(app);
 require('./server/routes/themes').register(app);
+require('./server/routes/drive').register(app);
 
 const PORT = process.env.PORT || DEFAULT_SERVER_PORT;
 

@@ -6,6 +6,7 @@ import { useRunState } from '../context/RunContext.jsx';
 import { errorMessage } from '../utils/actions.js';
 import { formatFileSize, formatTimestamp } from '../utils/formatters.js';
 import { useDeleteRecordingMutation } from '../utils/apiHooks.js';
+import { UploadToDriveButton } from '../UploadToDriveButton.jsx';
 import { SectionBadge } from './SectionBadge.jsx';
 import { TrashIcon } from './TrashIcon.jsx';
 
@@ -169,6 +170,7 @@ export function RecordingsPanel() {
                         />
                       )}
                     </span>
+                    <UploadToDriveButton recording={recording} disabled={running} />
                     <button
                       className="recording-delete-btn sidebar-delete-icon-btn recording-action-btn danger"
                       type="button"

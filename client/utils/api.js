@@ -207,6 +207,16 @@ export const api = {
     return requestJSON(`/api/themes/search?${params.toString()}`, { signal });
   },
 
+  async getDriveStatus({ signal } = {}) {
+    const data = await requestJSON("/api/drive/status", { signal });
+    return Boolean(data?.authed);
+  },
+
+  async uploadToDrive(dirname) {
+    const data = await requestJSON("/api/drive/upload", postOptions({ dirname }));
+    return data?.webViewLink ?? null;
+  },
+
   startRun(endpoint, body, signal) {
     return apiRequest(endpoint, postOptions(body, { signal }));
   },

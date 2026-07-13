@@ -2210,25 +2210,25 @@ header p {
   padding: 0.75rem 1.5rem 1rem;
 }
 
+/* Fully stacked, left-aligned: name, then meta, then the local file actions
+   (play/download/delete), then the Drive actions on their own row. Each is a
+   flex item in a column, so a row that renders nothing (e.g. Drive when signed
+   out) simply doesn't create a gap. */
 .recording-item {
-  align-items: center;
+  align-items: flex-start;
   border-bottom: 1px solid #1a2035;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   font-size: 0.85rem;
-  gap: 0.25rem 0.6rem;
-  grid-template-areas:
-    "name actions"
-    "meta actions";
-  grid-template-columns: minmax(0, 1fr) auto;
-  padding: 0.55rem 0;
+  gap: 0.35rem;
+  padding: 0.6rem 0;
 }
 
 .recording-item:last-child { border-bottom: none; }
 
 .recording-item-name {
   color: #cbd5e1;
-  grid-area: name;
-  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2240,24 +2240,40 @@ header p {
   flex-wrap: wrap;
   font-size: 0.75rem;
   gap: 0.25rem 0.6rem;
-  grid-area: meta;
   line-height: 1.35;
-  min-width: 0;
 }
 
 .recording-item-actions {
+  align-items: center;
   display: flex;
+  flex-wrap: wrap;
   gap: 0.4rem;
-  grid-area: actions;
 }
+
+/* Small muted caption that heads each button row ("Local" / "Drive") so the two
+   groups read as separate concerns. Fixed min-width so the first button lines up
+   vertically between the two rows. */
+.recording-action-group-label {
+  align-items: center;
+  color: #64748b;
+  display: inline-flex;
+  font-size: 0.62rem;
+  font-weight: 600;
+  gap: 0.28rem;
+  letter-spacing: 0.06em;
+  min-width: 3.4rem;
+  text-transform: uppercase;
+}
+
+.recording-action-group-label .recording-action-icon { height: 0.85rem; width: 0.85rem; }
 
 .recording-preview-btn,
 .recording-download-btn,
 .recording-drive-btn,
+.recording-drive-link-btn,
 .recording-drive-folder-btn,
 .recording-drive-format-btn,
-.recording-drive-progress-btn,
-.recording-drive-link button {
+.recording-drive-progress-btn {
   align-items: center;
   background: transparent;
   border: 1px solid #374151;
@@ -2283,6 +2299,11 @@ header p {
   width: auto;
 }
 
+/* The uploaded-state link opens Drive — tint it blue to distinguish "open link"
+   from the "upload" Drive glyph, even though both use the same icon. */
+.recording-drive-link-btn { border-color: #2f4a6d; color: #60a5fa; }
+.recording-drive-link-btn:hover { border-color: #60a5fa; color: #93c5fd; }
+
 .recording-action-icon {
   display: block;
   height: 0.95rem;
@@ -2293,27 +2314,20 @@ header p {
 .recording-download-btn:hover,
 .recording-drive-btn:hover,
 .recording-drive-folder-btn:hover,
-.recording-drive-format-btn:hover,
-.recording-drive-link button:hover { border-color: #6b7280; color: #e2e8f0; }
+.recording-drive-format-btn:hover { border-color: #6b7280; color: #e2e8f0; }
 
 .recording-drive-btn:disabled,
 .recording-drive-folder-btn:disabled,
 .recording-drive-format-btn:disabled { cursor: default; opacity: 0.5; }
 
-.recording-drive-link {
+/* Drive actions sit on their own row below the local file actions (see
+   .recording-item). Icon-only, matching the play/download/delete buttons. */
+.recording-item-drive {
   align-items: center;
-  display: inline-flex;
-  gap: 0.3rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
 }
-
-.recording-drive-link a {
-  color: #60a5fa;
-  font-size: 0.72rem;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.recording-drive-link a:hover { text-decoration: underline; }
 
 /* Phase 4: in-flight upload progress. Replaces the Drive icon in place at a
    fixed width, so the rest of the row never shifts. The button's own background

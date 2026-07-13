@@ -138,6 +138,7 @@ export function RecordingsPanel() {
                     {fileSize && <span>{fileSize}</span>}
                   </span>
                   <span className="recording-item-actions">
+                    <span className="recording-action-group-label">Local</span>
                     <button
                       className="recording-preview-btn recording-action-btn secondary"
                       type="button"
@@ -170,7 +171,6 @@ export function RecordingsPanel() {
                         />
                       )}
                     </span>
-                    <UploadToDriveButton recording={recording} disabled={running} />
                     <button
                       className="recording-delete-btn sidebar-delete-icon-btn recording-action-btn danger"
                       type="button"
@@ -182,6 +182,7 @@ export function RecordingsPanel() {
                       <TrashIcon />
                     </button>
                   </span>
+                  <UploadToDriveButton recording={recording} disabled={running} />
                 </div>
               );
             })}

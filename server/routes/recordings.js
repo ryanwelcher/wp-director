@@ -167,9 +167,11 @@ function isListableRecordingDir(dirname) {
   return !fs.existsSync(path.join(OUTPUT_DIR, dirname, '.wp-director-preview'));
 }
 
-/** @param {string} dirname */
+/** @param {unknown} dirname */
 function isSafeRecordingDirname(dirname) {
-  return /^[a-z0-9-]+$/i.test(dirname);
+  // Guard the type explicitly: a non-string (e.g. an absent JSON body field)
+  // would otherwise coerce to a string like "undefined" and pass the regex.
+  return typeof dirname === 'string' && /^[a-z0-9-]+$/i.test(dirname);
 }
 
 /**
@@ -316,4 +318,4 @@ function register(app) {
   });
 }
 
-module.exports = { register, parseRecordingDirname };
+module.exports = { register, parseRecordingDirname, isSafeRecordingDirname };

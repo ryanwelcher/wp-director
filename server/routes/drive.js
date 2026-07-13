@@ -19,7 +19,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const { findVideoFile, transcodeToTempMp4 } = require('../video');
-const { parseRecordingDirname } = require('./recordings');
+const { parseRecordingDirname, isSafeRecordingDirname } = require('./recordings');
 const drive = require('../lib/google-drive');
 
 // Anti-CSRF nonce for the OAuth round-trip. Generated at /oauth/start, verified
@@ -55,12 +55,11 @@ function driveHostGuard(req, res, next) {
   next();
 }
 
-// Filesystem-safe identifier only — rejects traversal before we touch disk.
-// Mirrors isSafeRecordingDirname in routes/recordings.js (exported there in a
-// later phase; kept local to avoid coupling the tracer to that refactor).
-function isSafeRecordingDirname(dirname) {
-  return typeof dirname === 'string' && /^[a-z0-9-]+$/i.test(dirname);
-}
+// Recordings currently mid-upload, keyed by dirname. Enforces one in-flight
+// upload per recording (Phase 6): a second POST for the same dirname is rejected
+// with 409 rather than racing to create a duplicate Drive file. Cleared in the
+// upload handler's finally, so a finished/cancelled/failed upload frees the slot.
+const uploadsInFlight = new Set();
 
 // Drive file/folder IDs are opaque URL-safe base64-ish strings. Validate before
 // handing a client-supplied id to the Drive API as an upload parent.
@@ -102,6 +101,31 @@ function register(app) {
       res.json({ ok: true });
     } catch (err) {
       res.status(500).json({ error: err.message || 'Sign-out failed.' });
+    }
+  });
+
+  // Which recordings already have an upload in the signed-in account's Drive,
+  // as a { dirname: webViewLink } map. Queried live (drive.file scope only
+  // returns this app's own files for the current account), so it self-heals when
+  // a file is deleted and is inherently scoped to the signed-in account. The UI
+  // uses it to show an existing link instead of the upload button.
+  app.get('/api/drive/uploads', async (req, res) => {
+    if (!drive.isAuthed()) return res.json({ uploads: {} });
+    try {
+      const files = await drive.listUploadedVideos();
+      const uploads = {};
+      // Uploaded files are named `<dirname>.webm` / `<dirname>.mp4`. The list is
+      // most-recent-first, so the first entry seen for a dirname (its latest
+      // upload) wins.
+      for (const { name, webViewLink } of files) {
+        const dirname = drive.dirnameFromDriveVideoName(name);
+        if (dirname && isSafeRecordingDirname(dirname) && !(dirname in uploads)) {
+          uploads[dirname] = webViewLink;
+        }
+      }
+      res.json({ uploads });
+    } catch (err) {
+      res.status(500).json({ error: err.message || 'Could not list Drive uploads.' });
     }
   });
 
@@ -187,6 +211,14 @@ function register(app) {
     const found = findVideoFile(dirname);
     if (!found) return res.status(404).json({ error: 'Recording not found.' });
 
+    // One in-flight upload per recording. Reject a concurrent POST for the same
+    // dirname before opening the SSE stream, so we never create duplicate Drive
+    // files or race two transcodes over the same recording.
+    if (uploadsInFlight.has(dirname)) {
+      return res.status(409).json({ error: 'An upload for this recording is already in progress.' });
+    }
+    uploadsInFlight.add(dirname);
+
     // Switch to SSE for the long-running upload.
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -211,13 +243,13 @@ function register(app) {
     let lastPct = 0;
     try {
       let filePath = found.file;
-      let name = `${dirname}.${found.ext}`;
+      let name = drive.driveVideoFileName(dirname, found.ext);
       let mimeType = found.mime;
       if (uploadFormat === 'mp4') {
         send({ type: 'transcoding' });
         tempMp4 = await transcodeToTempMp4(found.file);
         filePath = tempMp4;
-        name = `${dirname}.mp4`;
+        name = drive.driveVideoFileName(dirname, 'mp4');
         mimeType = 'video/mp4';
       }
 
@@ -252,6 +284,7 @@ function register(app) {
         send({ type: 'error', error: err.message || 'Upload failed.' });
       }
     } finally {
+      uploadsInFlight.delete(dirname);
       if (tempMp4) fs.rm(tempMp4, { force: true }, () => {});
       if (!res.writableEnded) res.end();
     }

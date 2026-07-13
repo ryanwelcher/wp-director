@@ -50,10 +50,46 @@ function writeRememberedFolder(folder) {
   }
 }
 
+// The Google Drive logo — used only as the small brand marker on the Drive row
+// label, so it no longer collides with the upload/open actions below.
 function DriveIcon() {
   return (
     <svg className="recording-action-icon" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor">
       <path d="M7.7 3.5 1.2 15l3.2 5.5 6.5-11.3zM22.8 15 16.3 3.5H9.9l6.5 11.5zM5.6 16 2.4 21.5h13l3.2-5.5z" />
+    </svg>
+  );
+}
+
+// Cloud + up-arrow: the "send this to Drive" action, visually distinct from both
+// the row's Drive logo and the download button's plain down-arrow.
+function UploadCloudIcon() {
+  return (
+    <svg className="recording-action-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M6.5 19a4.5 4.5 0 0 1-.42-8.98 6 6 0 0 1 11.64-1.28A4.5 4.5 0 0 1 17.5 19"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M12 21v-8m0 0-2.5 2.5M12 13l2.5 2.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// Box + out-arrow: opens the already-uploaded file's share link in a new tab.
+function ExternalLinkIcon() {
+  return (
+    <svg className="recording-action-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none">
+      <path d="M14 4h6v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M20 4 10 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M19 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -85,6 +121,18 @@ function CancelIcon() {
     <svg className="recording-action-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none">
       <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
+  );
+}
+
+// The Drive row shares one header (label + Drive glyph) across both its states —
+// the existing-link view and the upload-controls view. Render it once here so
+// the label, icon, and class can't drift between the two branches.
+function DriveRow({ children }) {
+  return (
+    <div className="recording-item-drive">
+      <span className="recording-action-group-label"><DriveIcon />Drive</span>
+      {children}
+    </div>
   );
 }
 
@@ -153,6 +201,18 @@ export function UploadToDriveButton({ recording, disabled }) {
     queryKey: queryKeys.drive.status,
     queryFn: ({ signal }) => api.getDriveStatus({ signal }),
   });
+  // Recordings already uploaded in the signed-in account's Drive → their links.
+  // Lets us surface an existing link (and hide the upload button) across restarts
+  // without any local bookkeeping — the source of truth is Drive itself.
+  const { data: uploads } = useQuery({
+    queryKey: queryKeys.drive.uploads,
+    queryFn: ({ signal }) => api.getDriveUploads({ signal }),
+    enabled: Boolean(driveStatus?.authed),
+    // The map only changes when we upload (handled by an explicit invalidate),
+    // so serve cached data across row remounts rather than refiring a full Drive
+    // files.list each time.
+    staleTime: 5 * 60 * 1000,
+  });
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState(null);
   const [folder, setFolder] = useState(() => readRememberedFolder());
@@ -163,6 +223,10 @@ export function UploadToDriveButton({ recording, disabled }) {
   const [phase, setPhase] = useState('uploading');
   const [uploading, setUploading] = useState(false);
   const uploadAbortRef = useRef(null);
+
+  // Prefer a just-uploaded link (immediate), otherwise fall back to one Drive
+  // already has for this recording. Either one flips the row to the link view.
+  const effectiveLink = link || uploads?.[recording.dirname] || null;
 
   function toggleFormat() {
     const next = format === 'mp4' ? 'webm' : 'mp4';
@@ -205,6 +269,9 @@ export function UploadToDriveButton({ recording, disabled }) {
         },
       );
       setLink(webViewLink);
+      // Keep the cross-session "already uploaded" map in sync with what we just
+      // created, so a later refetch still shows this recording as uploaded.
+      queryClient.invalidateQueries({ queryKey: queryKeys.drive.uploads });
       toast.success(`Uploaded "${recording.name}" (${format.toUpperCase()}) to "${destination.name}".`);
     } catch (err) {
       if (isAbortError(err)) {
@@ -242,26 +309,33 @@ export function UploadToDriveButton({ recording, disabled }) {
 
   async function copyLink() {
     try {
-      await navigator.clipboard.writeText(link);
+      await navigator.clipboard.writeText(effectiveLink);
       toast.success('Link copied to clipboard.');
     } catch {
       toast.error('Could not copy link.');
     }
   }
 
-  // Show a just-uploaded link even if the status query is momentarily stale, but
-  // otherwise hide all upload controls unless signed in. Sign-in lives solely in
-  // the header — there's no per-row prompt anymore.
-  if (!link && !driveStatus?.authed) return null;
+  // Show a link (just-uploaded or one Drive already has) even if the status query
+  // is momentarily stale, but otherwise hide all upload controls unless signed
+  // in. Sign-in lives solely in the header — there's no per-row prompt anymore.
+  if (!effectiveLink && !driveStatus?.authed) return null;
 
-  if (link) {
+  if (effectiveLink) {
     return (
-      <span className="recording-drive-link">
-        <a href={link} target="_blank" rel="noopener noreferrer" title="Open in Google Drive">
-          Drive link
+      <DriveRow>
+        <a
+          className="recording-drive-link-btn recording-action-btn secondary"
+          href={effectiveLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`Open Google Drive link for ${recording.name}`}
+          title="Open in Google Drive"
+        >
+          <ExternalLinkIcon />
         </a>
         <button
-          className="recording-action-btn secondary"
+          className="recording-drive-btn recording-action-btn secondary"
           type="button"
           aria-label={`Copy Google Drive link for ${recording.name}`}
           title="Copy link"
@@ -269,7 +343,7 @@ export function UploadToDriveButton({ recording, disabled }) {
         >
           <CopyIcon />
         </button>
-      </span>
+      </DriveRow>
     );
   }
 
@@ -281,9 +355,9 @@ export function UploadToDriveButton({ recording, disabled }) {
     ? `Upload to Google Drive → ${folder.name} (as ${formatLabel})`
     : `Upload to Google Drive (as ${formatLabel})`;
 
-  // While an upload is in flight the Drive button is swapped, in place and at a
-  // fixed width, for a compact progress control that doubles as Cancel — so the
-  // rest of the row (format pill, folder, delete) never gets shoved aside.
+  // While an upload is in flight the labeled Upload button is swapped, in place,
+  // for a compact progress control that doubles as Cancel — the format pill and
+  // folder button to its right stay put.
   const pct = progress == null ? null : Math.round(progress * 100);
   // Transcoding and retry waits have no byte progress — show them as busy, not
   // as a stalled percentage.
@@ -296,19 +370,7 @@ export function UploadToDriveButton({ recording, disabled }) {
       : (pct == null ? 'Uploading… — click to cancel' : `Uploading ${pct}% — click to cancel`);
 
   return (
-    <>
-      <button
-        className="recording-drive-format-btn recording-action-btn secondary"
-        type="button"
-        aria-label={`Upload format: ${formatLabel} (click to switch to ${otherLabel})`}
-        title={isMp4
-          ? 'Format: MP4 (compatible) — click for WebM (fast)'
-          : 'Format: WebM (fast) — click for MP4 (compatible)'}
-        disabled={disabled || busy}
-        onClick={toggleFormat}
-      >
-        {formatLabel}
-      </button>
+    <DriveRow>
       {uploading ? (
         <button
           className={`recording-drive-progress-btn recording-action-btn secondary${indeterminate ? ' indeterminate' : ''}`}
@@ -334,9 +396,21 @@ export function UploadToDriveButton({ recording, disabled }) {
           disabled={disabled || busy}
           onClick={handleUpload}
         >
-          <DriveIcon />
+          <UploadCloudIcon />
         </button>
       )}
+      <button
+        className="recording-drive-format-btn recording-action-btn secondary"
+        type="button"
+        aria-label={`Upload format: ${formatLabel} (click to switch to ${otherLabel})`}
+        title={isMp4
+          ? 'Format: MP4 (compatible) — click for WebM (fast)'
+          : 'Format: WebM (fast) — click for MP4 (compatible)'}
+        disabled={disabled || busy}
+        onClick={toggleFormat}
+      >
+        {formatLabel}
+      </button>
       {folder && (
         <button
           className="recording-drive-folder-btn recording-action-btn secondary"
@@ -349,6 +423,6 @@ export function UploadToDriveButton({ recording, disabled }) {
           <FolderIcon />
         </button>
       )}
-    </>
+    </DriveRow>
   );
 }

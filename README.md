@@ -54,6 +54,14 @@ npm run record:action -- "name"  # run a single script by name (grep match)
 
 Recorded videos and screenshots land in `output/`. Use `npm run show-trace` to inspect a run interactively with the Playwright trace viewer.
 
+### Uploading to Google Drive
+
+Each recording in the UI has an **Upload to Drive** control. After a one-time Google sign-in, it uploads the video to a Drive folder you pick (or an app-owned folder), then returns a share link. See [SETUP.md](SETUP.md) for the one-time Google Cloud configuration.
+
+> **⚠️ Privacy: uploaded recordings are public.** To produce a shareable link, WP Director sets the uploaded file's permission to **"anyone with the link can view."** Anyone who obtains the link — not just people you send it to — can watch the recording, and the link may be cached or indexed by third parties. **Do not upload recordings that contain sensitive content** (credentials, private customer data, unreleased material). Delete the file from your Drive to revoke access.
+
+WP Director only ever requests the [`drive.file`](https://developers.google.com/drive/api/guides/api-specific-auth) OAuth scope — it can see and manage **only the files it creates**, never the rest of your Drive. The folder picker uses the client-side Google Picker API specifically so this narrow scope stays the ceiling.
+
 ## How it works
 
 1. `global-setup.js` starts a non-detached `@wp-playground/cli server` on an available CLI port and waits for it to become ready

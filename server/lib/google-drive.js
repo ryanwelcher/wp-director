@@ -93,6 +93,40 @@ function getAuthClient() {
 }
 
 /**
+ * Authed `drive_v3.Drive` client for the signed-in user, or `null` if not
+ * signed in. Wraps the repeated getAuthClient() + google.drive() construction.
+ *
+ * @returns {import('googleapis').drive_v3.Drive | null}
+ */
+function getDriveClient() {
+  const auth = getAuthClient();
+  return auth ? google.drive({ version: 'v3', auth }) : null;
+}
+
+// Video files this app uploads are named `<dirname>.<ext>` (webm or mp4).
+// `driveVideoFileName` and `dirnameFromDriveVideoName` are inverses — keep the
+// naming convention in one place so the upload route (which writes the name) and
+// the uploads listing (which parses it back to a dirname) can't drift apart.
+const VIDEO_UPLOAD_EXTENSIONS = ['webm', 'mp4'];
+const DRIVE_VIDEO_NAME_RE = new RegExp(`\\.(${VIDEO_UPLOAD_EXTENSIONS.join('|')})$`, 'i');
+
+/** @param {string} dirname @param {string} ext */
+function driveVideoFileName(dirname, ext) {
+  return `${dirname}.${ext}`;
+}
+
+/**
+ * Inverse of driveVideoFileName: recover the recording dirname from an uploaded
+ * Drive file's name, or `null` if the name isn't one of ours.
+ *
+ * @param {string} name
+ * @returns {string | null}
+ */
+function dirnameFromDriveVideoName(name) {
+  return DRIVE_VIDEO_NAME_RE.test(name) ? name.replace(DRIVE_VIDEO_NAME_RE, '') : null;
+}
+
+/**
  * Whether the OAuth env vars are present, so the UI can decide whether to offer
  * a sign-in button at all (vs. opening a tab that would just 500).
  *
@@ -247,6 +281,31 @@ async function getOrCreateUploadFolder(drive) {
   return created.data.id;
 }
 
+/**
+ * List the video files this app has uploaded, most-recent first. Under the
+ * `drive.file` scope, `files.list` only returns files this app itself created
+ * *for the currently signed-in account* — so the result is inherently scoped to
+ * that account (sign in as someone else and you see none of these). Used to
+ * detect whether a recording was already uploaded and surface its existing link
+ * without any local bookkeeping. Returns `[]` when signed out.
+ *
+ * @returns {Promise<Array<{ name: string, webViewLink: string }>>}
+ */
+async function listUploadedVideos() {
+  const drive = getDriveClient();
+  if (!drive) return [];
+  const res = await drive.files.list({
+    q: "trashed=false and (mimeType='video/webm' or mimeType='video/mp4')",
+    fields: 'files(name, webViewLink, modifiedTime)',
+    orderBy: 'modifiedTime desc',
+    spaces: 'drive',
+    pageSize: 1000,
+  });
+  return (res.data.files || [])
+    .filter((f) => f.name && f.webViewLink)
+    .map((f) => ({ name: /** @type {string} */ (f.name), webViewLink: /** @type {string} */ (f.webViewLink) }));
+}
+
 /** An Error the caller can recognize as a user- or disconnect-driven cancellation. */
 function abortError() {
   const err = new Error('Upload cancelled.');
@@ -336,10 +395,8 @@ function countingStream(filePath, onBytes) {
  * @returns {Promise<{ id: string, webViewLink: string }>}
  */
 async function uploadFile({ filePath, name, mimeType, folderId, description, signal, onProgress }) {
-  const auth = getAuthClient();
-  if (!auth) throw new Error('Not signed in to Google Drive.');
-
-  const drive = google.drive({ version: 'v3', auth });
+  const drive = getDriveClient();
+  if (!drive) throw new Error('Not signed in to Google Drive.');
 
   const parentId = folderId || await getOrCreateUploadFolder(drive);
   const requestBody = { name, parents: [parentId] };
@@ -396,5 +453,8 @@ module.exports = {
   exchangeCode,
   signOut,
   uploadFile,
+  listUploadedVideos,
+  driveVideoFileName,
+  dirnameFromDriveVideoName,
   isAbortError,
 };

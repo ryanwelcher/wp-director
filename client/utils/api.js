@@ -76,6 +76,7 @@ export const queryKeys = {
   scripts: ["scripts"],
   drive: {
     status: ["drive", "status"],
+    uploads: ["drive", "uploads"],
   },
 };
 
@@ -224,6 +225,13 @@ export const api = {
 
   async signOutDrive() {
     return requestJSON("/api/drive/signout", postOptions({}));
+  },
+
+  // Map of { dirname: webViewLink } for recordings already uploaded to the
+  // signed-in account's Drive. Empty when signed out.
+  async getDriveUploads({ signal } = {}) {
+    const data = await requestJSON("/api/drive/uploads", { signal });
+    return data?.uploads ?? {};
   },
 
   // Fetches what the client-side Google Picker needs: a short-lived access

@@ -218,12 +218,14 @@ export const api = {
     return requestJSON("/api/drive/token", { signal });
   },
 
-  async uploadToDrive(dirname, folderId, format) {
+  // Phase 4: the upload streams progress as SSE. Returns the raw fetch Response
+  // so the caller can read the event stream (and abort it via `signal` to cancel
+  // the in-flight upload). Mirrors `startRun`.
+  startDriveUpload(dirname, folderId, format, signal) {
     const body = { dirname };
     if (folderId) body.folderId = folderId;
     if (format) body.format = format;
-    const data = await requestJSON("/api/drive/upload", postOptions(body));
-    return data?.webViewLink ?? null;
+    return apiRequest("/api/drive/upload", postOptions(body, { signal }));
   },
 
   startRun(endpoint, body, signal) {

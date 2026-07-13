@@ -99,6 +99,10 @@ function register(app) {
     }
   });
 
+  // Streams the upload as Server-Sent Events (Phase 4) so the UI can show byte
+  // progress, a transcode/retry phase, and a Cancel button. Validation errors
+  // are returned as plain JSON *before* switching the response to SSE; once the
+  // stream is open we only emit `data:` events.
   app.post('/api/drive/upload', async (req, res) => {
     const { dirname, folderId, format } = req.body || {};
     if (!isSafeRecordingDirname(dirname)) {
@@ -119,14 +123,34 @@ function register(app) {
     const found = findVideoFile(dirname);
     if (!found) return res.status(404).json({ error: 'Recording not found.' });
 
+    // Switch to SSE for the long-running upload.
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    const send = (data) => {
+      if (res.destroyed || res.writableEnded) return;
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+    };
+
+    // Cancel the in-flight upload when the client disconnects (Cancel button
+    // aborts its fetch, closing this response). Drive's session is left to GC.
+    const controller = new AbortController();
+    res.on('close', () => {
+      if (!res.writableEnded) controller.abort();
+    });
+
     // For MP4 we transcode the canonical WebM to a temp file first (Drive's
     // resumable upload wants a seekable file); delete it once we're done.
     let tempMp4 = null;
+    // Throttle progress: emit only when the percentage advances by >=1% (plus
+    // the final byte), so a fast upload doesn't flood the stream.
+    let lastPct = 0;
     try {
       let filePath = found.file;
       let name = `${dirname}.${found.ext}`;
       let mimeType = found.mime;
       if (uploadFormat === 'mp4') {
+        send({ type: 'transcoding' });
         tempMp4 = await transcodeToTempMp4(found.file);
         filePath = tempMp4;
         name = `${dirname}.mp4`;
@@ -142,12 +166,30 @@ function register(app) {
         mimeType,
         folderId,
         description: buildDescription(dirname),
+        signal: controller.signal,
+        onProgress: (p) => {
+          if (p.retrying) {
+            lastPct = 0;
+            send({ type: 'retrying', attempt: p.attempt });
+            return;
+          }
+          const pct = p.totalBytes ? p.bytesUploaded / p.totalBytes : 0;
+          const atEnd = p.totalBytes > 0 && p.bytesUploaded >= p.totalBytes;
+          if (!atEnd && pct - lastPct < 0.01) return;
+          lastPct = pct;
+          send({ type: 'progress', bytesUploaded: p.bytesUploaded, totalBytes: p.totalBytes });
+        },
       });
-      res.json({ webViewLink });
+      send({ type: 'done', webViewLink });
     } catch (err) {
-      res.status(500).json({ error: err.message || 'Upload failed.' });
+      if (drive.isAbortError(err) || controller.signal.aborted) {
+        send({ type: 'error', cancelled: true, error: 'Upload cancelled.' });
+      } else {
+        send({ type: 'error', error: err.message || 'Upload failed.' });
+      }
     } finally {
       if (tempMp4) fs.rm(tempMp4, { force: true }, () => {});
+      if (!res.writableEnded) res.end();
     }
   });
 }

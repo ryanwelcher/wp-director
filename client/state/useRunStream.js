@@ -1,13 +1,9 @@
 import { useCallback, useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
-import { errorMessage } from '../utils/actions.js';
+import { errorMessage, isAbortError } from '../utils/actions.js';
 import { api, responseErrorMessage } from '../utils/api.js';
 import { readSSE } from '../utils/sse.js';
-
-function isAbortError(err) {
-  return !!err && typeof err === 'object' && 'name' in err && err.name === 'AbortError';
-}
 
 export function useRunStream({
   appendLog,

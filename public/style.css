@@ -2173,6 +2173,7 @@ header p {
 .recording-drive-btn,
 .recording-drive-folder-btn,
 .recording-drive-format-btn,
+.recording-drive-progress-btn,
 .recording-drive-link button {
   align-items: center;
   background: transparent;
@@ -2230,6 +2231,51 @@ header p {
 }
 
 .recording-drive-link a:hover { text-decoration: underline; }
+
+/* Phase 4: in-flight upload progress. Replaces the Drive icon in place at a
+   fixed width, so the rest of the row never shifts. The button's own background
+   fills left-to-right as bytes upload; the percentage sits on top; hovering
+   swaps in an ✕ to make "click to cancel" discoverable. */
+.recording-drive-progress-btn {
+  --drive-pct: 0%;
+  cursor: pointer;
+  font-size: 0.6rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  min-width: 2.35rem;
+  overflow: hidden;
+  padding: 0 0.3rem;
+  position: relative;
+  width: auto;
+  /* Determinate fill: opaque up to --drive-pct, track colour beyond. */
+  background:
+    linear-gradient(to right, rgba(96, 165, 250, 0.35) var(--drive-pct), transparent var(--drive-pct));
+  border-color: #3b5a86;
+  color: #cbd5f5;
+}
+
+.recording-drive-progress-btn:hover {
+  border-color: #60a5fa;
+  color: #e2e8f0;
+}
+
+/* Indeterminate (transcode / retry / unknown size): sweep a highlight across. */
+.recording-drive-progress-btn.indeterminate {
+  background:
+    linear-gradient(100deg, transparent 20%, rgba(96, 165, 250, 0.4) 50%, transparent 80%)
+      0 0 / 220% 100% no-repeat;
+  animation: recording-drive-indeterminate 1.2s ease-in-out infinite;
+}
+
+@keyframes recording-drive-indeterminate {
+  0% { background-position: 130% 0; }
+  100% { background-position: -70% 0; }
+}
+
+.recording-drive-progress-btn .drive-progress-pct { display: block; }
+.recording-drive-progress-btn .drive-progress-x { display: none; }
+.recording-drive-progress-btn:hover .drive-progress-pct { display: none; }
+.recording-drive-progress-btn:hover .drive-progress-x { display: block; }
 
 .recording-download-wrap {
   display: inline-block;

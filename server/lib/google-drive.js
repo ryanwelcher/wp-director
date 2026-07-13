@@ -13,8 +13,17 @@
  */
 
 const fs = require('fs');
+const { PassThrough } = require('stream');
 const { google } = require('googleapis');
 const { GDRIVE_TOKEN_FILE } = require('../config');
+
+// Upload retry policy (Phase 4). Retry transient failures (5xx / 429 / network
+// drops) a handful of times with exponential backoff. googleapis/gaxios can't
+// replay a consumed stream body across retries, so we own the loop and hand it
+// a fresh read stream each attempt.
+const MAX_UPLOAD_ATTEMPTS = 4;
+const RETRY_BASE_DELAY_MS = 500;
+const RETRY_MAX_DELAY_MS = 8000;
 
 // Lowest privilege that lets the app create/read/manage files it owns. Do not
 // broaden — the Phase 2 folder picker uses the Google Picker API precisely so
@@ -156,15 +165,95 @@ async function getOrCreateUploadFolder(drive) {
   return created.data.id;
 }
 
+/** An Error the caller can recognize as a user- or disconnect-driven cancellation. */
+function abortError() {
+  const err = new Error('Upload cancelled.');
+  err.name = 'AbortError';
+  return err;
+}
+
+/** @param {any} err */
+function isAbortError(err) {
+  return Boolean(err) && (err.name === 'AbortError' || err.code === 'ABORT_ERR');
+}
+
+// Transient failures worth retrying: server-side 5xx, 429 rate limits, and
+// low-level network drops. Client 4xx (bad request, auth) are terminal.
+const RETRYABLE_NET_CODES = new Set([
+  'ECONNRESET', 'ETIMEDOUT', 'ENOTFOUND', 'EAI_AGAIN',
+  'ECONNREFUSED', 'EPIPE', 'ECONNABORTED', 'ERR_STREAM_PREMATURE_CLOSE',
+]);
+
+/** @param {any} err */
+function isRetryableUploadError(err) {
+  if (!err) return false;
+  const status = typeof err.status === 'number'
+    ? err.status
+    : (typeof err.response?.status === 'number' ? err.response.status : null);
+  if (status !== null) return status === 429 || status >= 500;
+  return typeof err.code === 'string' && RETRYABLE_NET_CODES.has(err.code);
+}
+
 /**
- * Resumable upload of a local file, then make it public (anyone with the link
- * can view) and return its share link. If no folderId is given, uploads to the
- * app-owned upload folder (created on first use).
+ * Sleep that rejects with an abort error if `signal` fires first, so a cancelled
+ * upload doesn't sit idle in a backoff wait.
  *
- * @param {{ filePath: string, name: string, mimeType: string, folderId?: string, description?: string }} opts
+ * @param {number} ms
+ * @param {AbortSignal} [signal]
+ * @returns {Promise<void>}
+ */
+function delay(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(abortError());
+    const timer = setTimeout(() => { cleanup(); resolve(); }, ms);
+    const onAbort = () => { cleanup(); reject(abortError()); };
+    function cleanup() {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', onAbort);
+    }
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+/**
+ * Read stream that reports cumulative bytes read as they flow toward the upload.
+ * We can't use gaxios's `onUploadProgress` (declared but never fired in gaxios
+ * v7), so we count bytes on a PassThrough the SDK consumes as the request body.
+ *
+ * @param {string} filePath
+ * @param {(bytesRead: number) => void} onBytes
+ * @returns {import('stream').PassThrough}
+ */
+function countingStream(filePath, onBytes) {
+  const source = fs.createReadStream(filePath);
+  const pass = new PassThrough();
+  let sent = 0;
+  pass.on('data', (chunk) => { sent += chunk.length; onBytes(sent); });
+  source.on('error', (err) => pass.destroy(err));
+  source.pipe(pass);
+  return pass;
+}
+
+/**
+ * Upload a local file, then make it public (anyone with the link can view) and
+ * return its share link. If no folderId is given, uploads to the app-owned
+ * upload folder (created on first use).
+ *
+ * Phase 4: reports byte progress via `onProgress`, is cancellable via `signal`,
+ * and retries transient failures with exponential backoff.
+ *
+ * @param {{
+ *   filePath: string,
+ *   name: string,
+ *   mimeType: string,
+ *   folderId?: string,
+ *   description?: string,
+ *   signal?: AbortSignal,
+ *   onProgress?: (p: { bytesUploaded: number, totalBytes: number, retrying?: boolean, attempt?: number }) => void,
+ * }} opts
  * @returns {Promise<{ id: string, webViewLink: string }>}
  */
-async function uploadFile({ filePath, name, mimeType, folderId, description }) {
+async function uploadFile({ filePath, name, mimeType, folderId, description, signal, onProgress }) {
   const auth = getAuthClient();
   if (!auth) throw new Error('Not signed in to Google Drive.');
 
@@ -175,20 +264,39 @@ async function uploadFile({ filePath, name, mimeType, folderId, description }) {
   // Drive `description` metadata — makes the file findable later (Phase 3).
   if (description) requestBody.description = description;
 
-  const created = await drive.files.create({
-    requestBody,
-    media: { mimeType, body: fs.createReadStream(filePath) },
-    fields: 'id, webViewLink',
-  });
+  let totalBytes = 0;
+  try { totalBytes = fs.statSync(filePath).size; } catch { /* size unknown — progress goes indeterminate */ }
+
+  let created;
+  for (let attempt = 0; ; attempt++) {
+    if (signal?.aborted) throw abortError();
+    try {
+      const body = countingStream(filePath, (bytesUploaded) => {
+        onProgress?.({ bytesUploaded, totalBytes });
+      });
+      created = await drive.files.create(
+        { requestBody, media: { mimeType, body }, fields: 'id, webViewLink' },
+        { signal },
+      );
+      break;
+    } catch (err) {
+      if (isAbortError(err) || signal?.aborted) throw abortError();
+      const canRetry = attempt < MAX_UPLOAD_ATTEMPTS - 1 && isRetryableUploadError(err);
+      if (!canRetry) throw err;
+      const backoff = Math.min(RETRY_BASE_DELAY_MS * 2 ** attempt, RETRY_MAX_DELAY_MS);
+      onProgress?.({ bytesUploaded: 0, totalBytes, retrying: true, attempt: attempt + 1 });
+      await delay(backoff, signal);
+    }
+  }
 
   const id = created.data.id;
   if (!id) throw new Error('Drive upload did not return a file id.');
 
   // "anyone / reader" == public link, view-only.
-  await drive.permissions.create({
-    fileId: id,
-    requestBody: { role: 'reader', type: 'anyone' },
-  });
+  await drive.permissions.create(
+    { fileId: id, requestBody: { role: 'reader', type: 'anyone' } },
+    { signal },
+  );
 
   const webViewLink = created.data.webViewLink;
   if (!webViewLink) throw new Error('Drive upload succeeded but returned no shareable link.');
@@ -203,4 +311,5 @@ module.exports = {
   getAuthUrl,
   exchangeCode,
   uploadFile,
+  isAbortError,
 };

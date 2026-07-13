@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { toast } from 'react-toastify';
-import { api } from './utils/api.js';
-import { errorMessage } from './utils/actions.js';
+import { api, responseErrorMessage } from './utils/api.js';
+import { errorMessage, isAbortError } from './utils/actions.js';
+import { readSSE } from './utils/sse.js';
 import { pickDriveFolder } from './utils/googlePicker.js';
 
 // Last-used Drive folder, remembered globally (id + name) so repeat uploads
@@ -78,6 +79,62 @@ function CopyIcon() {
   );
 }
 
+function CancelIcon() {
+  return (
+    <svg className="recording-action-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none">
+      <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/**
+ * Drive the SSE upload stream (Phase 4). Reports byte progress and phase changes
+ * through the callbacks; resolves with the shareable link. Throws an AbortError
+ * if cancelled (via `signal`) or the server reports cancellation, and a regular
+ * Error on failure.
+ */
+async function streamDriveUpload({ dirname, folderId, format }, { signal, onProgress, onPhase }) {
+  const res = await api.startDriveUpload(dirname, folderId, format, signal);
+  if (!res.ok) throw new Error(await responseErrorMessage(res));
+
+  let link = null;
+  let failure = null;
+  let cancelled = false;
+
+  await readSSE(res, (msg) => {
+    switch (msg.type) {
+      case 'transcoding':
+        onPhase('transcoding');
+        break;
+      case 'retrying':
+        onPhase('retrying');
+        break;
+      case 'progress':
+        onPhase('uploading');
+        onProgress(msg.totalBytes ? msg.bytesUploaded / msg.totalBytes : null);
+        break;
+      case 'done':
+        link = msg.webViewLink;
+        break;
+      case 'error':
+        failure = msg.error || 'Upload failed.';
+        cancelled = Boolean(msg.cancelled);
+        break;
+      default:
+        break;
+    }
+  });
+
+  if (cancelled) {
+    const err = new Error(failure || 'Upload cancelled.');
+    err.name = 'AbortError';
+    throw err;
+  }
+  if (failure) throw new Error(failure);
+  if (!link) throw new Error('No link returned');
+  return link;
+}
+
 /**
  * Phase 2: upload a recording to a user-chosen Google Drive folder.
  *
@@ -93,6 +150,12 @@ export function UploadToDriveButton({ recording, disabled }) {
   const [link, setLink] = useState(null);
   const [folder, setFolder] = useState(() => readRememberedFolder());
   const [format, setFormat] = useState(() => readRememberedFormat());
+  // Upload progress (0..1, or null while indeterminate) and phase, plus an
+  // AbortController so the Cancel button can abort the in-flight upload.
+  const [progress, setProgress] = useState(null);
+  const [phase, setPhase] = useState('uploading');
+  const [uploading, setUploading] = useState(false);
+  const uploadAbortRef = useRef(null);
 
   function toggleFormat() {
     const next = format === 'mp4' ? 'webm' : 'mp4';
@@ -125,6 +188,8 @@ export function UploadToDriveButton({ recording, disabled }) {
 
   async function handleUpload() {
     setBusy(true);
+    setProgress(null);
+    setPhase('uploading');
     try {
       if (!(await ensureAuthed())) return;
 
@@ -134,15 +199,35 @@ export function UploadToDriveButton({ recording, disabled }) {
         if (!destination) return; // user cancelled the picker
       }
 
-      const webViewLink = await api.uploadToDrive(recording.dirname, destination.id, format);
-      if (!webViewLink) throw new Error('No link returned');
+      const controller = new AbortController();
+      uploadAbortRef.current = controller;
+      setUploading(true);
+      const webViewLink = await streamDriveUpload(
+        { dirname: recording.dirname, folderId: destination.id, format },
+        {
+          signal: controller.signal,
+          onProgress: setProgress,
+          onPhase: setPhase,
+        },
+      );
       setLink(webViewLink);
       toast.success(`Uploaded "${recording.name}" (${format.toUpperCase()}) to "${destination.name}".`);
     } catch (err) {
-      toast.error(errorMessage(err, 'Upload to Drive failed'));
+      if (isAbortError(err)) {
+        toast.info('Upload cancelled.');
+      } else {
+        toast.error(errorMessage(err, 'Upload to Drive failed'));
+      }
     } finally {
+      uploadAbortRef.current = null;
+      setUploading(false);
+      setProgress(null);
       setBusy(false);
     }
+  }
+
+  function cancelUpload() {
+    uploadAbortRef.current?.abort();
   }
 
   async function handleChangeFolder() {
@@ -194,6 +279,20 @@ export function UploadToDriveButton({ recording, disabled }) {
     ? `Upload to Google Drive → ${folder.name} (as ${formatLabel})`
     : `Upload to Google Drive (as ${formatLabel})`;
 
+  // While an upload is in flight the Drive button is swapped, in place and at a
+  // fixed width, for a compact progress control that doubles as Cancel — so the
+  // rest of the row (format pill, folder, delete) never gets shoved aside.
+  const pct = progress == null ? null : Math.round(progress * 100);
+  // Transcoding and retry waits have no byte progress — show them as busy, not
+  // as a stalled percentage.
+  const indeterminate = pct == null || phase === 'transcoding' || phase === 'retrying';
+  const progressLabel = indeterminate ? '···' : `${pct}%`;
+  const progressTitle = phase === 'transcoding'
+    ? 'Transcoding… — click to cancel'
+    : phase === 'retrying'
+      ? 'Retrying… — click to cancel'
+      : (pct == null ? 'Uploading… — click to cancel' : `Uploading ${pct}% — click to cancel`);
+
   return (
     <>
       <button
@@ -208,16 +307,34 @@ export function UploadToDriveButton({ recording, disabled }) {
       >
         {formatLabel}
       </button>
-      <button
-        className="recording-drive-btn recording-action-btn secondary"
-        type="button"
-        aria-label={`Upload ${recording.name} to Google Drive${folder ? ` (${folder.name})` : ''}`}
-        title={uploadTitle}
-        disabled={disabled || busy}
-        onClick={handleUpload}
-      >
-        <DriveIcon />
-      </button>
+      {uploading ? (
+        <button
+          className={`recording-drive-progress-btn recording-action-btn secondary${indeterminate ? ' indeterminate' : ''}`}
+          type="button"
+          role="progressbar"
+          aria-label={`Cancel uploading ${recording.name} to Google Drive`}
+          aria-valuenow={indeterminate ? undefined : pct}
+          aria-valuemin={indeterminate ? undefined : 0}
+          aria-valuemax={indeterminate ? undefined : 100}
+          title={progressTitle}
+          onClick={cancelUpload}
+          style={indeterminate ? undefined : { '--drive-pct': `${pct}%` }}
+        >
+          <span className="drive-progress-pct" aria-hidden="true">{progressLabel}</span>
+          <span className="drive-progress-x" aria-hidden="true"><CancelIcon /></span>
+        </button>
+      ) : (
+        <button
+          className="recording-drive-btn recording-action-btn secondary"
+          type="button"
+          aria-label={`Upload ${recording.name} to Google Drive${folder ? ` (${folder.name})` : ''}`}
+          title={uploadTitle}
+          disabled={disabled || busy}
+          onClick={handleUpload}
+        >
+          <DriveIcon />
+        </button>
+      )}
       {folder && (
         <button
           className="recording-drive-folder-btn recording-action-btn secondary"

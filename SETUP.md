@@ -52,25 +52,30 @@ Only needed if you want the **Upload to Drive** button on recordings. Skip other
 
 1. Go to the [Google Cloud Console](https://console.cloud.google.com/) and create (or pick) a project.
 2. **Enable the Google Drive API**: APIs & Services → Library → search "Google Drive API" → Enable.
-3. **Configure the OAuth consent screen** (External is fine for a personal tool); add your own Google account as a Test user so you can sign in while the app is unverified.
-4. **Create an OAuth client ID**: APIs & Services → Credentials → Create Credentials → OAuth client ID → **Web application**. Under *Authorized redirect URIs* add exactly:
+3. **Enable the Google Picker API**: APIs & Services → Library → search "Google Picker API" → Enable. (Used by the folder picker.)
+4. **Configure the OAuth consent screen** (External is fine for a personal tool); add your own Google account as a Test user so you can sign in while the app is unverified.
+5. **Create an OAuth client ID**: APIs & Services → Credentials → Create Credentials → OAuth client ID → **Web application**. Under *Authorized redirect URIs* add exactly:
 
    ```
    http://127.0.0.1:3000/api/drive/oauth/callback
    ```
 
    Copy the generated **Client ID** and **Client secret**.
-5. Add the three values to `.env`:
+6. **Create a browser API key** (for the Picker): APIs & Services → Credentials → Create Credentials → **API key**. Copy it. (Optional but recommended: restrict it to the Google Picker API under *API restrictions*.)
+7. **Note your project number** (the Picker's "app ID"): the project number is shown on the Cloud Console **Dashboard** / project picker (a long integer, not the project *ID* slug).
+8. Add the values to `.env`:
 
    ```
    GOOGLE_CLIENT_ID=...
    GOOGLE_CLIENT_SECRET=...
    GOOGLE_REDIRECT_URI=http://127.0.0.1:3000/api/drive/oauth/callback
+   GOOGLE_API_KEY=...          # browser API key from step 6
+   GOOGLE_APP_ID=...           # project number from step 7
    ```
 
-You don't need to pick a destination folder. Because the app uses the narrow `drive.file` scope, it can only write into folders **it** created, so on first upload it creates and reuses a folder named **WP Director Uploads** in your Drive. Rename it by setting `GOOGLE_DRIVE_FOLDER_NAME` in `.env`.
+The first time you click **Upload to Drive**, a tab opens to sign in and grant access; after that the token is cached in `.gdrive-token.json` (gitignored) and reused across restarts. Once signed in, the first upload opens the **Google Picker** so you can choose any existing Drive folder (or create a new one in-flow) as the destination. That choice is remembered locally, so later uploads go straight there — use the folder button next to **Upload to Drive** to change it.
 
-The first time you click **Upload to Drive**, a tab opens to sign in and grant access; after that the token is cached in `.gdrive-token.json` (gitignored) and reused across restarts. The `drive.file` scope means the app can see and manage only the files it creates — never the rest of your Drive. Uploaded files are made **public (anyone with the link can view)**, so don't upload sensitive recordings.
+Because the app uses the narrow `drive.file` scope, it can see and manage only the files **it** creates — never the rest of your Drive. The Picker grants per-folder access on selection, which is what lets `drive.file` write into a folder you picked. If you upload without picking a folder, files land in an app-owned folder named **WP Director Uploads** (rename via `GOOGLE_DRIVE_FOLDER_NAME`). Uploaded files are made **public (anyone with the link can view)**, so don't upload sensitive recordings.
 
 ## Running
 

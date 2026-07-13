@@ -85,6 +85,23 @@ function isAuthed() {
 }
 
 /**
+ * Return a fresh OAuth access token for the signed-in user, or `null` if not
+ * signed in. The SDK refreshes it from the cached refresh token when expired.
+ *
+ * Phase 2: the client-side Google Picker needs this short-lived access token to
+ * browse the user's Drive. We hand out only the access token (never the refresh
+ * token) and rely on its short TTL — see the token-exposure note in the plan.
+ *
+ * @returns {Promise<string | null>}
+ */
+async function getAccessToken() {
+  const client = getAuthClient();
+  if (!client) return null;
+  const { token } = await client.getAccessToken();
+  return token || null;
+}
+
+/**
  * Consent URL for the sign-in flow. `access_type: 'offline'` + `prompt: 'consent'`
  * ensures we get a refresh token so uploads survive server restarts.
  *
@@ -180,6 +197,7 @@ async function uploadFile({ filePath, name, mimeType, folderId }) {
 module.exports = {
   getAuthClient,
   isAuthed,
+  getAccessToken,
   getAuthUrl,
   exchangeCode,
   uploadFile,

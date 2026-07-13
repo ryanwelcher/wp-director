@@ -2171,6 +2171,7 @@ header p {
 .recording-preview-btn,
 .recording-download-btn,
 .recording-drive-btn,
+.recording-drive-folder-btn,
 .recording-drive-link button {
   align-items: center;
   background: transparent;
@@ -2197,9 +2198,11 @@ header p {
 .recording-preview-btn:hover,
 .recording-download-btn:hover,
 .recording-drive-btn:hover,
+.recording-drive-folder-btn:hover,
 .recording-drive-link button:hover { border-color: #6b7280; color: #e2e8f0; }
 
-.recording-drive-btn:disabled { cursor: default; opacity: 0.5; }
+.recording-drive-btn:disabled,
+.recording-drive-folder-btn:disabled { cursor: default; opacity: 0.5; }
 
 .recording-drive-link {
   align-items: center;

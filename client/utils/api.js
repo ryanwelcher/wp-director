@@ -212,8 +212,15 @@ export const api = {
     return Boolean(data?.authed);
   },
 
-  async uploadToDrive(dirname) {
-    const data = await requestJSON("/api/drive/upload", postOptions({ dirname }));
+  // Fetches what the client-side Google Picker needs: a short-lived access
+  // token plus the browser API key and Cloud app id. Authed users only.
+  async getDriveToken({ signal } = {}) {
+    return requestJSON("/api/drive/token", { signal });
+  },
+
+  async uploadToDrive(dirname, folderId) {
+    const body = folderId ? { dirname, folderId } : { dirname };
+    const data = await requestJSON("/api/drive/upload", postOptions(body));
     return data?.webViewLink ?? null;
   },
 

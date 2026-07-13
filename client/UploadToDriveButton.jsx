@@ -2,11 +2,48 @@ import { useState } from 'react';
 import { toast } from 'react-toastify';
 import { api } from './utils/api.js';
 import { errorMessage } from './utils/actions.js';
+import { pickDriveFolder } from './utils/googlePicker.js';
+
+// Last-used Drive folder, remembered globally (id + name) so repeat uploads
+// skip the picker. Kept in localStorage per the Phase 2 plan.
+const FOLDER_KEY = 'wpdirector.driveFolder';
+
+function readRememberedFolder() {
+  try {
+    const raw = localStorage.getItem(FOLDER_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && parsed.id && parsed.name ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeRememberedFolder(folder) {
+  try {
+    localStorage.setItem(FOLDER_KEY, JSON.stringify(folder));
+  } catch {
+    /* storage unavailable — non-fatal, we just won't remember */
+  }
+}
 
 function DriveIcon() {
   return (
     <svg className="recording-action-icon" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor">
       <path d="M7.7 3.5 1.2 15l3.2 5.5 6.5-11.3zM22.8 15 16.3 3.5H9.9l6.5 11.5zM5.6 16 2.4 21.5h13l3.2-5.5z" />
+    </svg>
+  );
+}
+
+function FolderIcon() {
+  return (
+    <svg className="recording-action-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M3 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -21,34 +58,75 @@ function CopyIcon() {
 }
 
 /**
- * Phase 1 tracer: one-click upload of a recording to Google Drive.
+ * Phase 2: upload a recording to a user-chosen Google Drive folder.
  *
- * On first click, if the server reports no cached token, opens the OAuth flow in
- * a new tab and asks the user to sign in and click again. Once authed, uploads
- * to the hardcoded default folder, makes the file public, and surfaces the
- * shareable link with a Copy button.
+ * On first click, if the server has no cached token, opens the OAuth flow and
+ * asks the user to sign in and click again. Once authed, the first upload opens
+ * the Google Picker to choose a destination folder; that choice is remembered
+ * (localStorage) so later uploads go straight there. A secondary folder button
+ * re-opens the picker to change the destination. After upload the file is made
+ * public and its shareable link is shown with a Copy button.
  */
 export function UploadToDriveButton({ recording, disabled }) {
-  const [uploading, setUploading] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [link, setLink] = useState(null);
+  const [folder, setFolder] = useState(() => readRememberedFolder());
+
+  // Ensure we're signed in; if not, kick off OAuth and tell the user to retry.
+  async function ensureAuthed() {
+    const authed = await api.getDriveStatus();
+    if (!authed) {
+      window.open('/api/drive/oauth/start', '_blank', 'noopener');
+      toast.info('Sign in to Google Drive in the new tab, then click again.');
+      return false;
+    }
+    return true;
+  }
+
+  // Open the Picker and, if a folder is chosen, remember it. Returns the folder
+  // or null (cancelled).
+  async function chooseFolder() {
+    const { accessToken, apiKey, appId } = await api.getDriveToken();
+    const picked = await pickDriveFolder({ accessToken, apiKey, appId });
+    if (picked) {
+      setFolder(picked);
+      writeRememberedFolder(picked);
+    }
+    return picked;
+  }
 
   async function handleUpload() {
-    setUploading(true);
+    setBusy(true);
     try {
-      const authed = await api.getDriveStatus();
-      if (!authed) {
-        window.open('/api/drive/oauth/start', '_blank', 'noopener');
-        toast.info('Sign in to Google Drive in the new tab, then click Upload again.');
-        return;
+      if (!(await ensureAuthed())) return;
+
+      let destination = folder;
+      if (!destination) {
+        destination = await chooseFolder();
+        if (!destination) return; // user cancelled the picker
       }
-      const webViewLink = await api.uploadToDrive(recording.dirname);
+
+      const webViewLink = await api.uploadToDrive(recording.dirname, destination.id);
       if (!webViewLink) throw new Error('No link returned');
       setLink(webViewLink);
-      toast.success(`Uploaded "${recording.name}" to Google Drive.`);
+      toast.success(`Uploaded "${recording.name}" to "${destination.name}".`);
     } catch (err) {
       toast.error(errorMessage(err, 'Upload to Drive failed'));
     } finally {
-      setUploading(false);
+      setBusy(false);
+    }
+  }
+
+  async function handleChangeFolder() {
+    setBusy(true);
+    try {
+      if (!(await ensureAuthed())) return;
+      const picked = await chooseFolder();
+      if (picked) toast.success(`Drive destination set to "${picked.name}".`);
+    } catch (err) {
+      toast.error(errorMessage(err, 'Could not open the folder picker'));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -80,16 +158,34 @@ export function UploadToDriveButton({ recording, disabled }) {
     );
   }
 
+  const uploadTitle = folder
+    ? `Upload to Google Drive → ${folder.name}`
+    : 'Upload to Google Drive';
+
   return (
-    <button
-      className="recording-drive-btn recording-action-btn secondary"
-      type="button"
-      aria-label={`Upload ${recording.name} to Google Drive`}
-      title="Upload to Google Drive"
-      disabled={disabled || uploading}
-      onClick={handleUpload}
-    >
-      <DriveIcon />
-    </button>
+    <>
+      <button
+        className="recording-drive-btn recording-action-btn secondary"
+        type="button"
+        aria-label={`Upload ${recording.name} to Google Drive${folder ? ` (${folder.name})` : ''}`}
+        title={uploadTitle}
+        disabled={disabled || busy}
+        onClick={handleUpload}
+      >
+        <DriveIcon />
+      </button>
+      {folder && (
+        <button
+          className="recording-drive-folder-btn recording-action-btn secondary"
+          type="button"
+          aria-label={`Change Google Drive destination folder (currently ${folder.name})`}
+          title={`Change destination folder (currently ${folder.name})`}
+          disabled={disabled || busy}
+          onClick={handleChangeFolder}
+        >
+          <FolderIcon />
+        </button>
+      )}
+    </>
   );
 }

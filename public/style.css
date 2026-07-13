@@ -2172,6 +2172,7 @@ header p {
 .recording-download-btn,
 .recording-drive-btn,
 .recording-drive-folder-btn,
+.recording-drive-format-btn,
 .recording-drive-link button {
   align-items: center;
   background: transparent;
@@ -2189,6 +2190,15 @@ header p {
   width: 1.75rem;
 }
 
+/* Text pill (WEBM/MP4) rather than a fixed square icon button. */
+.recording-drive-format-btn {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 0 0.4rem;
+  width: auto;
+}
+
 .recording-action-icon {
   display: block;
   height: 0.95rem;
@@ -2199,10 +2209,12 @@ header p {
 .recording-download-btn:hover,
 .recording-drive-btn:hover,
 .recording-drive-folder-btn:hover,
+.recording-drive-format-btn:hover,
 .recording-drive-link button:hover { border-color: #6b7280; color: #e2e8f0; }
 
 .recording-drive-btn:disabled,
-.recording-drive-folder-btn:disabled { cursor: default; opacity: 0.5; }
+.recording-drive-folder-btn:disabled,
+.recording-drive-format-btn:disabled { cursor: default; opacity: 0.5; }
 
 .recording-drive-link {
   align-items: center;

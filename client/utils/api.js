@@ -218,8 +218,10 @@ export const api = {
     return requestJSON("/api/drive/token", { signal });
   },
 
-  async uploadToDrive(dirname, folderId) {
-    const body = folderId ? { dirname, folderId } : { dirname };
+  async uploadToDrive(dirname, folderId, format) {
+    const body = { dirname };
+    if (folderId) body.folderId = folderId;
+    if (format) body.format = format;
     const data = await requestJSON("/api/drive/upload", postOptions(body));
     return data?.webViewLink ?? null;
   },

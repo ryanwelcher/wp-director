@@ -8,6 +8,27 @@ import { pickDriveFolder } from './utils/googlePicker.js';
 // skip the picker. Kept in localStorage per the Phase 2 plan.
 const FOLDER_KEY = 'wpdirector.driveFolder';
 
+// Last-used upload format ('webm' | 'mp4'), remembered globally (Phase 3).
+// WebM uploads the raw capture instantly; MP4 transcodes first but shares more
+// widely. Default to WebM (fast).
+const FORMAT_KEY = 'wpdirector.driveFormat';
+
+function readRememberedFormat() {
+  try {
+    return localStorage.getItem(FORMAT_KEY) === 'mp4' ? 'mp4' : 'webm';
+  } catch {
+    return 'webm';
+  }
+}
+
+function writeRememberedFormat(format) {
+  try {
+    localStorage.setItem(FORMAT_KEY, format);
+  } catch {
+    /* storage unavailable — non-fatal, we just won't remember */
+  }
+}
+
 function readRememberedFolder() {
   try {
     const raw = localStorage.getItem(FOLDER_KEY);
@@ -71,6 +92,13 @@ export function UploadToDriveButton({ recording, disabled }) {
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState(null);
   const [folder, setFolder] = useState(() => readRememberedFolder());
+  const [format, setFormat] = useState(() => readRememberedFormat());
+
+  function toggleFormat() {
+    const next = format === 'mp4' ? 'webm' : 'mp4';
+    setFormat(next);
+    writeRememberedFormat(next);
+  }
 
   // Ensure we're signed in; if not, kick off OAuth and tell the user to retry.
   async function ensureAuthed() {
@@ -106,10 +134,10 @@ export function UploadToDriveButton({ recording, disabled }) {
         if (!destination) return; // user cancelled the picker
       }
 
-      const webViewLink = await api.uploadToDrive(recording.dirname, destination.id);
+      const webViewLink = await api.uploadToDrive(recording.dirname, destination.id, format);
       if (!webViewLink) throw new Error('No link returned');
       setLink(webViewLink);
-      toast.success(`Uploaded "${recording.name}" to "${destination.name}".`);
+      toast.success(`Uploaded "${recording.name}" (${format.toUpperCase()}) to "${destination.name}".`);
     } catch (err) {
       toast.error(errorMessage(err, 'Upload to Drive failed'));
     } finally {
@@ -158,12 +186,28 @@ export function UploadToDriveButton({ recording, disabled }) {
     );
   }
 
+  const isMp4 = format === 'mp4';
+  const formatLabel = format.toUpperCase(); // 'MP4' | 'WEBM'
+  const otherLabel = isMp4 ? 'WebM' : 'MP4';
+
   const uploadTitle = folder
-    ? `Upload to Google Drive → ${folder.name}`
-    : 'Upload to Google Drive';
+    ? `Upload to Google Drive → ${folder.name} (as ${formatLabel})`
+    : `Upload to Google Drive (as ${formatLabel})`;
 
   return (
     <>
+      <button
+        className="recording-drive-format-btn recording-action-btn secondary"
+        type="button"
+        aria-label={`Upload format: ${formatLabel} (click to switch to ${otherLabel})`}
+        title={isMp4
+          ? 'Format: MP4 (compatible) — click for WebM (fast)'
+          : 'Format: WebM (fast) — click for MP4 (compatible)'}
+        disabled={disabled || busy}
+        onClick={toggleFormat}
+      >
+        {formatLabel}
+      </button>
       <button
         className="recording-drive-btn recording-action-btn secondary"
         type="button"

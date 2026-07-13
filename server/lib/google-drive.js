@@ -161,10 +161,10 @@ async function getOrCreateUploadFolder(drive) {
  * can view) and return its share link. If no folderId is given, uploads to the
  * app-owned upload folder (created on first use).
  *
- * @param {{ filePath: string, name: string, mimeType: string, folderId?: string }} opts
+ * @param {{ filePath: string, name: string, mimeType: string, folderId?: string, description?: string }} opts
  * @returns {Promise<{ id: string, webViewLink: string }>}
  */
-async function uploadFile({ filePath, name, mimeType, folderId }) {
+async function uploadFile({ filePath, name, mimeType, folderId, description }) {
   const auth = getAuthClient();
   if (!auth) throw new Error('Not signed in to Google Drive.');
 
@@ -172,6 +172,8 @@ async function uploadFile({ filePath, name, mimeType, folderId }) {
 
   const parentId = folderId || await getOrCreateUploadFolder(drive);
   const requestBody = { name, parents: [parentId] };
+  // Drive `description` metadata — makes the file findable later (Phase 3).
+  if (description) requestBody.description = description;
 
   const created = await drive.files.create({
     requestBody,

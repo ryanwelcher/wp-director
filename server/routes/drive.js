@@ -15,7 +15,9 @@
  * (drive.file can't write into folders it didn't create).
  */
 
-const { findVideoFile } = require('../video');
+const fs = require('fs');
+const { findVideoFile, transcodeToTempMp4 } = require('../video');
+const { parseRecordingDirname } = require('./recordings');
 const drive = require('../lib/google-drive');
 
 // Filesystem-safe identifier only — rejects traversal before we touch disk.
@@ -29,6 +31,14 @@ function isSafeRecordingDirname(dirname) {
 // handing a client-supplied id to the Drive API as an upload parent.
 function isValidDriveFolderId(id) {
   return typeof id === 'string' && /^[a-zA-Z0-9_-]{10,}$/.test(id);
+}
+
+// Human-readable Drive `description`: the recording's step-definition name plus
+// when it was recorded, so uploaded files are findable later (Phase 3).
+function buildDescription(dirname) {
+  const { name, createdAt } = parseRecordingDirname(dirname);
+  const when = createdAt ? new Date(createdAt).toLocaleString() : null;
+  return when ? `${name} — recorded ${when}` : name;
 }
 
 function escapeHtml(str) {
@@ -90,12 +100,17 @@ function register(app) {
   });
 
   app.post('/api/drive/upload', async (req, res) => {
-    const { dirname, folderId } = req.body || {};
+    const { dirname, folderId, format } = req.body || {};
     if (!isSafeRecordingDirname(dirname)) {
       return res.status(400).json({ error: 'Invalid recording name.' });
     }
     if (folderId !== undefined && !isValidDriveFolderId(folderId)) {
       return res.status(400).json({ error: 'Invalid folder id.' });
+    }
+    // Default to the raw WebM (fast, no transcode). MP4 is the "compatible" path.
+    const uploadFormat = format === undefined ? 'webm' : format;
+    if (uploadFormat !== 'webm' && uploadFormat !== 'mp4') {
+      return res.status(400).json({ error: 'Invalid format.' });
     }
     if (!drive.isAuthed()) {
       return res.status(400).json({ error: 'Not signed in to Google Drive.' });
@@ -104,19 +119,35 @@ function register(app) {
     const found = findVideoFile(dirname);
     if (!found) return res.status(404).json({ error: 'Recording not found.' });
 
+    // For MP4 we transcode the canonical WebM to a temp file first (Drive's
+    // resumable upload wants a seekable file); delete it once we're done.
+    let tempMp4 = null;
     try {
+      let filePath = found.file;
+      let name = `${dirname}.${found.ext}`;
+      let mimeType = found.mime;
+      if (uploadFormat === 'mp4') {
+        tempMp4 = await transcodeToTempMp4(found.file);
+        filePath = tempMp4;
+        name = `${dirname}.mp4`;
+        mimeType = 'video/mp4';
+      }
+
       // With a Picker-selected folderId, uploads land there. Without one, they
       // fall back to the app-owned folder, created on first use. (drive.file
       // can't write into hand-made folders it didn't create.)
       const { webViewLink } = await drive.uploadFile({
-        filePath: found.file,
-        name: `${dirname}.${found.ext}`,
-        mimeType: found.mime,
+        filePath,
+        name,
+        mimeType,
         folderId,
+        description: buildDescription(dirname),
       });
       res.json({ webViewLink });
     } catch (err) {
       res.status(500).json({ error: err.message || 'Upload failed.' });
+    } finally {
+      if (tempMp4) fs.rm(tempMp4, { force: true }, () => {});
     }
   });
 }

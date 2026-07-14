@@ -370,6 +370,7 @@ function countingStream(filePath, onBytes) {
   const pass = new PassThrough();
   let sent = 0;
   pass.on('data', (chunk) => { sent += chunk.length; onBytes(sent); });
+  pass.on('close', () => source.destroy());
   source.on('error', (err) => pass.destroy(err));
   source.pipe(pass);
   return pass;

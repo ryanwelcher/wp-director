@@ -81,7 +81,8 @@ async function start() {
   await mountFrontend();
 
   app.listen(PORT, HOST, () => {
-    console.log(`WP Director at http://${HOST}:${PORT}`);
+    const displayHost = HOST.includes(':') ? `[${HOST}]` : HOST;
+    console.log(`WP Director at http://${displayHost}:${PORT}`);
 
     // Pre-warm both Playground slots so the first recording starts immediately
     // without waiting for a cold boot.

@@ -56,7 +56,7 @@ export function DriveAccount() {
         <button
           className="drive-account-signin"
           type="button"
-          onClick={() => window.open('/api/drive/oauth/start', '_blank', 'noopener')}
+          onClick={() => window.open('/api/drive/oauth/start', '_blank', 'noopener,noreferrer')}
         >
           Sign in to Google Drive
         </button>

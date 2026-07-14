@@ -40,6 +40,7 @@ export function DriveAccount() {
     mutationFn: () => api.signOutDrive(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.drive.status });
+      queryClient.removeQueries({ queryKey: queryKeys.drive.uploads });
       toast.success('Signed out of Google Drive.');
     },
     onError: (err) => {

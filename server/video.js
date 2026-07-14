@@ -112,10 +112,18 @@ function spawnMp4Transcode(inputPath, targetSize) {
  * so this materializes one in the OS temp dir. Rejects on ffmpeg failure.
  *
  * @param {string} inputPath
+ * @param {{ signal?: AbortSignal }} [opts]
  * @returns {Promise<string>} absolute path to the temp MP4
  */
-function transcodeToTempMp4(inputPath) {
+function transcodeToTempMp4(inputPath, opts = {}) {
+  const { signal } = opts;
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      const err = new Error('Transcode cancelled.');
+      err.name = 'AbortError';
+      reject(err);
+      return;
+    }
     const outPath = path.join(os.tmpdir(), `wp-director-${crypto.randomBytes(8).toString('hex')}.mp4`);
     const ff = spawn(ffmpegPath, [
       '-i', inputPath,
@@ -123,17 +131,40 @@ function transcodeToTempMp4(inputPath) {
       '-movflags', '+faststart',
       '-y', outPath,
     ]);
+    let abortTimer = null;
+    let aborted = false;
     // ffmpeg emits a progress line to stderr every second; keep only a bounded
     // tail (we surface at most the last 500 chars on failure) so long transcodes
     // don't grow this unbounded.
     let stderr = '';
     ff.stderr.on('data', (d) => { stderr = (stderr + d).slice(-2000); });
+    const onAbort = () => {
+      aborted = true;
+      ff.kill('SIGTERM');
+      abortTimer = setTimeout(() => {
+        ff.kill('SIGKILL');
+      }, 2000);
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+    function cleanup() {
+      signal?.removeEventListener('abort', onAbort);
+      if (abortTimer) clearTimeout(abortTimer);
+    }
     ff.on('error', (err) => {
-      fs.rm(outPath, { force: true }, () => reject(err));
+      cleanup();
+      const failure = aborted ? Object.assign(new Error('Transcode cancelled.'), { name: 'AbortError' }) : err;
+      fs.rm(outPath, { force: true }, () => reject(failure));
     });
     ff.on('close', (code) => {
+      cleanup();
       if (code === 0) return resolve(outPath);
       fs.rm(outPath, { force: true }, () => {
+        if (aborted || signal?.aborted) {
+          const err = new Error('Transcode cancelled.');
+          err.name = 'AbortError';
+          reject(err);
+          return;
+        }
         reject(new Error(`ffmpeg exited with code ${code}: ${stderr.slice(-500)}`));
       });
     });

@@ -226,7 +226,9 @@ export function UploadToDriveButton({ recording, disabled }) {
 
   // Prefer a just-uploaded link (immediate), otherwise fall back to one Drive
   // already has for this recording. Either one flips the row to the link view.
-  const effectiveLink = link || uploads?.[recording.dirname] || null;
+  const effectiveLink = driveStatus?.authed
+    ? (link || uploads?.[recording.dirname] || null)
+    : null;
 
   function toggleFormat() {
     const next = format === 'mp4' ? 'webm' : 'mp4';
@@ -252,16 +254,13 @@ export function UploadToDriveButton({ recording, disabled }) {
     setPhase('uploading');
     try {
       let destination = folder;
-      if (!destination) {
-        destination = await chooseFolder();
-        if (!destination) return; // user cancelled the picker
-      }
+      if (!destination) destination = await chooseFolder();
 
       const controller = new AbortController();
       uploadAbortRef.current = controller;
       setUploading(true);
       const webViewLink = await streamDriveUpload(
-        { dirname: recording.dirname, folderId: destination.id, format },
+        { dirname: recording.dirname, folderId: destination?.id, format },
         {
           signal: controller.signal,
           onProgress: setProgress,
@@ -272,7 +271,11 @@ export function UploadToDriveButton({ recording, disabled }) {
       // Keep the cross-session "already uploaded" map in sync with what we just
       // created, so a later refetch still shows this recording as uploaded.
       queryClient.invalidateQueries({ queryKey: queryKeys.drive.uploads });
-      toast.success(`Uploaded "${recording.name}" (${format.toUpperCase()}) to "${destination.name}".`);
+      toast.success(
+        destination
+          ? `Uploaded "${recording.name}" (${format.toUpperCase()}) to "${destination.name}".`
+          : `Uploaded "${recording.name}" (${format.toUpperCase()}) to Google Drive.`,
+      );
     } catch (err) {
       if (isAbortError(err)) {
         toast.info('Upload cancelled.');
@@ -316,9 +319,8 @@ export function UploadToDriveButton({ recording, disabled }) {
     }
   }
 
-  // Show a link (just-uploaded or one Drive already has) even if the status query
-  // is momentarily stale, but otherwise hide all upload controls unless signed
-  // in. Sign-in lives solely in the header — there's no per-row prompt anymore.
+  // Hide all Drive controls unless signed in. Sign-in lives solely in the header
+  // — there's no per-row prompt anymore.
   if (!effectiveLink && !driveStatus?.authed) return null;
 
   if (effectiveLink) {
@@ -375,11 +377,7 @@ export function UploadToDriveButton({ recording, disabled }) {
         <button
           className={`recording-drive-progress-btn recording-action-btn secondary${indeterminate ? ' indeterminate' : ''}`}
           type="button"
-          role="progressbar"
           aria-label={`Cancel uploading ${recording.name} to Google Drive`}
-          aria-valuenow={indeterminate ? undefined : pct}
-          aria-valuemin={indeterminate ? undefined : 0}
-          aria-valuemax={indeterminate ? undefined : 100}
           title={progressTitle}
           onClick={cancelUpload}
           style={indeterminate ? undefined : { '--drive-pct': `${pct}%` }}

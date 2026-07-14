@@ -3,10 +3,9 @@
  *
  * Phase 2: rather than list the user's Drive server-side (which would need the
  * broader `drive.readonly` scope), we run the Google Picker client-side. The
- * user browses their real Drive and picks a folder; because they explicitly
- * selected it, the narrow `drive.file` scope can then create the upload inside
- * it. The Picker needs a short-lived OAuth access token, which the server hands
- * out via `GET /api/drive/token`.
+ * user browses their Drive and picks a folder, and the server sends that chosen
+ * folder id with the later upload request. The Picker needs a short-lived OAuth
+ * access token, which the server hands out via `GET /api/drive/token`.
  */
 
 const GAPI_SRC = 'https://apis.google.com/js/api.js';

@@ -8,7 +8,7 @@
  *   GET  /api/drive/oauth/start    → 302 to Google consent screen
  *   GET  /api/drive/oauth/callback → exchanges code, caches token, closes tab
  *   POST /api/drive/signout        → revokes + clears the cached token
- *   POST /api/drive/upload         → { dirname, folderId?, format? } → SSE progress stream ending in { webViewLink }
+ *   POST /api/drive/upload         → { dirname, folderId?, format? } → SSE progress stream whose final `done` event includes { webViewLink }
  *
  * Phase 2: the client-side Google Picker lets the user pick any existing Drive
  * folder as the destination; the picked folderId is passed to upload. When no

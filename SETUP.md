@@ -52,25 +52,26 @@ Only needed if you want the **Upload to Drive** button on recordings. Skip other
 
 1. Go to the [Google Cloud Console](https://console.cloud.google.com/) and create (or pick) a project.
 2. **Enable the Google Drive API**: APIs & Services → Library → search "Google Drive API" → Enable.
-3. **Enable the Google Picker API**: APIs & Services → Library → search "Google Picker API" → Enable. (Used by the folder picker.)
-4. **Configure the OAuth consent screen** (External is fine for a personal tool); add your own Google account as a Test user so you can sign in while the app is unverified.
-5. **Create an OAuth client ID**: APIs & Services → Credentials → Create Credentials → OAuth client ID → **Web application**. Under *Authorized redirect URIs* add exactly:
+   The folder picker is a browser-side Google Picker library; it uses this same Cloud project plus the browser API key configured below.
+
+3. **Configure the OAuth consent screen** (External is fine for a personal tool); add your own Google account as a Test user so you can sign in while the app is unverified.
+4. **Create an OAuth client ID**: APIs & Services → Credentials → Create Credentials → OAuth client ID → **Web application**. Under *Authorized redirect URIs* add exactly:
 
    ```
    http://127.0.0.1:3000/api/drive/oauth/callback
    ```
 
    Copy the generated **Client ID** and **Client secret**.
-6. **Create a browser API key** (for the Picker): APIs & Services → Credentials → Create Credentials → **API key**. Copy it. (Optional but recommended: restrict it to the Google Picker API under *API restrictions*.)
-7. **Note your project number** (the Picker's "app ID"): the project number is shown on the Cloud Console **Dashboard** / project picker (a long integer, not the project *ID* slug).
-8. Add the values to `.env`:
+5. **Create a browser API key** (for the Picker): APIs & Services → Credentials → Create Credentials → **API key**. Copy it. (Optional but recommended: restrict it to the Google Picker API under *API restrictions*.)
+6. **Note your project number** (the Picker's "app ID"): the project number is shown on the Cloud Console **Dashboard** / project picker (a long integer, not the project *ID* slug).
+7. Add the values to `.env`:
 
    ```
    GOOGLE_CLIENT_ID=...
    GOOGLE_CLIENT_SECRET=...
    GOOGLE_REDIRECT_URI=http://127.0.0.1:3000/api/drive/oauth/callback
-   GOOGLE_API_KEY=...          # browser API key from step 6
-   GOOGLE_APP_ID=...           # project number from step 7
+   GOOGLE_API_KEY=...          # browser API key from step 5
+   GOOGLE_APP_ID=...           # project number from step 6
    ```
 
 Use the **Sign in to Google Drive** button in the app header to connect your account: a tab opens to sign in and grant access, then the token is cached in `.gdrive-token.json` (gitignored) and reused across restarts. The per-recording upload controls only appear once you're signed in. The first upload opens the **Google Picker** so you can choose any existing Drive folder as the destination. That choice is remembered locally, so later uploads go straight there — use the folder button next to **Upload to Drive** to change it.

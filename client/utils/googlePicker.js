@@ -56,7 +56,8 @@ async function loadPicker() {
  * @param {{ accessToken: string, apiKey: string, appId: string }} opts
  * @returns {Promise<{ id: string, name: string } | null>}
  */
-export async function pickDriveFolder({ accessToken, apiKey, appId }) {
+export async function pickDriveFolder(opts) {
+  const { accessToken, apiKey, appId } = opts;
   const picker = await loadPicker();
 
   return new Promise((resolve, reject) => {

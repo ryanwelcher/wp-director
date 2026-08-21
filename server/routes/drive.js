@@ -49,7 +49,9 @@ function hostnameOf(hostHeader) {
 // the account email and the POST routes act on the user's Drive.
 function driveHostGuard(req, res, next) {
   const hostname = hostnameOf(req.headers.host);
-  if (!hostname || !ALLOWED_HOSTS.has(hostname)) {
+  const remote = req.socket?.remoteAddress;
+  const isLoopbackRemote = remote === '127.0.0.1' || remote === '::1' || remote === '::ffff:127.0.0.1';
+  if (!isLoopbackRemote || !hostname || !ALLOWED_HOSTS.has(hostname)) {
     return res.status(403).json({ error: 'Forbidden host.' });
   }
   next();

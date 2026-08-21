@@ -254,8 +254,9 @@ export function UploadToDriveButton({ recording, disabled }) {
     setPhase('uploading');
     try {
       let destination = folder;
-      if (!destination) destination = await chooseFolder();
-
+      if (!destination) {
+        try { destination = await chooseFolder(); } catch { destination = null; }
+      }
       const controller = new AbortController();
       uploadAbortRef.current = controller;
       setUploading(true);

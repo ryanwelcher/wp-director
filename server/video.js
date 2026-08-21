@@ -12,10 +12,17 @@
  */
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
+const crypto = require('crypto');
 const { spawn } = require('child_process');
 const ffmpegPath = require('ffmpeg-static');
 const { OUTPUT_DIR } = require('./config');
+
+// Shared H.264 + AAC encode recipe for WebM→MP4. Kept in one place so the
+// streamed download MP4 and the Drive-uploaded MP4 stay identical — only the
+// container/streaming tail (fragmented+pipe vs faststart+file) differs.
+const MP4_CODEC_ARGS = ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-c:a', 'aac', '-b:a', '192k'];
 
 /**
  * @typedef {Object} VideoFile
@@ -87,13 +94,81 @@ function spawnMp4Transcode(inputPath, targetSize) {
   return spawn(ffmpegPath, [
     '-i', inputPath,
     ...scaleArgs,
-    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
-    '-c:a', 'aac', '-b:a', '192k',
+    ...MP4_CODEC_ARGS,
     // Required so MP4 atoms are streamable (moov before mdat).
     '-movflags', 'frag_keyframe+empty_moov+default_base_moof',
     '-f', 'mp4',
     'pipe:1',
   ]);
+}
+
+/**
+ * Transcode a WebM to a temporary MP4 file on disk (H.264 + AAC, `+faststart`
+ * so the moov atom leads and Drive's web player can stream it). Resolves the
+ * temp file path; the caller owns cleanup (delete it when the upload finishes).
+ *
+ * Unlike `spawnMp4Transcode` (which pipes to an HTTP response and never lands
+ * on disk), Drive's resumable upload wants a seekable file with a known size —
+ * so this materializes one in the OS temp dir. Rejects on ffmpeg failure.
+ *
+ * @param {string} inputPath
+ * @param {{ signal?: AbortSignal }} [opts]
+ * @returns {Promise<string>} absolute path to the temp MP4
+ */
+function transcodeToTempMp4(inputPath, opts = {}) {
+  const { signal } = opts;
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      const err = new Error('Transcode cancelled.');
+      err.name = 'AbortError';
+      reject(err);
+      return;
+    }
+    const outPath = path.join(os.tmpdir(), `wp-director-${crypto.randomBytes(8).toString('hex')}.mp4`);
+    const ff = spawn(ffmpegPath, [
+      '-i', inputPath,
+      ...MP4_CODEC_ARGS,
+      '-movflags', '+faststart',
+      '-y', outPath,
+    ]);
+    let abortTimer = null;
+    let aborted = false;
+    // ffmpeg emits a progress line to stderr every second; keep only a bounded
+    // tail (we surface at most the last 500 chars on failure) so long transcodes
+    // don't grow this unbounded.
+    let stderr = '';
+    ff.stderr.on('data', (d) => { stderr = (stderr + d).slice(-2000); });
+    const onAbort = () => {
+      aborted = true;
+      ff.kill('SIGTERM');
+      abortTimer = setTimeout(() => {
+        ff.kill('SIGKILL');
+      }, 2000);
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+    function cleanup() {
+      signal?.removeEventListener('abort', onAbort);
+      if (abortTimer) clearTimeout(abortTimer);
+    }
+    ff.on('error', (err) => {
+      cleanup();
+      const failure = aborted ? Object.assign(new Error('Transcode cancelled.'), { name: 'AbortError' }) : err;
+      fs.rm(outPath, { force: true }, () => reject(failure));
+    });
+    ff.on('close', (code) => {
+      cleanup();
+      if (code === 0) return resolve(outPath);
+      fs.rm(outPath, { force: true }, () => {
+        if (aborted || signal?.aborted) {
+          const err = new Error('Transcode cancelled.');
+          err.name = 'AbortError';
+          reject(err);
+          return;
+        }
+        reject(new Error(`ffmpeg exited with code ${code}: ${stderr.slice(-500)}`));
+      });
+    });
+  });
 }
 
 /**
@@ -114,4 +189,4 @@ function spawnWebmDownscale(inputPath, targetSize) {
   ]);
 }
 
-module.exports = { findVideoFile, probeVideoSize, spawnMp4Transcode, spawnWebmDownscale };
+module.exports = { findVideoFile, probeVideoSize, spawnMp4Transcode, transcodeToTempMp4, spawnWebmDownscale };

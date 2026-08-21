@@ -74,6 +74,10 @@ export const queryKeys = {
   },
   recordings: ["recordings"],
   scripts: ["scripts"],
+  drive: {
+    status: ["drive", "status"],
+    uploads: ["drive", "uploads"],
+  },
 };
 
 export const api = {
@@ -205,6 +209,45 @@ export const api = {
     const params = new URLSearchParams({ q });
     if (page !== 1) params.set("page", String(page));
     return requestJSON(`/api/themes/search?${params.toString()}`, { signal });
+  },
+
+  // Returns { authed, configured, email }. `email` is null when signed out or
+  // when the token predates the userinfo.email scope; `configured` is false when
+  // the OAuth env vars are absent (Phase 5).
+  async getDriveStatus({ signal } = {}) {
+    const data = await requestJSON("/api/drive/status", { signal });
+    return {
+      authed: Boolean(data?.authed),
+      configured: Boolean(data?.configured),
+      email: data?.email ?? null,
+    };
+  },
+
+  async signOutDrive() {
+    return requestJSON("/api/drive/signout", postOptions({}));
+  },
+
+  // Map of { dirname: webViewLink } for recordings already uploaded to the
+  // signed-in account's Drive. Empty when signed out.
+  async getDriveUploads({ signal } = {}) {
+    const data = await requestJSON("/api/drive/uploads", { signal });
+    return data?.uploads ?? {};
+  },
+
+  // Fetches what the client-side Google Picker needs: a short-lived access
+  // token plus the browser API key and Cloud app id. Authed users only.
+  async getDriveToken({ signal } = {}) {
+    return requestJSON("/api/drive/token", { signal });
+  },
+
+  // Phase 4: the upload streams progress as SSE. Returns the raw fetch Response
+  // so the caller can read the event stream (and abort it via `signal` to cancel
+  // the in-flight upload). Mirrors `startRun`.
+  startDriveUpload(dirname, folderId, format, signal) {
+    const body = { dirname };
+    if (folderId) body.folderId = folderId;
+    if (format) body.format = format;
+    return apiRequest("/api/drive/upload", postOptions(body, { signal }));
   },
 
   startRun(endpoint, body, signal) {

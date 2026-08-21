@@ -23,6 +23,9 @@ module.exports = {
   DISPOSABLE_OUTPUT_DIR,
   PREVIEW_OUTPUT_DIR:      DISPOSABLE_OUTPUT_DIR,
 
+  // Google Drive OAuth token cache (gitignored; parity with .env)
+  GDRIVE_TOKEN_FILE:   path.join(ROOT, '.gdrive-token.json'),
+
   // Blueprint files
   DEFAULT_BLUEPRINT:   path.join(ROOT, 'blueprints', 'blueprint.json'),           // checked-in default
   GENERATED_BLUEPRINT: path.join(ROOT, 'blueprints', 'blueprint.generated.json'), // last UI-customized (gitignored)

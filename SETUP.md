@@ -46,6 +46,40 @@ ANTHROPIC_API_KEY=your-anthropic-api-key-here
 
 The key is only used by the natural language UI (`npm start`). If you only want to run pre-written scripts, you can skip this step.
 
+**5. (Optional) Configure Google Drive upload**
+
+Only needed if you want the **Upload to Drive** button on recordings. Skip otherwise.
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/) and create (or pick) a project.
+2. **Enable the Google Drive API**: APIs & Services → Library → search "Google Drive API" → Enable.
+   The folder picker uses the browser-side Google Picker library from this same Cloud project; the Drive API enablement above is for the server-side Drive upload/list functionality.
+
+3. **Configure the OAuth consent screen** (External is fine for a personal tool); add your own Google account as a Test user so you can sign in while the app is unverified.
+4. **Create an OAuth client ID**: APIs & Services → Credentials → Create Credentials → OAuth client ID → **Web application**. Under *Authorized redirect URIs* add exactly:
+
+   ```
+   http://127.0.0.1:3000/api/drive/oauth/callback
+   ```
+
+   Copy the generated **Client ID** and **Client secret**.
+5. **Create a browser API key** (for the Picker): APIs & Services → Credentials → Create Credentials → **API key**. Copy it. (Optional but recommended: restrict it to the Google Picker API under *API restrictions*.)
+6. **Note your project number** (the Picker's "app ID"): the project number is shown on the Cloud Console **Dashboard** / project picker (a long integer, not the project *ID* slug).
+7. Add the values to `.env`:
+
+   ```
+   GOOGLE_CLIENT_ID=...
+   GOOGLE_CLIENT_SECRET=...
+   GOOGLE_REDIRECT_URI=http://127.0.0.1:3000/api/drive/oauth/callback
+   GOOGLE_API_KEY=...          # browser API key from step 5
+   GOOGLE_APP_ID=...           # project number from step 6
+   ```
+
+Use the **Sign in to Google Drive** button in the app header to connect your account: a tab opens to sign in and grant access, then the token is cached in `.gdrive-token.json` (gitignored) and reused across restarts. The per-recording upload controls only appear once you're signed in. The first upload opens the **Google Picker** so you can choose any existing Drive folder as the destination. That choice is remembered locally, so later uploads go straight there — use the folder button next to **Upload to Drive** to change it.
+
+Because the app uses the narrow `drive.file` scope, it can see and manage only the files **it** creates — never the rest of your Drive. When you choose a destination in the Picker, uploads target that folder; if you upload without picking a folder, files land in an app-owned folder named **WP Director Uploads** (rename via `GOOGLE_DRIVE_FOLDER_NAME`). Uploaded files are made **public (anyone with the link can view)**, so don't upload sensitive recordings.
+
+The app also requests the identity-only `userinfo.email` scope so it can show which Google account is connected in the header, next to a **Sign out** button. This scope grants no Drive access. Sign out revokes the token with Google and deletes the local `.gdrive-token.json`. If you configured the OAuth consent screen with an explicit scope list, add `.../auth/userinfo.email` there too. If you signed in before this scope was added, sign out once and back in for the account email to appear.
+
 ## Running
 
 **Start the natural language UI:**

@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .env
+.gdrive-token.json
 .idea/
 output/
 test-results/

@@ -36,6 +36,89 @@ header p {
   margin-top: 0.2rem;
 }
 
+/* Phase 5: Google Drive account status, pinned top-right and aligned with the
+   sidebar toggle (fixed, so it doesn't affect header flow). */
+.drive-account {
+  /* Height of one control, matched to the sidebar toggle (padding 0.4rem × 2 +
+     1rem line + 2px border) so the account controls are the same box as the
+     hamburger. */
+  --drive-ctl-h: calc(1.8rem + 2px);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  /* Pinned like the sidebar toggle and top-aligned with it, so the controls line
+     up with the hamburger in both signed-in and signed-out states. `right`
+     clears the fixed toggle at the header's top-right corner. */
+  position: fixed;
+  top: 0.85rem;
+  right: 4.25rem;
+  z-index: 300;
+}
+
+.drive-account-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: var(--drive-ctl-h);
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.drive-account-dot {
+  flex: 0 0 auto;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: #34d399;
+}
+
+.drive-account-signout,
+.drive-account-signin {
+  box-sizing: border-box;
+  height: var(--drive-ctl-h);
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  padding: 0 0.7rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.drive-account-signout {
+  background: transparent;
+  border: 1px solid #1e2433;
+  color: #94a3b8;
+}
+
+.drive-account-signout:hover:not(:disabled) {
+  border-color: #4b1c1c;
+  color: #fca5a5;
+}
+
+.drive-account-signout:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.drive-account-signin {
+  background: #1e3a5f;
+  border: 1px solid #2d557f;
+  color: #bae6fd;
+  font-weight: 500;
+}
+
+.drive-account-signin:hover {
+  background: #24466f;
+  border-color: #3b6ea5;
+  color: #e0f2fe;
+}
+
 /* Sidebar sections share a common summary style */
 .sidebar-content > details {
   border-bottom: 1px solid #1e2433;
@@ -2127,25 +2210,25 @@ header p {
   padding: 0.75rem 1.5rem 1rem;
 }
 
+/* Fully stacked, left-aligned: name, then meta, then the local file actions
+   (play/download/delete), then the Drive actions on their own row. Each is a
+   flex item in a column, so a row that renders nothing (e.g. Drive when signed
+   out) simply doesn't create a gap. */
 .recording-item {
-  align-items: center;
+  align-items: flex-start;
   border-bottom: 1px solid #1a2035;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   font-size: 0.85rem;
-  gap: 0.25rem 0.6rem;
-  grid-template-areas:
-    "name actions"
-    "meta actions";
-  grid-template-columns: minmax(0, 1fr) auto;
-  padding: 0.55rem 0;
+  gap: 0.35rem;
+  padding: 0.6rem 0;
 }
 
 .recording-item:last-child { border-bottom: none; }
 
 .recording-item-name {
   color: #cbd5e1;
-  grid-area: name;
-  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2157,19 +2240,40 @@ header p {
   flex-wrap: wrap;
   font-size: 0.75rem;
   gap: 0.25rem 0.6rem;
-  grid-area: meta;
   line-height: 1.35;
-  min-width: 0;
 }
 
 .recording-item-actions {
+  align-items: center;
   display: flex;
+  flex-wrap: wrap;
   gap: 0.4rem;
-  grid-area: actions;
 }
 
+/* Small muted caption that heads each button row ("Local" / "Drive") so the two
+   groups read as separate concerns. Fixed min-width so the first button lines up
+   vertically between the two rows. */
+.recording-action-group-label {
+  align-items: center;
+  color: #64748b;
+  display: inline-flex;
+  font-size: 0.62rem;
+  font-weight: 600;
+  gap: 0.28rem;
+  letter-spacing: 0.06em;
+  min-width: 3.4rem;
+  text-transform: uppercase;
+}
+
+.recording-action-group-label .recording-action-icon { height: 0.85rem; width: 0.85rem; }
+
 .recording-preview-btn,
-.recording-download-btn {
+.recording-download-btn,
+.recording-drive-btn,
+.recording-drive-link-btn,
+.recording-drive-folder-btn,
+.recording-drive-format-btn,
+.recording-drive-progress-btn {
   align-items: center;
   background: transparent;
   border: 1px solid #374151;
@@ -2186,6 +2290,20 @@ header p {
   width: 1.75rem;
 }
 
+/* Text pill (WEBM/MP4) rather than a fixed square icon button. */
+.recording-drive-format-btn {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 0 0.4rem;
+  width: auto;
+}
+
+/* The uploaded-state link opens Drive — tint it blue to distinguish "open link"
+   from the "upload" Drive glyph, even though both use the same icon. */
+.recording-drive-link-btn { border-color: #2f4a6d; color: #60a5fa; }
+.recording-drive-link-btn:hover { border-color: #60a5fa; color: #93c5fd; }
+
 .recording-action-icon {
   display: block;
   height: 0.95rem;
@@ -2193,7 +2311,68 @@ header p {
 }
 
 .recording-preview-btn:hover,
-.recording-download-btn:hover { border-color: #6b7280; color: #e2e8f0; }
+.recording-download-btn:hover,
+.recording-drive-btn:hover,
+.recording-drive-folder-btn:hover,
+.recording-drive-format-btn:hover { border-color: #6b7280; color: #e2e8f0; }
+
+.recording-drive-btn:disabled,
+.recording-drive-folder-btn:disabled,
+.recording-drive-format-btn:disabled { cursor: default; opacity: 0.5; }
+
+/* Drive actions sit on their own row below the local file actions (see
+   .recording-item). Icon-only, matching the play/download/delete buttons. */
+.recording-item-drive {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+/* Phase 4: in-flight upload progress. Replaces the Drive icon in place at a
+   fixed width, so the rest of the row never shifts. The button's own background
+   fills left-to-right as bytes upload; the percentage sits on top; hovering
+   swaps in an ✕ to make "click to cancel" discoverable. */
+.recording-drive-progress-btn {
+  --drive-pct: 0%;
+  cursor: pointer;
+  font-size: 0.6rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  min-width: 2.35rem;
+  overflow: hidden;
+  padding: 0 0.3rem;
+  position: relative;
+  width: auto;
+  /* Determinate fill: opaque up to --drive-pct, track colour beyond. */
+  background:
+    linear-gradient(to right, rgba(96, 165, 250, 0.35) var(--drive-pct), transparent var(--drive-pct));
+  border-color: #3b5a86;
+  color: #cbd5f5;
+}
+
+.recording-drive-progress-btn:hover {
+  border-color: #60a5fa;
+  color: #e2e8f0;
+}
+
+/* Indeterminate (transcode / retry / unknown size): sweep a highlight across. */
+.recording-drive-progress-btn.indeterminate {
+  background:
+    linear-gradient(100deg, transparent 20%, rgba(96, 165, 250, 0.4) 50%, transparent 80%)
+      0 0 / 220% 100% no-repeat;
+  animation: recording-drive-indeterminate 1.2s ease-in-out infinite;
+}
+
+@keyframes recording-drive-indeterminate {
+  0% { background-position: 130% 0; }
+  100% { background-position: -70% 0; }
+}
+
+.recording-drive-progress-btn .drive-progress-pct { display: block; }
+.recording-drive-progress-btn .drive-progress-x { display: none; }
+.recording-drive-progress-btn:hover .drive-progress-pct { display: none; }
+.recording-drive-progress-btn:hover .drive-progress-x { display: block; }
 
 .recording-download-wrap {
   display: inline-block;

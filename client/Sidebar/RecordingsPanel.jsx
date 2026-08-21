@@ -6,6 +6,7 @@ import { useRunState } from '../context/RunContext.jsx';
 import { errorMessage } from '../utils/actions.js';
 import { formatFileSize, formatTimestamp } from '../utils/formatters.js';
 import { useDeleteRecordingMutation } from '../utils/apiHooks.js';
+import { UploadToDriveButton } from '../UploadToDriveButton.jsx';
 import { SectionBadge } from './SectionBadge.jsx';
 import { TrashIcon } from './TrashIcon.jsx';
 
@@ -137,6 +138,7 @@ export function RecordingsPanel() {
                     {fileSize && <span>{fileSize}</span>}
                   </span>
                   <span className="recording-item-actions">
+                    <span className="recording-action-group-label">Local</span>
                     <button
                       className="recording-preview-btn recording-action-btn secondary"
                       type="button"
@@ -180,6 +182,7 @@ export function RecordingsPanel() {
                       <TrashIcon />
                     </button>
                   </span>
+                  <UploadToDriveButton recording={recording} disabled={running} />
                 </div>
               );
             })}

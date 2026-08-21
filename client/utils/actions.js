@@ -151,3 +151,7 @@ export function endPauseMs(value) {
 export function errorMessage(err, fallback = 'Something went wrong') {
   return err instanceof Error ? err.message : fallback;
 }
+
+export function isAbortError(err) {
+  return !!err && typeof err === 'object' && err.name === 'AbortError';
+}

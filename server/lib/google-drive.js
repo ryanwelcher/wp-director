@@ -79,7 +79,7 @@ function writeToken(tokens) {
  * @returns {import('google-auth-library').OAuth2Client | null}
  */
 function getAuthClient() {
-  const tokens = readToken();
+  let tokens = readToken();
   if (!tokens) return null;
 
   const client = createOAuthClient();
@@ -87,7 +87,8 @@ function getAuthClient() {
   // The SDK refreshes the access token from the refresh token as needed; persist
   // whatever it hands back so the cache stays current across restarts.
   client.on('tokens', (fresh) => {
-    writeToken({ ...tokens, ...fresh });
+    tokens = { ...tokens, ...fresh };
+    writeToken(tokens);
   });
   return client;
 }
